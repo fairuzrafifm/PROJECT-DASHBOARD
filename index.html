@@ -2010,7 +2010,7 @@ function delProc(){if(!confirm('Hapus?'))return;PROC=PROC.filter(p=>p.id!==editP
 // ═══════════════════════════════════════════════════════════════
 // GOOGLE SHEET
 // ═══════════════════════════════════════════════════════════════
-const GS_SCRIPT=`// ATW Solar Project Performance Dashboard — Google Apps Script v4
+const GS_SCRIPT=`// ATW Solar Project Performance Dashboard — Google Apps Script v5
 // PENTING: Ganti SHEET_ID lalu Deploy ulang sebagai Web App (Anyone can access)
 
 const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
@@ -2025,23 +2025,25 @@ function doPost(e) {
     const d = JSON.parse(raw);
     const ss = SpreadsheetApp.openById(SHEET_ID);
 
+    // Handle password update
+    if (d.action === 'updatePw') {
+      let cfg = ss.getSheetByName('_CONFIG') || ss.insertSheet('_CONFIG');
+      cfg.clearContents();
+      cfg.appendRow(['key','value']);
+      cfg.appendRow(['pw_admin', d.pw_admin || 'admin123']);
+      cfg.appendRow(['pw_editor', d.pw_editor || 'edit123']);
+      return makeOutput({status:'ok', msg:'Password updated'});
+    }
+
     if (d.action === 'sync') {
-      // Cek timestamp — hanya overwrite jika data yang dikirim LEBIH BARU
       const meta = ss.getSheetByName('_META');
       const currentTs = meta && meta.getLastRow() >= 2 ? (+meta.getRange(2,1).getValue() || 0) : 0;
       const incomingTs = d.lastSaved || 0;
 
       if (incomingTs < currentTs) {
-        // Data yang dikirim LEBIH LAMA dari yang ada di GSheet — tolak
-        return makeOutput({
-          status: 'rejected',
-          msg: 'Data lebih lama dari GSheet. Load dulu sebelum sync.',
-          currentTs: currentTs,
-          incomingTs: incomingTs
-        });
+        return makeOutput({status:'rejected',msg:'Data lebih lama dari GSheet.',currentTs,incomingTs});
       }
 
-      // Data lebih baru — aman untuk disimpan
       writeSheet(ss,'PROJECTS',d.projects,['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo']);
       writeSheet(ss,'HISTORY',d.history||[],['projId','kode','date','actual','plan','mp','notes']);
       writeSheet(ss,'ISSUES',d.issues||[],['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
@@ -2049,11 +2051,10 @@ function doPost(e) {
       writeSheet(ss,'MANPOWER_LOG',d.manpowerLogs||[],['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
       writeSheet(ss,'ACCIDENT_LOG',d.accidentLogs||[],['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
 
-      // Update metadata
       const metaSheet = ss.getSheetByName('_META') || ss.insertSheet('_META');
       metaSheet.clearContents();
       metaSheet.appendRow(['lastSaved','version','syncedBy']);
-      metaSheet.appendRow([incomingTs, '4.0', new Date().toISOString()]);
+      metaSheet.appendRow([incomingTs, '5.0', new Date().toISOString()]);
 
       return makeOutput({status:'ok', ts: new Date().toISOString(), saved: incomingTs});
     }
@@ -2068,8 +2069,16 @@ function doGet(e) {
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const meta = readSheet(ss,'_META');
     const lastSaved = meta.length > 0 ? (+meta[0].lastSaved || 0) : 0;
+
+    // Baca password dari _CONFIG
+    const cfgRows = readSheet(ss,'_CONFIG') || [];
+    const cfg = {};
+    cfgRows.forEach(r => { if(r.key) cfg[r.key] = r.value; });
+
     return makeOutput({
       lastSaved,
+      pw_admin:  cfg.pw_admin  || 'admin123',
+      pw_editor: cfg.pw_editor || 'edit123',
       projects:     readSheet(ss,'PROJECTS') || [],
       history:      readSheet(ss,'HISTORY') || [],
       issues:       readSheet(ss,'ISSUES') || [],
@@ -2107,7 +2116,9 @@ function saveGS(){
   if(!gsUrl){toast('URL Script wajib diisi','error');return;}
   gsOk=true;
   localStorage.setItem('atw_gs',JSON.stringify({url:gsUrl,sheet:gsSheet}));
-  updateGsBadge();cm('gsConfig');toast('Google Sheet tersambung ✓');
+  updateGsBadge();cm('gsConfig');
+  // Load password dari GSheet setelah tersambung
+  loadPwFromGS().then(()=>toast('✅ Google Sheet tersambung & password disinkronisasi'));
   if(P.length)gsSync();
 }
 async function testGS(){
@@ -2434,20 +2445,42 @@ function loadTheme(){
 // AUTH SYSTEM
 // ═══════════════════════════════════════════════════════════════
 // Default passwords — disimpan di localStorage, bisa diganti
-const DEFAULT_PW={admin:'admin123',editor:'edit123',viewer:'view123'};
+const DEFAULT_PW={admin:'admin123',editor:'edit123'};
+let gsPw={admin:'admin123',editor:'edit123'}; // loaded from GSheet
+
+function getPw(){
+  // Gabung: GSheet password (prioritas) dengan fallback localStorage
+  try{
+    const local=JSON.parse(localStorage.getItem('atw_pw')||'{}');
+    return {...DEFAULT_PW,...local,...gsPw};
+  }catch(e){return {...DEFAULT_PW,...gsPw};}
+}
+function getRolePw(role){
+  if(role==='viewer')return null; // viewer tidak perlu password
+  return getPw()[role]||DEFAULT_PW[role];
+}
+
+// Load password dari GSheet saat startup
+async function loadPwFromGS(){
+  if(!gsOk||!gsUrl)return;
+  try{
+    const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-cache'});
+    if(!r.ok)return;
+    const d=await r.json();
+    if(d.pw_admin)gsPw.admin=d.pw_admin;
+    if(d.pw_editor)gsPw.editor=d.pw_editor;
+    // Update localStorage cache juga
+    localStorage.setItem('atw_pw',JSON.stringify(gsPw));
+  }catch(e){
+    // Fallback ke localStorage
+    try{const lc=JSON.parse(localStorage.getItem('atw_pw')||'{}');if(lc.admin)gsPw.admin=lc.admin;if(lc.editor)gsPw.editor=lc.editor;}catch(e2){}
+  }
+}
+
 let currentRole=null; // 'admin' | 'editor' | 'viewer'
 let selectedRoleLogin=null;
 
-function getPw(){
-  try{return JSON.parse(localStorage.getItem('atw_pw')||'{}');}catch(e){return {};}
-}
-function getRolePw(role){
-  const saved=getPw();
-  return saved[role]||DEFAULT_PW[role];
-}
-
 function quickViewerLogin(){
-  // Viewer langsung masuk tanpa password
   currentRole='viewer';
   localStorage.setItem('atw_session',JSON.stringify({role:'viewer',ts:Date.now()}));
   $('authScreen').style.display='none';
@@ -2548,11 +2581,27 @@ function saveNewPw(){
   const cp=gv('cpConfPw').trim();
   if(np.length<4){toast('Password minimal 4 karakter','error');return;}
   if(np!==cp){toast('Konfirmasi password tidak sama','error');return;}
-  const pw=getPw();
-  pw[role]=np;
-  localStorage.setItem('atw_pw',JSON.stringify(pw));
+  // Update local
+  gsPw[role]=np;
+  localStorage.setItem('atw_pw',JSON.stringify({...gsPw}));
+  // Sync ke GSheet
+  if(gsOk&&gsUrl){
+    fetch(gsUrl,{
+      method:'POST',
+      body:JSON.stringify({action:'updatePw',pw_admin:gsPw.admin||DEFAULT_PW.admin,pw_editor:gsPw.editor||DEFAULT_PW.editor}),
+      headers:{'Content-Type':'text/plain;charset=utf-8'}
+    }).then(r=>r.json()).then(d=>{
+      if(d.status==='ok')toast(`✅ Password ${role} diupdate & tersinkronisasi ke semua browser!`);
+      else toast(`Password disimpan lokal. GSheet: ${d.msg||'error'}`, 'warn');
+    }).catch(()=>{
+      // Fallback no-cors
+      fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'updatePw',pw_admin:gsPw.admin||DEFAULT_PW.admin,pw_editor:gsPw.editor||DEFAULT_PW.editor}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
+      toast(`Password ${role} diupdate. Sync ke GSheet (no-cors mode).`,'warn');
+    });
+  }else{
+    toast(`✅ Password ${role} diubah. Sambungkan GSheet agar berlaku di semua browser.`,'warn');
+  }
   cm('changePw');
-  toast(`✓ Password ${role} berhasil diganti`);
 }
 
 function checkSession(){
@@ -2580,13 +2629,16 @@ function initAuth(){
     const saved=localStorage.getItem('atw_dash_logo');
     if(saved){const ai=$('authLogoImg');if(ai)ai.src=saved;}
   }catch(e){}
-  if(!checkSession()){
-    const as=$('authScreen');
-    if(as)as.style.cssText='position:fixed;inset:0;background:linear-gradient(135deg,#060a14 0%,#0a0f1e 50%,#0d1525 100%);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column';
-  }else{
-    autoLoadOnStart();loadDashLogo();loadTheme();initFromUrlParams();
-    setTimeout(()=>{loadLogosCache();render();},300);
-  }
+  // Load password dari GSheet dulu (async), lalu tampilkan login
+  loadPwFromGS().finally(()=>{
+    if(!checkSession()){
+      const as=$('authScreen');
+      if(as)as.style.cssText='position:fixed;inset:0;background:linear-gradient(135deg,#060a14 0%,#0a0f1e 50%,#0d1525 100%);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column';
+    }else{
+      autoLoadOnStart();loadDashLogo();loadTheme();initFromUrlParams();
+      setTimeout(()=>{loadLogosCache();render();},300);
+    }
+  });
 }
 initAuth();
 
