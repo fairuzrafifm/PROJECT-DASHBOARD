@@ -197,7 +197,40 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .hd{color:var(--mt);width:80px;flex-shrink:0;font-family:var(--fm);font-size:10px}
 .hn{color:var(--mt);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* MODAL */
+/* AUTH SCREEN */
+.auth-screen{position:fixed;inset:0;background:linear-gradient(135deg,#060a14 0%,#0a0f1e 50%,#0d1525 100%);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.auth-box{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:32px 36px;width:360px;max-width:95vw;animation:su .3s ease}
+.auth-logo{text-align:center;margin-bottom:24px}
+.auth-logo img{height:44px;filter:brightness(1.1)}
+.auth-title{font-family:var(--fd);font-size:20px;letter-spacing:3px;color:var(--tx);text-align:center;margin-bottom:4px}
+.auth-sub{font-size:11px;color:var(--mt);text-align:center;letter-spacing:2px;text-transform:uppercase;font-family:var(--fm);margin-bottom:24px}
+.auth-roles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
+.role-btn{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px 6px;cursor:pointer;text-align:center;transition:all .15s;user-select:none}
+.role-btn:hover{border-color:var(--atb)}
+.role-btn.selected{border-color:var(--or);background:rgba(249,115,22,.1)}
+.role-btn .role-ico{font-size:20px;margin-bottom:4px}
+.role-btn .role-name{font-size:11px;font-weight:600;color:var(--tx)}
+.role-btn .role-desc{font-size:9px;color:var(--mt);margin-top:2px}
+.auth-err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--rd);margin-bottom:12px;display:none;text-align:center}
+
+/* ROLE BADGES IN HEADER */
+.role-badge{border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:.5px}
+.rb-admin{background:rgba(239,68,68,.15);color:var(--rd);border:1px solid rgba(239,68,68,.3)}
+.rb-editor{background:rgba(249,115,22,.15);color:var(--or);border:1px solid rgba(249,115,22,.3)}
+.rb-viewer{background:rgba(100,116,139,.15);color:var(--mt);border:1px solid rgba(100,116,139,.3)}
+
+/* VIEWER MODE — hide edit buttons */
+body.viewer-mode .edit-only{display:none!important}
+body.viewer-mode .btn.bg:not(.view-ok){display:none!important}
+body.viewer-mode .btn.bp:not(.view-ok){display:none!important}
+body.viewer-mode .btn.brd{display:none!important}
+body.viewer-mode #btnUpd{display:none!important}
+body.viewer-mode .sbar .btn:not(.view-ok){display:none!important}
+body.viewer-mode input,body.viewer-mode select,body.viewer-mode textarea{pointer-events:none;opacity:.7}
+
+/* CHANGE PASSWORD MODAL */
+.pw-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+</style>
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(3px)}
 .ov.open{opacity:1;pointer-events:all}
 .modal{background:var(--sf);border:1px solid var(--bd);border-radius:14px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;padding:20px;animation:su .2s ease}
@@ -295,6 +328,9 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
   </div>
   <div class="hdr-right">
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Ganti tema">🌙 Gelap</button>
+    <div id="roleBadgeHdr" class="role-badge rb-viewer" style="display:none"></div>
+    <button class="btn btn-sm" id="btnChangePw" onclick="openModal('changePw')" style="display:none;border-color:var(--mt);color:var(--mt)" title="Ganti Password">🔐</button>
+    <button class="btn btn-sm brd" onclick="doLogout()" id="btnLogout" style="display:none">⏏ Logout</button>
     <div id="gsBadge" class="gs-badge gs-off" onclick="openModal('gsConfig')" title="Konfigurasi Google Sheets">📋 GSheet: —</div>
     <button class="btn bg btn-sm" onclick="openModal('addProj')">＋ Project</button>
     <button class="btn bp btn-sm" id="btnUpd" onclick="openModal('updProgress')" disabled>↑ Update</button>
@@ -911,6 +947,74 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
   </div>
 </div></div>
 
+<!-- ═══ AUTH SCREEN ═══ -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <img id="authLogoImg" src="" alt="ATW Solar" onerror="this.style.display='none'">
+    </div>
+    <div class="auth-title">PROJECT DASHBOARD</div>
+    <div class="auth-sub">ATW Solar · Silakan Login</div>
+
+    <div class="auth-roles" id="authRoles">
+      <div class="role-btn" id="rb-admin" onclick="selectRole('admin')">
+        <div class="role-ico">👑</div>
+        <div class="role-name">Admin</div>
+        <div class="role-desc">Akses penuh</div>
+      </div>
+      <div class="role-btn" id="rb-editor" onclick="selectRole('editor')">
+        <div class="role-ico">✏️</div>
+        <div class="role-name">Editor</div>
+        <div class="role-desc">Input & update</div>
+      </div>
+      <div class="role-btn" id="rb-viewer" onclick="selectRole('viewer')">
+        <div class="role-ico">👁️</div>
+        <div class="role-name">Viewer</div>
+        <div class="role-desc">Lihat saja</div>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label class="fl">Password</label>
+      <input class="fi" type="password" id="authPw" placeholder="Masukkan password..." onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="auth-err" id="authErr">Password salah. Coba lagi.</div>
+    <button class="btn bp" onclick="doLogin()" style="width:100%;justify-content:center;margin-top:4px;padding:10px">Masuk →</button>
+
+    <div style="text-align:center;margin-top:14px;font-size:10px;color:var(--mt)">
+      Default: Admin <span style="font-family:var(--fm)">admin123</span> · Editor <span style="font-family:var(--fm)">edit123</span> · Viewer <span style="font-family:var(--fm)">view123</span>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="ov" id="ov-changePw" onclick="if(event.target===this)cm('changePw')">
+<div class="modal" style="width:380px">
+  <div class="mtitle">🔐 GANTI PASSWORD<button class="mclose" onclick="cm('changePw')">✕</button></div>
+  <div style="background:var(--sf2);border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--mt)">
+    Ganti password untuk role: <span id="cpRoleName" style="color:var(--tx);font-weight:600"></span>
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Role</label>
+      <select class="fi" id="cpRole">
+        <option value="admin">👑 Admin</option>
+        <option value="editor">✏️ Editor</option>
+        <option value="viewer">👁️ Viewer</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Password Baru</label>
+      <input class="fi" type="password" id="cpNewPw" placeholder="Min. 4 karakter">
+    </div>
+  </div>
+  <div class="fg"><label class="fl">Konfirmasi Password</label>
+    <input class="fi" type="password" id="cpConfPw" placeholder="Ulangi password baru">
+  </div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('changePw')">Batal</button>
+    <button class="btn bp" onclick="saveNewPw()">💾 Simpan</button>
+  </div>
+</div></div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -932,13 +1036,7 @@ const $=id=>document.getElementById(id);
 const sv=(id,v)=>{const e=$(id);if(e)e.value=v;};
 const gv=id=>$(id)?.value||'';
 const show=id=>$(id)?.classList.add('open');
-function cm(t){
-  const m={addProj:'ov-addProj',updProgress:'ov-updProgress',inputMp:'ov-inputMp',
-    addAccident:'ov-addAccident',editWeather:'ov-editWeather',addIssue:'ov-addIssue',
-    addProc:'ov-addProc',gsConfig:'ov-gsConfig',import:'ov-import',
-    editMpLog:'ov-editMpLog',editHist:'ov-editHist',editAcc:'ov-editAcc'};
-  $(m[t]||'ov-'+t)?.classList.remove('open');
-}
+// cm() defined below in auth section
 function rv(inp,dv,bv){
   const v=$(inp).value;
   if(dv)$(dv).textContent=v+'%';
@@ -1625,6 +1723,7 @@ function saveProj(){
     logo:gv('fLogo')||''};
   if(editProjId){const i=P.findIndex(p=>p.id===editProjId);P[i]={...P[i],...d};toast('Project diupdate ✓');}
   else{d.id=Date.now();d.history=[];d.mpActual=0;P.push(d);selId=d.id;toast('Project ditambahkan ✓');}
+  saveLogosCache();
   dirty();cm('addProj');render();gsSync();
 }
 function delProj(){
@@ -1642,6 +1741,20 @@ function saveUpdate(){
   dirty();cm('updProgress');render();toast(`Progress: ${p.actual}% actual ✓`);gsSync();
 }
 // ── CLIENT LOGO HELPERS ─────────────────────────────────────
+// Logo disimpan TERPISAH dari data utama karena base64 terlalu besar untuk GSheet
+function saveLogosCache(){
+  try{
+    const logos={};
+    P.forEach(p=>{if(p.logo&&p.logo.startsWith('data:'))logos[p.id]=p.logo;});
+    localStorage.setItem('atw_logos',JSON.stringify(logos));
+  }catch(e){}
+}
+function loadLogosCache(){
+  try{
+    const logos=JSON.parse(localStorage.getItem('atw_logos')||'{}');
+    P.forEach(p=>{if(!p.logo&&logos[p.id])p.logo=logos[p.id];});
+  }catch(e){}
+}
 function previewClientLogo(input){
   const file=input.files[0];if(!file)return;
   if(file.size>307200){toast('Ukuran file terlalu besar (maks 300KB)','error');return;}
@@ -2071,13 +2184,29 @@ async function loadFromGS(){
     const d=JSON.parse(txt);
     if(d.status==='error')throw new Error(d.msg);
     if(d.projects&&d.projects.length>0){
-      P=d.projects.map(p=>({...p,plan:+p.plan||0,actual:+p.actual||0,mpPlan:+p.mpPlan||0,mpActual:+p.mpActual||0,mhPlan:+p.mhPlan||0,mdPlan:+p.mdPlan||+p.mpPlan||0,history:[]}));
+      // Simpan logo dari data lokal sebelum ditimpa GSheet
+      const localLogos={};
+      P.forEach(p=>{if(p.logo)localLogos[p.id]=p.logo;});
+      // Coba ambil logo dari localStorage cache terpisah
+      try{const lc=JSON.parse(localStorage.getItem('atw_logos')||'{}');Object.assign(localLogos,lc);}catch(e){}
+
+      P=d.projects.map(p=>({
+        ...p,
+        plan:+p.plan||0,actual:+p.actual||0,
+        mpPlan:+p.mpPlan||0,mpActual:+p.mpActual||0,
+        mhPlan:+p.mhPlan||0,mdPlan:+p.mdPlan||+p.mpPlan||0,
+        history:[],
+        // Restore logo: dari GSheet jika ada, fallback ke localStorage
+        logo: (p.logo&&p.logo.startsWith('data:'))?p.logo:(localLogos[p.id]||localLogos[String(p.id)]||'')
+      }));
       ISS=(d.issues||[]).filter(r=>r.uraian);
       PROC=(d.procurement||[]).filter(r=>r.item);
       MPLOGS=(d.manpowerLogs||[]).filter(r=>r.date).map(m=>({...m,total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0}));
       ACCLOGS=(d.accidentLogs||[]).filter(r=>r.date).map(a=>({...a,fatality:+a.fatality||0,lti:+a.lti||0,minorInjury:+a.minorInjury||0,medTreatment:+a.medTreatment||0,propertyDamage:+a.propertyDamage||0,fire:+a.fire||0,traffic:+a.traffic||0,environment:+a.environment||0,nearMiss:+a.nearMiss||0,timeLost:+a.timeLost||0}));
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
-      selId=P[0]?.id||null;saveLocal();clean('Google Sheet');render();
+      selId=P[0]?.id||null;
+      saveLocal();saveLogosCache();
+      clean('Google Sheet');render();
       toast('✓ '+P.length+' project dimuat dari Google Sheet');
     }else{
       $('sdot').style.background='var(--mt)';
@@ -2178,6 +2307,7 @@ async function autoLoadOnStart(){
   // LANGKAH 1: load dari localStorage dulu (instan, tidak butuh internet)
   const hasLocal = loadLocal();
   if(hasLocal){
+    loadLogosCache(); // restore logo dari cache terpisah
     selId=P[0]?.id||null;
     render();
     $('smsg').textContent='Data dimuat dari penyimpanan lokal';
@@ -2280,12 +2410,179 @@ function loadTheme(){
   }catch(e){}
 }
 
-autoLoadOnStart();
-loadDashLogo();
-loadTheme();
-initFromUrlParams();
+// ═══════════════════════════════════════════════════════════════
+// AUTH SYSTEM
+// ═══════════════════════════════════════════════════════════════
+// Default passwords — disimpan di localStorage, bisa diganti
+const DEFAULT_PW={admin:'admin123',editor:'edit123',viewer:'view123'};
+let currentRole=null; // 'admin' | 'editor' | 'viewer'
+let selectedRoleLogin=null;
 
-// ── AUTO-POLLING: load dari GSheet setiap 2 menit jika terhubung ──
+function getPw(){
+  try{return JSON.parse(localStorage.getItem('atw_pw')||'{}');}catch(e){return {};}
+}
+function getRolePw(role){
+  const saved=getPw();
+  return saved[role]||DEFAULT_PW[role];
+}
+
+function selectRole(role){
+  selectedRoleLogin=role;
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('selected'));
+  $('rb-'+role)?.classList.add('selected');
+  $('authPw').focus();
+  $('authErr').style.display='none';
+}
+
+function doLogin(){
+  if(!selectedRoleLogin){toast('Pilih role dulu','error');return;}
+  const pw=($('authPw')?.value||'').trim();
+  const correct=getRolePw(selectedRoleLogin);
+  if(pw===correct){
+    currentRole=selectedRoleLogin;
+    localStorage.setItem('atw_session',JSON.stringify({role:currentRole,ts:Date.now()}));
+    $('authScreen').style.display='none';
+    applyRole(currentRole);
+    // Init dashboard setelah login
+    autoLoadOnStart();
+    loadDashLogo();
+    loadTheme();
+    initFromUrlParams();
+    setTimeout(()=>{loadLogosCache();render();},300);
+  }else{
+    $('authErr').style.display='block';
+    $('authPw').value='';$('authPw').focus();
+    // Shake animation
+    const box=$('authScreen').querySelector('.auth-box');
+    box.style.animation='none';box.offsetHeight;
+    box.style.animation='shake .4s ease';
+  }
+}
+
+function applyRole(role){
+  const labels={admin:'👑 Admin',editor:'✏️ Editor',viewer:'👁️ Viewer'};
+  const cls={admin:'rb-admin',editor:'rb-editor',viewer:'rb-viewer'};
+  // Role badge di header
+  const badge=$('roleBadgeHdr');
+  if(badge){badge.textContent=labels[role]||role;badge.className='role-badge '+(cls[role]||'rb-viewer');badge.style.display='';}
+  // Tombol logout & change pw
+  $('btnLogout').style.display='';
+  // Hanya admin bisa ganti password
+  if($('btnChangePw'))$('btnChangePw').style.display=role==='admin'?'':'none';
+  // Apply viewer mode
+  if(role==='viewer'){
+    document.body.classList.add('viewer-mode');
+  }else{
+    document.body.classList.remove('viewer-mode');
+  }
+  // Sembunyikan tombol tertentu untuk editor (tidak bisa hapus project/data)
+  if(role==='editor'){
+    document.querySelectorAll('.brd').forEach(b=>{
+      if(!b.closest('.mfoot'))b.style.display='none'; // hapus di luar modal
+    });
+  }
+}
+
+function doLogout(){
+  if(!confirm('Yakin ingin logout?'))return;
+  currentRole=null;
+  localStorage.removeItem('atw_session');
+  document.body.classList.remove('viewer-mode');
+  $('roleBadgeHdr').style.display='none';
+  $('btnLogout').style.display='none';
+  if($('btnChangePw'))$('btnChangePw').style.display='none';
+  // Reset auth form
+  $('authPw').value='';
+  $('authErr').style.display='none';
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('selected'));
+  selectedRoleLogin=null;
+  $('authScreen').style.display='flex';
+}
+
+function saveNewPw(){
+  const role=gv('cpRole');
+  const np=gv('cpNewPw').trim();
+  const cp=gv('cpConfPw').trim();
+  if(np.length<4){toast('Password minimal 4 karakter','error');return;}
+  if(np!==cp){toast('Konfirmasi password tidak sama','error');return;}
+  const pw=getPw();
+  pw[role]=np;
+  localStorage.setItem('atw_pw',JSON.stringify(pw));
+  cm('changePw');
+  toast(`✓ Password ${role} berhasil diganti`);
+}
+
+function checkSession(){
+  // Cek apakah sudah login (session maks 8 jam)
+  try{
+    const s=JSON.parse(localStorage.getItem('atw_session')||'{}');
+    if(s.role&&(Date.now()-s.ts)<28800000){ // 8 jam
+      currentRole=s.role;
+      $('authScreen').style.display='none';
+      applyRole(currentRole);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+// Tambahkan shake animation CSS
+const shakeStyle=document.createElement('style');
+shakeStyle.textContent='@keyframes shake{0%,100%{transform:none}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}';
+document.head.appendChild(shakeStyle);
+
+// Update cm map untuk changePw
+const _origCm=cm;
+
+// Init: cek session atau tampilkan login
+function initAuth(){
+  // Set logo di auth screen
+  try{
+    const saved=localStorage.getItem('atw_dash_logo');
+    if(saved){const ai=$('authLogoImg');if(ai)ai.src=saved;}
+  }catch(e){}
+  if(!checkSession()){
+    // Tidak ada session — tampilkan login screen
+    $('authScreen').style.display='flex';
+    // Jangan panggil autoLoadOnStart dulu — tunggu login
+  }else{
+    // Sudah login — lanjut startup normal
+    autoLoadOnStart();
+    loadDashLogo();
+    loadTheme();
+    initFromUrlParams();
+    setTimeout(()=>{loadLogosCache();render();},300);
+  }
+}
+
+// Tambahkan changePw ke cm
+const _cmMap_auth={changePw:'ov-changePw'};
+function cm(t){
+  const m={addProj:'ov-addProj',updProgress:'ov-updProgress',inputMp:'ov-inputMp',
+    addAccident:'ov-addAccident',editWeather:'ov-editWeather',addIssue:'ov-addIssue',
+    addProc:'ov-addProc',gsConfig:'ov-gsConfig',import:'ov-import',
+    editMpLog:'ov-editMpLog',editHist:'ov-editHist',editAcc:'ov-editAcc',
+    changePw:'ov-changePw'};
+  $(m[t]||'ov-'+t)?.classList.remove('open');
+}
+
+// Override openModal untuk changePw
+const _origOpenModal=openModal;
+function openModal(type,id=null){
+  if(type==='changePw'){
+    sv('cpRole',currentRole==='admin'?'admin':'editor');
+    sv('cpNewPw','');sv('cpConfPw','');
+    $('ov-changePw')?.classList.add('open');
+    return;
+  }
+  _origOpenModal(type,id);
+}
+
+
+// ── STARTUP ──────────────────────────────────────────────────
+initAuth();
+
+// AUTO-POLLING
 setInterval(async()=>{
   if(!gsOk||!gsUrl)return;
   if(isDirty)return; // jangan overwrite kalau ada perubahan belum disimpan
