@@ -310,6 +310,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
     <span id="flabel" style="font-family:var(--fm);font-size:10px">Belum ada file</span>
   </div>
   <div style="display:flex;gap:6px">
+    <button class="btn btn-sm" style="border-color:var(--pu);color:var(--pu)" onclick="copyShareUrl()" id="btnShareUrl" title="Salin link untuk dibagikan ke tim">🔗 Share Link</button>
     <button class="btn btn-sm bgs" onclick="syncAllGS()" id="btnSync" style="display:none">↑ Sync GSheet</button>
     <button class="btn btn-sm bgs" onclick="loadFromGS()" id="btnLoad" style="display:none">↓ Load GSheet</button>
     <button class="btn btn-sm bb" onclick="triggerImport()">📂 Buka Excel</button>
@@ -793,6 +794,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
     <button class="btn bb" onclick="testGS()" style="flex:1;justify-content:center">🔗 Test Koneksi</button>
     <button class="btn bgs" onclick="copyGsScript()" style="flex:1;justify-content:center">📋 Salin Script</button>
   </div>
+  <button class="btn" onclick="copyShareUrl()" style="width:100%;justify-content:center;margin-bottom:10px;border-color:var(--pu);color:var(--pu)">🔗 Salin Link Share untuk Tim</button>
   <div id="gsTestRes" style="font-size:11px;margin-bottom:10px;padding:7px 10px;border-radius:6px;display:none"></div>
   <div class="mfoot">
     <button class="btn" onclick="cm('gsConfig')">Batal</button>
@@ -1015,6 +1017,8 @@ function updateGsBadge(){
   else{b.className='gs-badge gs-off';b.textContent='📋 GSheet: Setup';}
   $('btnSync').style.display=gsOk?'':'none';
   $('btnLoad').style.display=gsOk?'':'none';
+  const shareBtn=$('btnShareUrl');
+  if(shareBtn)shareBtn.style.display=gsOk?'':'none';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2166,7 +2170,41 @@ async function autoLoadOnStart(){
   }
 }
 
-// ── THEME ────────────────────────────────────────────────────
+// ── URL PARAMS AUTO-CONNECT ──────────────────────────────────
+function initFromUrlParams(){
+  try{
+    const params=new URLSearchParams(window.location.search);
+    const gsParam=params.get('gs');  // URL Apps Script
+    const shParam=params.get('sh');  // Sheet URL (opsional)
+    if(gsParam&&!gsOk){
+      // Auto-connect dari URL parameter
+      gsUrl=decodeURIComponent(gsParam);
+      gsSheet=shParam?decodeURIComponent(shParam):'';
+      gsOk=true;
+      localStorage.setItem('atw_gs',JSON.stringify({url:gsUrl,sheet:gsSheet}));
+      updateGsBadge();
+      // Bersihkan URL tanpa reload agar URL tidak tampil di address bar
+      const cleanUrl=window.location.pathname;
+      window.history.replaceState({},'',cleanUrl);
+      toast('✓ Google Sheet tersambung otomatis via link!');
+    }
+  }catch(e){console.log('URL param init:',e);}
+}
+
+function copyShareUrl(){
+  if(!gsOk||!gsUrl){toast('Setup Google Sheet dulu sebelum share link','warn');return;}
+  const base=window.location.origin+window.location.pathname;
+  const shareUrl=base+'?gs='+encodeURIComponent(gsUrl)+(gsSheet?'&sh='+encodeURIComponent(gsSheet):'');
+  navigator.clipboard?.writeText(shareUrl).then(()=>{
+    toast('✓ Link berhasil disalin! Bagikan ke tim Anda.');
+  }).catch(()=>{
+    // Fallback
+    const ta=document.createElement('textarea');
+    ta.value=shareUrl;document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+    toast('✓ Link disalin ke clipboard!');
+  });
+}
 function toggleTheme(){
   const isLight=document.documentElement.classList.toggle('light');
   const btn=$('themeBtn');
@@ -2186,6 +2224,7 @@ function loadTheme(){
 autoLoadOnStart();
 loadDashLogo();
 loadTheme();
+initFromUrlParams();
 </script>
 </body>
 </html>
