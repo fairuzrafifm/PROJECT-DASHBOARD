@@ -944,8 +944,8 @@ function rv(inp,dv,bv){
   if(dv)$(dv).textContent=v+'%';
   if(bv)$(bv).style.width=v+'%';
 }
-function saveLocal(){
-  try{localStorage.setItem('atw_data',JSON.stringify({P,I:ISS,PR:PROC,M:MPLOGS,A:ACCLOGS,ts:Date.now()}));}catch(e){}
+function saveLocal(ts){
+  try{localStorage.setItem('atw_data',JSON.stringify({P,I:ISS,PR:PROC,M:MPLOGS,A:ACCLOGS,ts:ts||Date.now()}));}catch(e){}
 }
 function loadLocal(){
   try{
@@ -961,7 +961,7 @@ function dirty(){
   $('sdot').classList.add('unsaved');
   $('smsg').textContent='Perubahan belum disimpan — Ctrl+S';
   $('sbar').classList.add('dirty');
-  saveLocal();
+  saveLocal(Date.now()); // timestamp = saat data diubah
 }
 function clean(f){
   isDirty=false;curFile=f||curFile;
@@ -1877,15 +1877,13 @@ function delProc(){if(!confirm('Hapus?'))return;PROC=PROC.filter(p=>p.id!==editP
 // ═══════════════════════════════════════════════════════════════
 // GOOGLE SHEET
 // ═══════════════════════════════════════════════════════════════
-const GS_SCRIPT=`// ATW Solar Project Performance Dashboard — Google Apps Script v3
+const GS_SCRIPT=`// ATW Solar Project Performance Dashboard — Google Apps Script v4
 // PENTING: Ganti SHEET_ID lalu Deploy ulang sebagai Web App (Anyone can access)
 
 const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
 
-// Handle CORS preflight request
 function doOptions(e) {
-  return ContentService.createTextOutput('')
-    .setMimeType(ContentService.MimeType.TEXT);
+  return ContentService.createTextOutput('').setMimeType(ContentService.MimeType.TEXT);
 }
 
 function doPost(e) {
@@ -1893,21 +1891,42 @@ function doPost(e) {
     const raw = e.postData ? e.postData.contents : '';
     const d = JSON.parse(raw);
     const ss = SpreadsheetApp.openById(SHEET_ID);
+
     if (d.action === 'sync') {
-      writeSheet(ss,'PROJECTS',d.projects,['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes']);
+      // Cek timestamp — hanya overwrite jika data yang dikirim LEBIH BARU
+      const meta = ss.getSheetByName('_META');
+      const currentTs = meta && meta.getLastRow() >= 2 ? (+meta.getRange(2,1).getValue() || 0) : 0;
+      const incomingTs = d.lastSaved || 0;
+
+      if (incomingTs < currentTs) {
+        // Data yang dikirim LEBIH LAMA dari yang ada di GSheet — tolak
+        return makeOutput({
+          status: 'rejected',
+          msg: 'Data lebih lama dari GSheet. Load dulu sebelum sync.',
+          currentTs: currentTs,
+          incomingTs: incomingTs
+        });
+      }
+
+      // Data lebih baru — aman untuk disimpan
+      writeSheet(ss,'PROJECTS',d.projects,['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo']);
       writeSheet(ss,'HISTORY',d.history||[],['projId','kode','date','actual','plan','mp','notes']);
       writeSheet(ss,'ISSUES',d.issues||[],['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
       writeSheet(ss,'PROCUREMENT',d.procurement||[],['id','projId','item','kategori','qty','satuan','supplier','due','status','notes']);
       writeSheet(ss,'MANPOWER_LOG',d.manpowerLogs||[],['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
       writeSheet(ss,'ACCIDENT_LOG',d.accidentLogs||[],['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
-      const meta = ss.getSheetByName('_META') || ss.insertSheet('_META');
-      meta.clearContents();
-      meta.appendRow(['lastSaved','version']);
-      meta.appendRow([d.lastSaved||Date.now(),'4.0']);
+
+      // Update metadata
+      const metaSheet = ss.getSheetByName('_META') || ss.insertSheet('_META');
+      metaSheet.clearContents();
+      metaSheet.appendRow(['lastSaved','version','syncedBy']);
+      metaSheet.appendRow([incomingTs, '4.0', new Date().toISOString()]);
+
+      return makeOutput({status:'ok', ts: new Date().toISOString(), saved: incomingTs});
     }
-    return makeOutput({status:'ok',ts:new Date().toISOString()});
+    return makeOutput({status:'error', msg:'Unknown action'});
   } catch(err) {
-    return makeOutput({status:'error',msg:err.toString()});
+    return makeOutput({status:'error', msg: err.toString()});
   }
 }
 
@@ -1915,18 +1934,18 @@ function doGet(e) {
   try {
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const meta = readSheet(ss,'_META');
-    const lastSaved = meta.length>0 ? (+meta[0].lastSaved||0) : 0;
+    const lastSaved = meta.length > 0 ? (+meta[0].lastSaved || 0) : 0;
     return makeOutput({
-      lastSaved: lastSaved,
-      projects:     readSheet(ss,'PROJECTS')||[],
-      history:      readSheet(ss,'HISTORY')||[],
-      issues:       readSheet(ss,'ISSUES')||[],
-      procurement:  readSheet(ss,'PROCUREMENT')||[],
-      manpowerLogs: readSheet(ss,'MANPOWER_LOG')||[],
-      accidentLogs: readSheet(ss,'ACCIDENT_LOG')||[],
+      lastSaved,
+      projects:     readSheet(ss,'PROJECTS') || [],
+      history:      readSheet(ss,'HISTORY') || [],
+      issues:       readSheet(ss,'ISSUES') || [],
+      procurement:  readSheet(ss,'PROCUREMENT') || [],
+      manpowerLogs: readSheet(ss,'MANPOWER_LOG') || [],
+      accidentLogs: readSheet(ss,'ACCIDENT_LOG') || [],
     });
   } catch(err) {
-    return makeOutput({status:'error',msg:err.toString()});
+    return makeOutput({status:'error', msg: err.toString()});
   }
 }
 
@@ -1935,7 +1954,7 @@ function writeSheet(ss, name, data, cols) {
   sh.clearContents();
   sh.appendRow(cols);
   if (data && data.length) {
-    data.forEach(row => sh.appendRow(cols.map(c => row[c]!==undefined ? row[c] : '')));
+    data.forEach(row => sh.appendRow(cols.map(c => row[c] !== undefined ? row[c] : '')));
   }
 }
 
@@ -1947,9 +1966,7 @@ function readSheet(ss, name) {
 }
 
 function makeOutput(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }`;
 
 function saveGS(){
@@ -2000,35 +2017,44 @@ async function syncAllGS(){
   if(btn){btn.textContent='⏳ Mengirim...';btn.disabled=true;}
   try{
     const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
-    const body=JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS});
+    // Gunakan timestamp dari localStorage sebagai lastSaved
+    const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
+    const body=JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS});
     const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
     if(r.ok){
       const txt=await r.text();
       try{
         const d=JSON.parse(txt);
         if(d.status==='ok'){
-          toast('✅ Data berhasil tersimpan di Google Sheet!');
-          $('smsg').textContent='Tersinkronisasi ke GSheet · '+new Date().toLocaleTimeString('id-ID');
+          toast('✅ Data tersimpan di Google Sheet!');
+          $('smsg').textContent='Tersinkronisasi · '+new Date().toLocaleTimeString('id-ID');
           $('sdot').style.background='var(--gn)';$('sdot').classList.remove('unsaved');
           isDirty=false;$('sbar').classList.remove('dirty');
+        }else if(d.status==='rejected'){
+          // GSheet punya data lebih baru — harus load dulu
+          toast('⚠ GSheet punya data lebih baru! Klik ↓ Load GSheet dulu, lalu sync ulang.','warn');
+          $('smsg').textContent='⚠ Conflict: GSheet lebih baru — klik Load GSheet';
+          // Tawari untuk auto-load
+          if(confirm('Google Sheet punya data yang lebih baru.\n\nLoad data dari GSheet sekarang? (data lokal akan digabung)')){
+            await loadFromGS();
+          }
         }else{
-          toast('⚠ GSheet response: '+(d.msg||'unknown'),'warn');
+          toast('⚠ GSheet: '+(d.msg||'unknown error'),'warn');
         }
       }catch(pe){
-        // Response tidak bisa di-parse tapi request berhasil
-        toast('✅ Data dikirim ke Google Sheet (no-cors mode)');
+        toast('📤 Data dikirim (no-cors mode — tidak bisa verifikasi)','warn');
       }
     }else{
       throw new Error('HTTP '+r.status);
     }
   }catch(e){
-    // Fallback no-cors
     try{
       const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
-      await fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
-      toast('📤 Data dikirim (verifikasi tidak tersedia). Coba Load GSheet untuk konfirmasi.','warn');
+      const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
+      await fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
+      toast('📤 Data dikirim (no-cors). Minta tim lain klik Load GSheet untuk update.','warn');
     }catch(e2){
-      toast('❌ Gagal sync: '+e.message+'. Cek koneksi internet & URL Apps Script.','error');
+      toast('❌ Gagal sync: '+e.message,'error');
     }
   }finally{
     if(btn){btn.textContent='↑ Sync GSheet';btn.disabled=false;}
