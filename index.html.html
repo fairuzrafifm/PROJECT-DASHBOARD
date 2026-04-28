@@ -1,0 +1,2103 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Performance Dashboard — ATW Solar</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0e1a;--sf:#111827;--sf2:#1a2235;--bd:#1e2d45;
+  --or:#f97316;--bl:#3b82f6;--gn:#10b981;--yw:#f59e0b;
+  --rd:#ef4444;--pu:#8b5cf6;--tx:#e2e8f0;--mt:#64748b;
+  --ib:#1e293b;--ibr:#3b4f6b;
+  --atb:#2d7ab5;--att:#1d6c7a;
+  --fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;--fm:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,#0a0f1e 0%,#0c1420 100%);border-bottom:2px solid var(--atb);padding:0 18px;display:flex;align-items:center;justify-content:space-between;height:56px;flex-shrink:0;position:relative;z-index:50}
+.hdr::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,var(--or) 50%,transparent 100%);opacity:.35}
+.logo-wrap{display:flex;align-items:center;gap:12px}
+.logo-img{height:34px;width:auto;object-fit:contain;filter:brightness(1.1) drop-shadow(0 0 6px rgba(255,255,255,.15));}
+.logo-edit-wrap:hover #logoEditOverlay{opacity:1!important}
+.logo-edit-wrap:hover .logo-img{opacity:.75}
+.logo-sep{width:1px;height:28px;background:var(--bd)}
+.dash-ttl{font-family:var(--fd);font-size:16px;letter-spacing:3px;color:var(--tx);line-height:1.1}
+.dash-sub{font-size:9px;color:var(--atb);letter-spacing:3px;text-transform:uppercase;font-family:var(--fm)}
+.hdr-mid{display:flex;flex-direction:column;align-items:center;gap:2px}
+.live-badge{background:var(--gn);color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:1px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.hdr-right{display:flex;gap:7px;align-items:center}
+.gs-badge{border-radius:6px;padding:3px 9px;font-size:10px;font-weight:600;cursor:pointer;transition:all .2s}
+.gs-on{background:rgba(16,185,129,.12);border:1px solid var(--gn);color:var(--gn)}
+.gs-off{background:rgba(100,116,139,.1);border:1px solid var(--mt);color:var(--mt)}
+.gs-on:hover,.gs-off:hover{border-color:var(--atb);color:var(--atb)}
+
+/* SAVE BAR */
+.sbar{background:#0b1710;border-bottom:1px solid #1a3820;padding:4px 18px;display:flex;align-items:center;justify-content:space-between;font-size:11px;flex-shrink:0;min-height:30px}
+.sbar.dirty{background:#18120a;border-bottom-color:#3d2d00}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--gn);flex-shrink:0}
+.sdot.unsaved{background:var(--yw);animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* BUTTONS */
+.btn{background:var(--sf2);border:1px solid var(--bd);color:var(--tx);padding:5px 12px;border-radius:6px;cursor:pointer;font-family:var(--fb);font-size:12px;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.btn:hover{border-color:var(--or);color:var(--or)}
+.btn:active{transform:scale(.97)}
+.btn-sm{padding:3px 9px;font-size:11px}
+.bp{background:var(--or);border-color:var(--or);color:#fff;font-weight:600}.bp:hover{background:#ea6c10;color:#fff;border-color:#ea6c10}
+.bg{background:rgba(16,185,129,.12);border-color:var(--gn);color:var(--gn);font-weight:600}.bg:hover{background:var(--gn);color:#fff}
+.bb{background:rgba(59,130,246,.12);border-color:var(--bl);color:var(--bl);font-weight:600}.bb:hover{background:var(--bl);color:#fff}
+.bgs{background:rgba(45,122,181,.12);border-color:var(--atb);color:var(--atb);font-weight:600}.bgs:hover{background:var(--atb);color:#fff}
+.brd{background:rgba(239,68,68,.1);border-color:var(--rd);color:var(--rd)}.brd:hover{background:var(--rd);color:#fff}
+
+/* TABS */
+.tabs{display:flex;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0;overflow-x:auto}
+.tab{padding:8px 15px;cursor:pointer;font-size:12px;font-weight:500;color:var(--mt);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;flex-shrink:0;user-select:none}
+.tab:hover{color:var(--tx)}
+.tab.active{color:var(--or);border-bottom-color:var(--or)}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:252px 1fr;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{background:var(--sf);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+.sb-head{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.sb-title{font-family:var(--fd);font-size:12px;letter-spacing:2px;color:var(--mt)}
+.proj-list{flex:1;overflow-y:auto;padding:6px}
+.pi{padding:9px 10px;border-radius:8px;border:1px solid transparent;cursor:pointer;margin-bottom:4px;transition:all .15s}
+.pi:hover{border-color:var(--bd);background:var(--sf2)}
+.pi.active{border-color:var(--or);background:rgba(249,115,22,.07)}
+.pi-name{font-weight:600;font-size:12px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pi-loc{font-size:10px;color:var(--mt);margin-bottom:4px}
+.pi-bar{height:3px;background:var(--sf2);border-radius:2px;overflow:hidden;margin-bottom:3px}
+.pi-fill{height:100%;border-radius:2px;transition:width .6s}
+.pi-meta{display:flex;justify-content:space-between;font-size:10px}
+.pill{font-size:9px;font-weight:600;padding:2px 6px;border-radius:10px;letter-spacing:.3px;white-space:nowrap}
+.p-on{background:rgba(16,185,129,.15);color:var(--gn);border:1px solid rgba(16,185,129,.25)}
+.p-del{background:rgba(245,158,11,.15);color:var(--yw);border:1px solid rgba(245,158,11,.25)}
+.p-crit{background:rgba(239,68,68,.15);color:var(--rd);border:1px solid rgba(239,68,68,.25)}
+.p-plan{background:rgba(59,130,246,.15);color:var(--bl);border:1px solid rgba(59,130,246,.25)}
+.p-done{background:rgba(139,92,246,.15);color:var(--pu);border:1px solid rgba(139,92,246,.25)}
+
+/* CONTENT */
+.content{overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.tp{display:none}.tp.active{display:contents}
+
+/* KPI */
+.krow{display:grid;gap:9px}
+.kpi{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px 13px;position:relative;overflow:hidden;transition:transform .15s}
+.kpi:hover{transform:translateY(-1px)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.ko::before{background:var(--or)}.kg::before{background:var(--gn)}.kb::before{background:var(--bl)}
+.ky::before{background:var(--yw)}.kr::before{background:var(--rd)}.kp::before{background:var(--pu)}
+.kl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--mt);margin-bottom:3px}
+.kv{font-family:var(--fd);font-size:22px;letter-spacing:1px;line-height:1}
+.ks{font-size:10px;color:var(--mt);margin-top:2px}
+
+/* CARDS */
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:13px}
+.ct{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--mt);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.metric{background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:10px;text-align:center}
+.mv{font-family:var(--fm);font-size:15px;font-weight:600;margin-bottom:2px}
+.ml{font-size:9px;text-transform:uppercase;color:var(--mt);letter-spacing:.5px}
+
+/* PROGRESS BAR */
+.pr{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.pl{font-size:11px;width:58px;color:var(--mt);flex-shrink:0}
+.pb{flex:1;height:9px;background:var(--sf2);border-radius:5px;overflow:hidden}
+.pf{height:100%;border-radius:5px;transition:width .7s}
+.pn{font-family:var(--fm);font-size:11px;width:34px;text-align:right;flex-shrink:0}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:11px}
+.tbl th{font-size:9px;text-transform:uppercase;letter-spacing:.7px;color:var(--mt);padding:5px 7px;text-align:left;border-bottom:1px solid var(--bd)}
+.tbl td{padding:6px 7px;border-bottom:1px solid rgba(30,45,69,.4)}
+.tbl tr:hover td{background:rgba(255,255,255,.02)}
+.tbl tr:last-child td{border-bottom:none}
+
+/* WEATHER */
+.wg{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.wi{background:var(--sf2);border-radius:7px;padding:8px;text-align:center}
+.wi-ico{font-size:18px;margin-bottom:2px}
+.wi-name{font-size:9px;color:var(--mt);margin-bottom:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wi-desc{font-size:10px;font-weight:500}
+
+/* PROCUREMENT */
+.proc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.proc-item{background:var(--sf2);border-radius:7px;padding:8px 11px;display:flex;align-items:center;justify-content:space-between}
+.proc-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-right:7px}
+.proc-lbl{font-size:11px;flex:1;display:flex;align-items:center}
+.proc-cnt{font-family:var(--fm);font-size:16px;font-weight:600}
+
+/* ACCIDENT */
+.acc-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:11px}
+.acc-row:last-child{border-bottom:none}
+.acc-val{font-family:var(--fm);font-weight:600}
+
+/* MANPOWER TABLE */
+.mp-hdr{display:grid;grid-template-columns:95px 1fr 45px 45px 50px 55px 55px 65px 65px 65px;gap:5px;padding:5px 0;border-bottom:1px solid var(--bd);font-size:9px;text-transform:uppercase;letter-spacing:.7px;color:var(--mt)}
+.mp-row{display:grid;grid-template-columns:95px 1fr 45px 45px 50px 55px 55px 65px 65px 65px;gap:5px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(30,45,69,.35);font-size:11px}
+.mp-row:last-child{border-bottom:none}
+.mp-bar{position:relative;height:13px;background:var(--sf2);border-radius:4px;overflow:hidden}
+.mp-bar-pl{position:absolute;top:0;left:0;height:100%;background:rgba(59,130,246,.25);border-radius:4px}
+.mp-bar-ac{position:absolute;top:0;left:0;height:100%;border-radius:4px;transition:width .7s}
+
+/* HISTORY */
+.hr{display:flex;gap:7px;align-items:center;padding:4px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:11px}
+.hr:last-child{border-bottom:none}
+.hd{color:var(--mt);width:80px;flex-shrink:0;font-family:var(--fm);font-size:10px}
+.hn{color:var(--mt);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* MODAL */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(3px)}
+.ov.open{opacity:1;pointer-events:all}
+.modal{background:var(--sf);border:1px solid var(--bd);border-radius:14px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;padding:20px;animation:su .2s ease}
+.modal.wide{width:620px}
+@keyframes su{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+.mtitle{font-family:var(--fd);font-size:16px;letter-spacing:2px;color:var(--or);margin-bottom:15px;display:flex;justify-content:space-between;align-items:center}
+.mclose{cursor:pointer;background:none;border:none;color:var(--mt);font-size:18px;padding:2px 7px;border-radius:4px;line-height:1}
+.mclose:hover{background:var(--sf2);color:var(--tx)}
+.mfoot{display:flex;gap:7px;justify-content:flex-end;margin-top:14px;padding-top:12px;border-top:1px solid var(--bd)}
+
+/* FORM */
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:9px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+.fl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--mt)}
+.fi{background:var(--ib);border:1px solid var(--ibr);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:var(--fb);font-size:13px;outline:none;transition:border-color .15s;width:100%}
+.fi:focus{border-color:var(--or)}
+.fi option{background:#1e293b}
+.fsec{font-family:var(--fd);font-size:11px;letter-spacing:2px;color:var(--mt);margin:11px 0 5px;border-top:1px solid var(--bd);padding-top:9px}
+.rr{display:flex;align-items:center;gap:8px}
+.rr input[type=range]{flex:1;accent-color:var(--or);cursor:pointer}
+.rv{font-family:var(--fm);font-size:12px;min-width:34px;text-align:right}
+.mb{height:4px;background:var(--sf2);border-radius:2px;overflow:hidden;margin-top:3px}
+.mf{height:100%;border-radius:2px;transition:width .2s}
+
+/* DROP */
+.dz{border:2px dashed var(--bd);border-radius:10px;padding:26px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:11px}
+.dz:hover,.dz.drag{border-color:var(--or);background:rgba(249,115,22,.04)}
+
+/* GS INFO BOX */
+.gs-info{background:rgba(45,122,181,.07);border:1px solid rgba(45,122,181,.25);border-radius:8px;padding:11px;margin-bottom:12px;font-size:11px;line-height:1.7;color:var(--mt)}
+
+/* TOAST */
+.toast{position:fixed;bottom:16px;right:16px;padding:10px 16px;border-radius:8px;font-weight:600;font-size:12px;z-index:500;transform:translateY(50px);opacity:0;transition:all .25s;pointer-events:none;max-width:320px}
+.toast.show{transform:none;opacity:1}
+.toast.success{background:var(--gn);color:#fff}
+.toast.error{background:var(--rd);color:#fff}
+.toast.warn{background:var(--yw);color:#000}
+
+.empty{text-align:center;padding:38px 20px;color:var(--mt)}
+
+/* PROJECT STATUS CARDS */
+.psc{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;transition:transform .15s,border-color .15s;cursor:pointer}
+.psc:hover{transform:translateY(-2px);border-color:rgba(249,115,22,.4)}
+.psc.crit{border-top:3px solid var(--rd);border-left:none}
+.psc.del{border-top:3px solid var(--yw);border-left:none}
+.psc.on{border-top:3px solid var(--gn);border-left:none}
+.psc.plan{border-top:3px solid var(--bl);border-left:none}
+.psc.done{border-top:3px solid var(--pu);border-left:none}
+.psc-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.psc-name{font-weight:700;font-size:15px;margin-bottom:4px;color:var(--tx)}
+.psc-loc{font-size:10px;color:var(--mt);display:flex;align-items:center;gap:4px}
+.psc-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;text-align:center}
+.psc-m{padding:6px 4px}
+.psc-mv{font-family:var(--fd);font-size:22px;letter-spacing:1px;line-height:1;margin-bottom:4px}
+.psc-ml{font-size:9px;text-transform:uppercase;color:var(--mt);letter-spacing:1px}
+.psc-bar-wrap{margin-bottom:7px}
+.psc-bar-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--mt);margin-bottom:4px}
+.psc-bar{height:6px;background:var(--sf2);border-radius:3px;overflow:hidden}
+.psc-bar-fill{height:100%;border-radius:3px;transition:width .8s ease}
+.psc-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);font-size:11px}
+.var-badge{padding:3px 9px;border-radius:4px;font-family:var(--fm);font-size:11px;font-weight:700}
+.var-neg{background:rgba(239,68,68,.18);color:var(--rd)}
+.var-pos{background:rgba(16,185,129,.18);color:var(--gn)}
+.var-zero{background:rgba(100,116,139,.15);color:var(--mt)}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.fade{animation:fi .25s ease}
+.dtop{display:flex;justify-content:space-between;align-items:flex-start}
+.dname{font-family:var(--fd);font-size:19px;letter-spacing:2px;margin-bottom:3px}
+.dmeta{font-size:11px;color:var(--mt);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="logo-wrap">
+    <div class="logo-edit-wrap" title="Klik untuk ganti logo" onclick="document.getElementById('dashLogoFile').click()" style="position:relative;cursor:pointer">
+      <img id="dashLogoImg" src="data:image/jpeg;base64,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" class="logo-img" alt="ATW Solar">
+      <div id="logoEditOverlay" style="position:absolute;inset:0;background:rgba(0,0,0,.55);border-radius:4px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;pointer-events:none">
+        <span style="color:#fff;font-size:10px;font-family:var(--fb);font-weight:600;background:rgba(249,115,22,.85);padding:3px 8px;border-radius:4px">✏ Ganti Logo</span>
+      </div>
+    </div>
+    <input type="file" id="dashLogoFile" accept="image/*" style="display:none" onchange="changeDashLogo(this)">
+    <button onclick="resetDashLogo()" title="Reset ke logo default ATW Solar" style="position:absolute;top:-4px;right:-4px;width:14px;height:14px;border-radius:50%;background:var(--rd);border:none;color:#fff;font-size:8px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1;padding:0" id="btnResetLogo">✕</button>
+    <div class="logo-sep"></div>
+    <div>
+      <div class="dash-ttl">Project Performance Dashboard</div>
+      <div class="dash-sub">ATW Solar · Portfolio Monitor</div>
+    </div>
+  </div>
+  <div class="hdr-mid">
+    <div class="live-badge">LIVE</div>
+    <div style="font-family:var(--fm);font-size:9px;color:var(--mt);margin-top:2px" id="liveDate"></div>
+  </div>
+  <div class="hdr-right">
+    <div id="gsBadge" class="gs-badge gs-off" onclick="openModal('gsConfig')" title="Konfigurasi Google Sheets">📋 GSheet: —</div>
+    <button class="btn bg btn-sm" onclick="openModal('addProj')">＋ Project</button>
+    <button class="btn bp btn-sm" id="btnUpd" onclick="openModal('updProgress')" disabled>↑ Update</button>
+  </div>
+</div>
+
+<!-- SAVE BAR -->
+<div class="sbar" id="sbar">
+  <div style="display:flex;align-items:center;gap:7px;color:var(--mt)">
+    <div class="sdot" id="sdot"></div>
+    <span id="smsg">Siap</span>
+    <span style="color:var(--bd)">|</span>
+    <span id="flabel" style="font-family:var(--fm);font-size:10px">Belum ada file</span>
+  </div>
+  <div style="display:flex;gap:6px">
+    <button class="btn btn-sm bgs" onclick="syncAllGS()" id="btnSync" style="display:none">↑ Sync GSheet</button>
+    <button class="btn btn-sm bgs" onclick="loadFromGS()" id="btnLoad" style="display:none">↓ Load GSheet</button>
+    <button class="btn btn-sm bb" onclick="triggerImport()">📂 Buka Excel</button>
+    <button class="btn btn-sm bg" onclick="exportExcel()">💾 Simpan Excel</button>
+    <input type="file" id="fileIn" accept=".xlsx" style="display:none" onchange="importExcel(event)">
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="sw('overview',this)">🗂 Portfolio Overview</div>
+  <div class="tab" onclick="sw('projects',this)">📊 Projects</div>
+  <div class="tab" onclick="sw('manpower',this)">👷 Manpower</div>
+  <div class="tab" onclick="sw('issues',this)">⚠️ Issues<span id="ibadge" style="background:var(--rd);color:#fff;border-radius:10px;padding:0 5px;font-size:9px;font-weight:700;margin-left:3px"></span></div>
+  <div class="tab" onclick="sw('procurement',this)">📦 Procurement</div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-head">
+      <div class="sb-title">PROJECTS (<span id="pcount">0</span>)</div>
+      <button class="btn btn-sm bg" onclick="openModal('addProj')" style="padding:2px 7px">＋</button>
+    </div>
+    <div class="proj-list" id="projList"></div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- ══ PORTFOLIO OVERVIEW ══ -->
+    <div id="tp-overview" class="tp active">
+      <!-- KPI TOP ROW: 5 cards -->
+      <div class="krow" style="grid-template-columns:repeat(5,1fr)">
+        <div class="kpi ko"><div class="kl">Total Projects</div><div class="kv" id="ov1" style="color:var(--or)">0</div><div class="ks">Active portfolio</div></div>
+        <div class="kpi kb"><div class="kl">Total Manhours Hari Ini</div><div class="kv" id="ov2" style="color:var(--bl)">0</div><div class="ks" id="ov2s">Plan: 0 jam</div></div>
+        <div class="kpi" style="background:var(--sf);border-color:var(--bd)">
+          <div class="kl">Status Portfolio</div>
+          <div style="display:flex;gap:8px;align-items:baseline;margin-top:4px;flex-wrap:wrap">
+            <span><span style="font-family:var(--fd);font-size:20px;color:var(--gn)" id="ovOT">0</span><span style="font-size:9px;color:var(--gn);margin-left:3px">OT</span></span>
+            <span><span style="font-family:var(--fd);font-size:20px;color:var(--yw)" id="ovDL">0</span><span style="font-size:9px;color:var(--yw);margin-left:3px">DEL</span></span>
+            <span><span style="font-family:var(--fd);font-size:20px;color:var(--rd)" id="ovCR">0</span><span style="font-size:9px;color:var(--rd);margin-left:3px">CRIT</span></span>
+          </div>
+        </div>
+        <div class="kpi kr"><div class="kl">Open Issues</div><div class="kv" id="ov4" style="color:var(--rd)">0</div><div class="ks">All projects</div></div>
+        <div class="kpi ky"><div class="kl">Total Time Lost</div><div class="kv" id="ov5" style="color:var(--yw)">0 hr</div><div class="ks">Acc + Weather</div></div>
+      </div>
+
+      <!-- PROJECT STATUS CARDS -->
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:24px;height:2px;background:var(--or)"></div>
+          <div style="font-family:var(--fd);font-size:13px;letter-spacing:2px;color:var(--mt)">PROJECT STATUS CARDS</div>
+        </div>
+        <div id="projStatusCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px"></div>
+      </div>
+
+      <!-- 3-panel row: Weather · Accident · Procurement -->
+      <div class="g3">
+        <!-- WEATHER -->
+        <div class="card">
+          <div class="ct">🌤 WEATHER — ALL SITES <span style="color:var(--gn);animation:pulse 2s infinite;font-size:10px">● LIVE</span></div>
+          <div class="wg" id="weatherGrid"></div>
+          <div style="margin-top:9px;text-align:right">
+            <button class="btn btn-sm" onclick="openModal('editWeather')">✏ Edit Cuaca</button>
+          </div>
+        </div>
+
+        <!-- ACCIDENT LOG -->
+        <div class="card">
+          <div class="ct">🦺 ACCIDENT LOG — PORTFOLIO
+            <button class="btn btn-sm bp" onclick="openModal('addAccident')">＋ Input</button>
+          </div>
+          <div id="accLog"></div>
+          <div style="margin-top:7px;padding-top:7px;border-top:1px solid var(--bd)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+              <span style="font-size:10px;color:var(--mt)">Accident Time Lost</span>
+              <span id="tltAcc" style="font-family:var(--fm);color:var(--rd);font-weight:600">0 hrs</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+              <span style="font-size:10px;color:var(--mt)">Weather/Lainnya</span>
+              <span id="tltMp" style="font-family:var(--fm);color:var(--yw);font-weight:600">0 hrs</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-top:4px;border-top:1px dashed var(--bd)">
+              <span style="font-size:10px;color:var(--mt);font-weight:600">Total Time Lost</span>
+              <span id="tlt" style="font-family:var(--fm);color:var(--rd);font-weight:700">0 hrs</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROCUREMENT STATUS -->
+        <div class="card">
+          <div class="ct">📦 PROCUREMENT STATUS</div>
+          <div class="proc-grid" id="procGrid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PROJECTS ══ -->
+    <div id="tp-projects" class="tp">
+      <div class="krow" style="grid-template-columns:repeat(5,1fr)">
+        <div class="kpi ko"><div class="kl">Total</div><div class="kv" id="pk1" style="color:var(--or)">0</div></div>
+        <div class="kpi ky"><div class="kl">SPI Portfolio</div><div class="kv" id="pk2" style="color:var(--yw)">—</div><div class="ks" id="pk2s">Schedule Performance</div></div>
+        <div class="kpi kb"><div class="kl">Total Workers Hari Ini</div><div class="kv" id="pk3" style="color:var(--bl)">0</div><div class="ks" id="pk3s"></div></div>
+        <div class="kpi kr"><div class="kl">Critical Projects</div><div class="kv" id="pk4" style="color:var(--rd)">0</div><div class="ks" id="pk4s">Perlu perhatian</div></div>
+        <div class="kpi kr"><div class="kl">Open Issues</div><div class="kv" id="pk5" style="color:var(--rd)">0</div></div>
+      </div>
+      <div id="detail">
+        <div class="empty">
+          <div style="font-size:38px;opacity:.3;margin-bottom:10px">📊</div>
+          <div style="font-size:13px;margin-bottom:5px">Pilih project dari sidebar</div>
+          <div style="font-size:11px;margin-bottom:13px">atau load data dari Google Sheet / file Excel</div>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+            <button class="btn bgs" onclick="openModal('gsConfig')">⚙ Setup Google Sheet</button>
+            <button class="btn bb" onclick="triggerImport()">📂 Buka Excel</button>
+            <button class="btn bg" onclick="openModal('addProj')">＋ Project Baru</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ MANPOWER ══ -->
+    <div id="tp-manpower" class="tp">
+      <div class="krow" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi kb"><div class="kl">Pekerja Hari Ini</div><div class="kv" id="mp1" style="color:var(--bl)">0</div><div class="ks" id="mp1s"></div></div>
+        <div class="kpi kg"><div class="kl">Mandays Actual</div><div class="kv" id="mp2" style="color:var(--gn)">0</div><div class="ks" id="mp2s">Plan: 0 MD</div></div>
+        <div class="kpi ky"><div class="kl">Variance Mandays</div><div class="kv" id="mp3" style="color:var(--yw)">0</div><div class="ks" id="mp3s">—</div></div>
+        <div class="kpi kr"><div class="kl">Time Lost Total</div><div class="kv" id="mp4" style="color:var(--rd)">0 hr</div><div class="ks">Semua project</div></div>
+      </div>
+
+      <!-- Plan vs Actual table -->
+      <div class="card">
+        <div class="ct">DATA PEKERJA & MANHOURS — HARI INI
+          <button class="btn btn-sm bg" onclick="openModal('inputMp')">＋ Input Harian</button>
+        </div>
+        <div class="mp-hdr"><div>Project</div><div>Mandays (Actual vs Plan)</div><div>SPV</div><div>Mdr</div><div>Inst</div><div>Tukang</div><div>Helper</div><div>Safety</div><div>Hari Ini</div><div>Time Lost</div></div>
+        <div id="mpTable"></div>
+      </div>
+
+      <!-- Manhour trend 7 hari -->
+      <div class="card">
+        <div class="ct">MANHOUR TREND — TOTAL PORTFOLIO
+          <select class="fi" style="width:auto;padding:3px 8px;font-size:11px" id="mpTrendWeek" onchange="renderMP()">
+            <option value="0">Minggu Ini (7 hari terakhir)</option>
+            <option value="1">Minggu Lalu</option>
+            <option value="2">2 Minggu Lalu</option>
+            <option value="3">3 Minggu Lalu</option>
+            <option value="4">4 Minggu Lalu</option>
+          </select>
+        </div>
+        <div id="mpTrend"></div>
+      </div>
+
+      <!-- Edit Log History -->
+      <div class="card">
+        <div class="ct">RIWAYAT INPUT MANPOWER — EDIT / HAPUS
+          <select class="fi" style="width:auto;padding:3px 8px;font-size:11px" id="mpLogFiltProj" onchange="renderMpLog()">
+            <option value="">Semua Project</option>
+          </select>
+        </div>
+        <div id="mpLogTable" style="overflow-x:auto;max-height:280px"></div>
+      </div>
+
+    </div>
+
+    <!-- ══ ISSUES ══ -->
+    <div id="tp-issues" class="tp">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <select class="fi" style="width:auto;padding:4px 9px;font-size:11px" id="ifProj" onchange="renderIssues()"><option value="">Semua Project</option></select>
+          <select class="fi" style="width:auto;padding:4px 9px;font-size:11px" id="ifPri" onchange="renderIssues()"><option value="">Semua Prioritas</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select>
+          <select class="fi" style="width:auto;padding:4px 9px;font-size:11px" id="ifStat" onchange="renderIssues()"><option value="">Semua Status</option><option>Open</option><option>In Progress</option><option>Monitoring</option><option>Closed</option></select>
+        </div>
+        <button class="btn bg btn-sm" onclick="openModal('addIssue')">＋ Tambah Issue</button>
+      </div>
+      <div class="krow" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi kr"><div class="kl">Critical</div><div class="kv" id="ic1" style="color:var(--rd)">0</div></div>
+        <div class="kpi ky"><div class="kl">Open</div><div class="kv" id="ic2" style="color:var(--yw)">0</div></div>
+        <div class="kpi kb"><div class="kl">In Progress</div><div class="kv" id="ic3" style="color:var(--bl)">0</div></div>
+        <div class="kpi kg"><div class="kl">Closed</div><div class="kv" id="ic4" style="color:var(--gn)">0</div></div>
+      </div>
+      <div class="card"><div class="ct">ISSUE TRACKER</div><div id="issueTable" style="overflow-x:auto"></div></div>
+    </div>
+
+    <!-- ══ PROCUREMENT ══ -->
+    <div id="tp-procurement" class="tp">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <select class="fi" style="width:auto;padding:4px 9px;font-size:11px" id="procFiltProj" onchange="renderProc()">
+            <option value="">Semua Project</option>
+          </select>
+          <select class="fi" style="width:auto;padding:4px 9px;font-size:11px" id="procFilt" onchange="renderProc()">
+            <option value="">Semua Status</option>
+            <option>Overdue</option><option>Due Today</option><option>In Transit</option>
+            <option>On Site</option><option>Waiting Approval</option><option>PO Issued</option>
+          </select>
+          <select class="fi" style="width:auto;padding:4px 9px;font-size:11px" id="procFiltKat" onchange="renderProc()">
+            <option value="">Semua Kategori</option>
+            <option>Equipment</option><option>Material</option><option>Civil</option><option>Service</option>
+          </select>
+          <input class="fi" style="width:160px;padding:4px 9px;font-size:11px" id="procSearch" placeholder="🔍 Cari item..." oninput="renderProc()">
+        </div>
+        <button class="btn bg btn-sm" onclick="openModal('addProc')">＋ Tambah Item</button>
+      </div>
+      <div class="krow" style="grid-template-columns:repeat(5,1fr)">
+        <div class="kpi kr"><div class="kl">Overdue</div><div class="kv" id="pc1" style="color:var(--rd)">0</div></div>
+        <div class="kpi ky"><div class="kl">Due Today</div><div class="kv" id="pc2" style="color:var(--yw)">0</div></div>
+        <div class="kpi kb"><div class="kl">In Transit</div><div class="kv" id="pc3" style="color:var(--bl)">0</div></div>
+        <div class="kpi kg"><div class="kl">On Site</div><div class="kv" id="pc4" style="color:var(--gn)">0</div></div>
+        <div class="kpi ko"><div class="kl">Waiting</div><div class="kv" id="pc5" style="color:var(--or)">0</div></div>
+      </div>
+      <div class="card"><div class="ct">DAFTAR ITEM PENGADAAN</div><div id="procTable" style="overflow-x:auto"></div></div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /layout -->
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- ADD/EDIT PROJECT -->
+<div class="ov" id="ov-addProj" onclick="if(event.target===this)cm('addProj')">
+<div class="modal">
+  <div class="mtitle"><span id="projMT">TAMBAH PROJECT</span><button class="mclose" onclick="cm('addProj')">✕</button></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Kode *</label><input class="fi" id="fKode" placeholder="ATW-001"></div>
+    <div class="fg"><label class="fl">Status</label><select class="fi" id="fStat"><option>Planning</option><option>On Track</option><option>Delayed</option><option>Critical</option><option>Done</option></select></div>
+  </div>
+  <div class="fg"><label class="fl">Nama Project *</label><input class="fi" id="fNama" placeholder="PLTS Cikarang 10MWp"></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Lokasi</label><input class="fi" id="fLok" placeholder="Cikarang, Bekasi"></div>
+    <div class="fg"><label class="fl">Client</label><input class="fi" id="fClient" placeholder="PT ABC Energy"></div>
+    <div class="fg"><label class="fl">Tgl Mulai</label><input class="fi" type="date" id="fMulai"></div>
+    <div class="fg"><label class="fl">Tgl Selesai</label><input class="fi" type="date" id="fSelesai"></div>
+  </div>
+  <!-- LOGO CLIENT -->
+  <div class="fg">
+    <label class="fl">Logo Client (opsional)</label>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+      <div id="fLogoPreview" style="width:90px;height:44px;background:var(--sf2);border:1px solid var(--bd);border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+        <span id="fLogoEmpty" style="font-size:9px;color:var(--mt);text-align:center">No Logo</span>
+        <img id="fLogoImg" style="max-width:88px;max-height:42px;object-fit:contain;display:none">
+      </div>
+      <div style="flex:1">
+        <label class="btn btn-sm bb" style="cursor:pointer;display:inline-flex;gap:5px">
+          🖼 Pilih Gambar
+          <input type="file" id="fLogoFile" accept="image/*" style="display:none" onchange="previewClientLogo(this)">
+        </label>
+        <button class="btn btn-sm brd" onclick="clearClientLogo()" style="margin-left:6px">✕ Hapus</button>
+        <div style="font-size:10px;color:var(--mt);margin-top:4px">PNG, JPG, SVG · Maks 300KB</div>
+      </div>
+    </div>
+    <input type="hidden" id="fLogo">
+  </div>
+  <div class="fsec">PROGRESS & RESOURCE</div>
+  <div class="fg"><label class="fl">Progress Plan (%)</label>
+    <div class="rr"><input type="range" min="0" max="100" id="fPlan" oninput="rv('fPlan','fPlanV','fPlanB')"><span class="rv" id="fPlanV" style="color:var(--bl)">0%</span></div>
+    <div class="mb"><div class="mf" id="fPlanB" style="width:0%;background:linear-gradient(90deg,var(--bl),#60a5fa)"></div></div>
+  </div>
+  <div class="fg"><label class="fl">Progress Actual (%)</label>
+    <div class="rr"><input type="range" min="0" max="100" id="fActual" oninput="rv('fActual','fActualV','fActualB')"><span class="rv" id="fActualV" style="color:var(--gn)">0%</span></div>
+    <div class="mb"><div class="mf" id="fActualB" style="width:0%;background:linear-gradient(90deg,var(--gn),#34d399)"></div></div>
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Mandays Plan (total orang-hari)</label><input class="fi" type="number" id="fMpP" placeholder="mis: 1000 MD" min="0"></div>
+    <div class="fg"><label class="fl">Manhours Plan/hari</label><input class="fi" type="number" id="fMhP" placeholder="480" min="0"></div>
+    <div class="fg"><label class="fl">Cuaca Lokasi</label>
+      <select class="fi" id="fWeather"><option>☀️ Sunny</option><option>⛅ Partly Cloudy</option><option>🌥 Overcast</option><option>🌧 Rainy</option><option>⛈ Thunderstorm</option><option>🌫 Foggy</option></select>
+    </div>
+    <div class="fg"><label class="fl">Catatan</label><input class="fi" id="fNotes" placeholder="Keterangan..."></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn brd" id="btnDelProj" onclick="delProj()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn" onclick="cm('addProj')">Batal</button>
+    <button class="btn bp" onclick="saveProj()" id="btnSaveProj">＋ Tambah</button>
+  </div>
+</div></div>
+
+<!-- UPDATE PROGRESS -->
+<div class="ov" id="ov-updProgress" onclick="if(event.target===this)cm('updProgress')">
+<div class="modal" style="width:400px">
+  <div class="mtitle">UPDATE PROGRESS<button class="mclose" onclick="cm('updProgress')">✕</button></div>
+  <div style="background:var(--sf2);border-radius:7px;padding:7px 11px;margin-bottom:11px;font-size:12px">
+    <span style="color:var(--mt)">Project: </span><span id="updNm" style="font-weight:600"></span>
+  </div>
+  <div class="fg"><label class="fl">Progress Plan (%)</label>
+    <div class="rr"><input type="range" min="0" max="100" id="uPlan" oninput="rv('uPlan','uPlanV','uPlanB')"><span class="rv" id="uPlanV" style="color:var(--bl)">0%</span></div>
+    <div class="mb"><div class="mf" id="uPlanB" style="width:0%;background:linear-gradient(90deg,var(--bl),#60a5fa)"></div></div>
+  </div>
+  <div class="fg"><label class="fl">Progress Actual (%) <span style="color:var(--or);font-size:9px">← UPDATE INI</span></label>
+    <div class="rr"><input type="range" min="0" max="100" id="uActual" oninput="rv('uActual','uActualV','uActualB')"><span class="rv" id="uActualV" style="color:var(--gn)">0%</span></div>
+    <div class="mb"><div class="mf" id="uActualB" style="width:0%;background:linear-gradient(90deg,var(--gn),#34d399)"></div></div>
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Manpower Actual</label><input class="fi" type="number" id="uMp" min="0"></div>
+    <div class="fg"><label class="fl">Status</label><select class="fi" id="uStat"><option>Planning</option><option>On Track</option><option>Delayed</option><option>Critical</option><option>Done</option></select></div>
+  </div>
+  <div class="fg"><label class="fl">Keterangan</label><input class="fi" id="uNotes" placeholder="Progres minggu ini, kendala, dll..."></div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('updProgress')">Batal</button>
+    <button class="btn bp" onclick="saveUpdate()">💾 Simpan</button>
+  </div>
+</div></div>
+
+<!-- INPUT MANPOWER -->
+<div class="ov" id="ov-inputMp" onclick="if(event.target===this)cm('inputMp')">
+<div class="modal wide">
+  <div class="mtitle">INPUT HARIAN — MANPOWER & PROGRESS<button class="mclose" onclick="cm('inputMp')">✕</button></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Project *</label><select class="fi" id="mpProj" onchange="fillMpPlan()"></select></div>
+    <div class="fg"><label class="fl">Tanggal</label><input class="fi" type="date" id="mpDate"></div>
+  </div>
+
+  <div class="fsec">MANDAYS PLAN VS ACTUAL</div>
+  <div style="background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:11px">
+      <div><div style="color:var(--mt);font-size:9px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Mandays Plan</div><div style="font-family:var(--fm);font-size:16px;color:var(--bl)" id="mpMdPlanDisp">—</div><div style="font-size:9px;color:var(--mt)">target total orang-hari</div></div>
+      <div><div style="color:var(--mt);font-size:9px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Mandays Actual (s/d hari ini)</div><div style="font-family:var(--fm);font-size:16px;color:var(--gn)" id="mpMdActDisp">—</div><div style="font-size:9px;color:var(--mt)">akumulasi input harian</div></div>
+      <div><div style="color:var(--mt);font-size:9px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Variance</div><div style="font-family:var(--fm);font-size:16px" id="mpMdVarDisp" style="color:var(--mt)">—</div><div style="font-size:9px;color:var(--mt)">sisa / kelebihan</div></div>
+    </div>
+  </div>
+
+  <div class="fsec">DATA PEKERJA HARI INI</div>
+  <div class="f3">
+    <div class="fg"><label class="fl">SPV</label><input class="fi" type="number" id="mpSpv" placeholder="0" min="0" oninput="calcMpTot()"></div>
+    <div class="fg"><label class="fl">Mandor</label><input class="fi" type="number" id="mpMandor" placeholder="0" min="0" oninput="calcMpTot()"></div>
+    <div class="fg"><label class="fl">Installer</label><input class="fi" type="number" id="mpInstaller" placeholder="0" min="0" oninput="calcMpTot()"></div>
+  </div>
+  <div class="f3">
+    <div class="fg"><label class="fl">Tukang</label><input class="fi" type="number" id="mpTukang" placeholder="0" min="0" oninput="calcMpTot()"></div>
+    <div class="fg"><label class="fl">Helper</label><input class="fi" type="number" id="mpHelper" placeholder="0" min="0" oninput="calcMpTot()"></div>
+    <div class="fg"><label class="fl">Safety Man</label><input class="fi" type="number" id="mpSafety" placeholder="0" min="0" oninput="calcMpTot()"></div>
+  </div>
+  <div class="f3">
+    <div class="fg"><label class="fl">Total Pekerja (auto)</label><input class="fi" id="mpTot" readonly style="background:var(--sf2);color:var(--gn);font-weight:600"></div>
+    <div class="fg"><label class="fl">Manhours Actual (jam)</label><input class="fi" type="number" id="mpMhAct" placeholder="480" min="0"></div>
+    <div class="fg"><label class="fl">Time Lost (jam)</label><input class="fi" type="number" id="mpTL" placeholder="0" min="0"></div>
+  </div>
+  <div class="fg"><label class="fl">Penyebab Time Lost</label>
+    <select class="fi" id="mpTLReason">
+      <option value="">— Tidak ada —</option>
+      <option>Hujan Deras</option><option>Badai / Thunderstorm</option><option>Angin Kencang</option>
+      <option>Kecelakaan Kerja</option><option>Masalah Material</option><option>Lainnya</option>
+    </select>
+  </div>
+
+  <div class="fsec">UPDATE PROGRESS (OPSIONAL)</div>
+  <div style="background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.2);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:11px;color:var(--mt)">
+    Isi bagian ini jika ada update progress hari ini. Kosongkan jika tidak ada perubahan.
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Progress Actual saat ini (%)</label>
+      <div class="rr"><input type="range" min="0" max="100" id="mpActualProg" oninput="rv('mpActualProg','mpActualProgV','mpActualProgB')"><span class="rv" id="mpActualProgV" style="color:var(--gn)">—</span></div>
+      <div class="mb"><div class="mf" id="mpActualProgB" style="width:0%;background:linear-gradient(90deg,var(--gn),#34d399)"></div></div>
+    </div>
+    <div class="fg"><label class="fl">Progress Plan saat ini (%)</label>
+      <div class="rr"><input type="range" min="0" max="100" id="mpPlanProg" oninput="rv('mpPlanProg','mpPlanProgV','mpPlanProgB')"><span class="rv" id="mpPlanProgV" style="color:var(--bl)">—</span></div>
+      <div class="mb"><div class="mf" id="mpPlanProgB" style="width:0%;background:linear-gradient(90deg,var(--bl),#60a5fa)"></div></div>
+    </div>
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Status Project</label>
+      <select class="fi" id="mpStatus"><option value="">— Tidak diubah —</option><option>Planning</option><option>On Track</option><option>Delayed</option><option>Critical</option><option>Done</option></select>
+    </div>
+    <div class="fg"><label class="fl">Catatan Harian</label><input class="fi" id="mpNotes" placeholder="Aktivitas hari ini, kendala, dll..."></div>
+  </div>
+
+  <div class="mfoot">
+    <button class="btn" onclick="cm('inputMp')">Batal</button>
+    <button class="btn bp" onclick="saveMp()">💾 Simpan</button>
+  </div>
+</div></div>
+
+<!-- ACCIDENT LOG INPUT (per-project) -->
+<div class="ov" id="ov-addAccident" onclick="if(event.target===this)cm('addAccident')">
+<div class="modal wide">
+  <div class="mtitle">INPUT ACCIDENT LOG<button class="mclose" onclick="cm('addAccident')">✕</button></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Project *</label><select class="fi" id="accProj"></select></div>
+    <div class="fg"><label class="fl">Tanggal Kejadian</label><input class="fi" type="date" id="accDate"></div>
+  </div>
+  <div class="fsec">JENIS KECELAKAAN / KEJADIAN</div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Fatality Case</label><input class="fi" type="number" id="accFat" value="0" min="0"></div>
+    <div class="fg"><label class="fl">Lost Time Injury (LTI)</label><input class="fi" type="number" id="accLti" value="0" min="0"></div>
+    <div class="fg"><label class="fl">Minor Injury</label><input class="fi" type="number" id="accMin" value="0" min="0"></div>
+    <div class="fg"><label class="fl">Medical Treatment</label><input class="fi" type="number" id="accMed" value="0" min="0"></div>
+    <div class="fg"><label class="fl">Property Damage</label><input class="fi" type="number" id="accProp" value="0" min="0"></div>
+    <div class="fg"><label class="fl">Fire</label><input class="fi" type="number" id="accFire" value="0" min="0"></div>
+    <div class="fg"><label class="fl">Traffic Case</label><input class="fi" type="number" id="accTraf" value="0" min="0"></div>
+    <div class="fg"><label class="fl">Environment Case</label><input class="fi" type="number" id="accEnv" value="0" min="0"></div>
+    <div class="fg"><label class="fl">Near Miss</label><input class="fi" type="number" id="accNM" value="0" min="0"></div>
+    <div class="fg"><label class="fl">Time Lost (jam)</label><input class="fi" type="number" id="accTL" value="0" min="0"></div>
+  </div>
+  <div class="fg"><label class="fl">Deskripsi Kejadian</label><input class="fi" id="accNotes" placeholder="Deskripsikan kejadian..."></div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('addAccident')">Batal</button>
+    <button class="btn bp" onclick="saveAcc()">Simpan</button>
+  </div>
+</div></div>
+
+<!-- EDIT WEATHER -->
+<div class="ov" id="ov-editWeather" onclick="if(event.target===this)cm('editWeather')">
+<div class="modal" style="width:380px">
+  <div class="mtitle">UPDATE CUACA<button class="mclose" onclick="cm('editWeather')">✕</button></div>
+  <div id="wFields"></div>
+  <div class="mfoot"><button class="btn" onclick="cm('editWeather')">Batal</button><button class="btn bp" onclick="saveWeather()">Simpan</button></div>
+</div></div>
+
+<!-- ADD ISSUE -->
+<div class="ov" id="ov-addIssue" onclick="if(event.target===this)cm('addIssue')">
+<div class="modal">
+  <div class="mtitle"><span id="issMT">TAMBAH ISSUE</span><button class="mclose" onclick="cm('addIssue')">✕</button></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Project</label><select class="fi" id="iProj"></select></div>
+    <div class="fg"><label class="fl">Tanggal</label><input class="fi" type="date" id="iTgl"></div>
+    <div class="fg"><label class="fl">Prioritas</label><select class="fi" id="iPri"><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select></div>
+    <div class="fg"><label class="fl">Kategori</label><select class="fi" id="iKat"><option>Procurement</option><option>Subcon</option><option>Permit</option><option>Material</option><option>Safety</option><option>Weather</option><option>QC</option><option>Engineering</option><option>Other</option></select></div>
+  </div>
+  <div class="fg"><label class="fl">Uraian Masalah *</label><input class="fi" id="iUraian" placeholder="Deskripsikan masalah..."></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">PIC</label><input class="fi" id="iPJ" placeholder="Site Manager"></div>
+    <div class="fg"><label class="fl">Due Date</label><input class="fi" type="date" id="iDue"></div>
+    <div class="fg"><label class="fl">Status</label><select class="fi" id="iStat"><option>Open</option><option>In Progress</option><option>Monitoring</option><option>Closed</option></select></div>
+    <div class="fg"><label class="fl">Tgl Selesai</label><input class="fi" type="date" id="iDone"></div>
+  </div>
+  <div class="fg"><label class="fl">Tindakan Korektif</label><input class="fi" id="iAction" placeholder="Langkah penanganan..."></div>
+  <div class="mfoot">
+    <button class="btn brd" id="btnDelIss" onclick="delIss()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn" onclick="cm('addIssue')">Batal</button>
+    <button class="btn bp" onclick="saveIss()" id="btnSaveIss">Simpan</button>
+  </div>
+</div></div>
+
+<!-- ADD PROCUREMENT -->
+<div class="ov" id="ov-addProc" onclick="if(event.target===this)cm('addProc')">
+<div class="modal">
+  <div class="mtitle"><span id="procMT">TAMBAH ITEM</span><button class="mclose" onclick="cm('addProc')">✕</button></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Project</label><select class="fi" id="pProj"></select></div>
+    <div class="fg"><label class="fl">Kategori</label><select class="fi" id="pKat"><option>Equipment</option><option>Material</option><option>Civil</option><option>Service</option></select></div>
+  </div>
+  <div class="fg"><label class="fl">Nama Item *</label><input class="fi" id="pItem" placeholder="Solar Panel 400Wp"></div>
+  <div class="f3">
+    <div class="fg"><label class="fl">Qty</label><input class="fi" type="number" id="pQty" min="0"></div>
+    <div class="fg"><label class="fl">Satuan</label><input class="fi" id="pSat" placeholder="pcs"></div>
+    <div class="fg"><label class="fl">Due Date</label><input class="fi" type="date" id="pDue"></div>
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Supplier</label><input class="fi" id="pSup" placeholder="PT Solar Utama"></div>
+    <div class="fg"><label class="fl">Status</label><select class="fi" id="pStat"><option>Waiting Approval</option><option>PO Issued</option><option>In Transit</option><option>On Site</option><option>Due Today</option><option>Overdue</option></select></div>
+  </div>
+  <div class="fg"><label class="fl">Keterangan</label><input class="fi" id="pNotes"></div>
+  <div class="mfoot">
+    <button class="btn brd" id="btnDelProc" onclick="delProc()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn" onclick="cm('addProc')">Batal</button>
+    <button class="btn bp" onclick="saveProc()" id="btnSaveProc">Simpan</button>
+  </div>
+</div></div>
+
+<!-- GOOGLE SHEET CONFIG -->
+<div class="ov" id="ov-gsConfig" onclick="if(event.target===this)cm('gsConfig')">
+<div class="modal wide">
+  <div class="mtitle">⚙ GOOGLE SHEET INTEGRATION<button class="mclose" onclick="cm('gsConfig')">✕</button></div>
+  <div class="gs-info">
+    <b style="color:var(--tx)">Cara setup (1 kali saja):</b><br>
+    1. Buka <b style="color:var(--bl)">script.google.com</b> → New Project<br>
+    2. Paste script Google Apps dengan klik <b>"Salin Script"</b> di bawah<br>
+    3. Ganti <b>SHEET_ID</b> di baris pertama dengan ID Google Sheet Anda<br>
+    4. Klik <b>Deploy → New Deployment → Web App</b> → Access: <b>Anyone</b> → Deploy<br>
+    5. Copy URL deployment → paste di field URL di bawah
+  </div>
+  <div class="fg"><label class="fl">Google Sheet URL (untuk referensi)</label>
+    <input class="fi" id="gsSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/YOUR_ID/edit">
+  </div>
+  <div class="fg"><label class="fl">Google Apps Script Web App URL *</label>
+    <input class="fi" id="gsScriptUrl" placeholder="https://script.google.com/macros/s/XXXX/exec">
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px">
+    <button class="btn bb" onclick="testGS()" style="flex:1;justify-content:center">🔗 Test Koneksi</button>
+    <button class="btn bgs" onclick="copyGsScript()" style="flex:1;justify-content:center">📋 Salin Script</button>
+  </div>
+  <div id="gsTestRes" style="font-size:11px;margin-bottom:10px;padding:7px 10px;border-radius:6px;display:none"></div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('gsConfig')">Batal</button>
+    <button class="btn bp" onclick="saveGS()">💾 Simpan & Sambungkan</button>
+  </div>
+</div></div>
+
+<!-- EDIT HISTORY ENTRY -->
+<div class="ov" id="ov-editHist" onclick="if(event.target===this)cm('editHist')">
+<div class="modal" style="width:400px">
+  <div class="mtitle">EDIT RIWAYAT UPDATE<button class="mclose" onclick="cm('editHist')">✕</button></div>
+  <input type="hidden" id="ehProjId"><input type="hidden" id="ehIdx">
+  <div class="f2">
+    <div class="fg"><label class="fl">Tanggal</label><input class="fi" id="ehDate"></div>
+    <div class="fg"><label class="fl">Status</label><select class="fi" id="ehStatus"><option>Planning</option><option>On Track</option><option>Delayed</option><option>Critical</option><option>Done</option></select></div>
+  </div>
+  <div class="fg"><label class="fl">Progress Actual (%)</label>
+    <div class="rr"><input type="range" min="0" max="100" id="ehActual" oninput="rv('ehActual','ehActualV','ehActualB')"><span class="rv" id="ehActualV" style="color:var(--gn)">0%</span></div>
+    <div class="mb"><div class="mf" id="ehActualB" style="width:0%;background:linear-gradient(90deg,var(--gn),#34d399)"></div></div>
+  </div>
+  <div class="fg"><label class="fl">Progress Plan (%)</label>
+    <div class="rr"><input type="range" min="0" max="100" id="ehPlan" oninput="rv('ehPlan','ehPlanV','ehPlanB')"><span class="rv" id="ehPlanV" style="color:var(--bl)">0%</span></div>
+    <div class="mb"><div class="mf" id="ehPlanB" style="width:0%;background:linear-gradient(90deg,var(--bl),#60a5fa)"></div></div>
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Manpower</label><input class="fi" type="number" id="ehMp" min="0"></div>
+    <div class="fg"><label class="fl">Keterangan</label><input class="fi" id="ehNotes"></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('editHist')">Batal</button>
+    <button class="btn bp" onclick="saveHistEntry()">💾 Simpan</button>
+  </div>
+</div></div>
+
+<!-- EDIT ACCIDENT LOG -->
+<div class="ov" id="ov-editAcc" onclick="if(event.target===this)cm('editAcc')">
+<div class="modal wide">
+  <div class="mtitle">EDIT ACCIDENT LOG<button class="mclose" onclick="cm('editAcc')">✕</button></div>
+  <input type="hidden" id="eaId">
+  <div class="f2">
+    <div class="fg"><label class="fl">Project</label><select class="fi" id="eaProj"></select></div>
+    <div class="fg"><label class="fl">Tanggal</label><input class="fi" type="date" id="eaDate"></div>
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Fatality</label><input class="fi" type="number" id="eaFat" min="0"></div>
+    <div class="fg"><label class="fl">LTI</label><input class="fi" type="number" id="eaLti" min="0"></div>
+    <div class="fg"><label class="fl">Minor Injury</label><input class="fi" type="number" id="eaMin" min="0"></div>
+    <div class="fg"><label class="fl">Medical Treatment</label><input class="fi" type="number" id="eaMed" min="0"></div>
+    <div class="fg"><label class="fl">Property Damage</label><input class="fi" type="number" id="eaProp" min="0"></div>
+    <div class="fg"><label class="fl">Near Miss</label><input class="fi" type="number" id="eaNM" min="0"></div>
+    <div class="fg"><label class="fl">Fire</label><input class="fi" type="number" id="eaFire" min="0"></div>
+    <div class="fg"><label class="fl">Traffic</label><input class="fi" type="number" id="eaTraf" min="0"></div>
+    <div class="fg"><label class="fl">Environment</label><input class="fi" type="number" id="eaEnv" min="0"></div>
+    <div class="fg"><label class="fl">Time Lost (jam)</label><input class="fi" type="number" id="eaTL" min="0"></div>
+  </div>
+  <div class="fg"><label class="fl">Keterangan</label><input class="fi" id="eaNotes"></div>
+  <div class="mfoot">
+    <button class="btn brd" onclick="delAccLog()" style="margin-right:auto">🗑 Hapus</button>
+    <button class="btn" onclick="cm('editAcc')">Batal</button>
+    <button class="btn bp" onclick="saveAccEdit()">💾 Simpan</button>
+  </div>
+</div></div>
+
+<!-- IMPORT -->
+<div class="ov" id="ov-import" onclick="if(event.target===this)cm('import')">
+<div class="modal">
+  <div class="mtitle">BUKA FILE EXCEL<button class="mclose" onclick="cm('import')">✕</button></div>
+  <div class="dz" id="dz" onclick="triggerImport()" ondragover="dov(event)" ondragleave="dol()" ondrop="dof(event)">
+    <div style="font-size:30px;opacity:.4;margin-bottom:6px">📂</div>
+    <div style="font-size:12px;color:var(--mt)">Klik atau drag & drop file .xlsx</div>
+    <div style="font-size:10px;color:var(--mt);margin-top:2px;opacity:.6">File ATW_Portfolio_*.xlsx</div>
+  </div>
+  <div id="impPrev" style="display:none">
+    <div style="font-size:11px;color:var(--mt);margin-bottom:6px" id="impInfo"></div>
+    <div id="impTbl" style="max-height:170px;overflow-y:auto;border:1px solid var(--bd);border-radius:6px"></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('import')">Batal</button>
+    <button class="btn bp" id="btnConfImp" onclick="confirmImport()" style="display:none">✓ Load Data</button>
+  </div>
+</div></div>
+
+<!-- EDIT MANPOWER LOG -->
+<div class="ov" id="ov-editMpLog" onclick="if(event.target===this)cm('editMpLog')">
+<div class="modal wide">
+  <div class="mtitle">EDIT INPUT MANPOWER<button class="mclose" onclick="cm('editMpLog')">✕</button></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Project</label><select class="fi" id="emlProj"></select></div>
+    <div class="fg"><label class="fl">Tanggal</label><input class="fi" type="date" id="emlDate"></div>
+  </div>
+  <div class="f3">
+    <div class="fg"><label class="fl">SPV</label><input class="fi" type="number" id="emlSpv" min="0" oninput="calcEmlTot()"></div>
+    <div class="fg"><label class="fl">Mandor</label><input class="fi" type="number" id="emlMandor" min="0" oninput="calcEmlTot()"></div>
+    <div class="fg"><label class="fl">Installer</label><input class="fi" type="number" id="emlInstaller" min="0" oninput="calcEmlTot()"></div>
+  </div>
+  <div class="f3">
+    <div class="fg"><label class="fl">Tukang</label><input class="fi" type="number" id="emlTukang" min="0" oninput="calcEmlTot()"></div>
+    <div class="fg"><label class="fl">Helper</label><input class="fi" type="number" id="emlHelper" min="0" oninput="calcEmlTot()"></div>
+    <div class="fg"><label class="fl">Safety Man</label><input class="fi" type="number" id="emlSafety" min="0" oninput="calcEmlTot()"></div>
+  </div>
+  <div class="f3">
+    <div class="fg"><label class="fl">Total Pekerja (auto)</label><input class="fi" id="emlTot" readonly style="background:var(--sf2);color:var(--gn);font-weight:600"></div>
+    <div class="fg"><label class="fl">Manhours Actual (jam)</label><input class="fi" type="number" id="emlMhAct" min="0"></div>
+    <div class="fg"><label class="fl">Time Lost (jam)</label><input class="fi" type="number" id="emlTL" min="0"></div>
+  </div>
+  <div class="fg"><label class="fl">Penyebab Time Lost</label>
+    <select class="fi" id="emlTLReason"><option value="">— Tidak ada —</option><option>Hujan Deras</option><option>Badai / Thunderstorm</option><option>Angin Kencang</option><option>Kecelakaan Kerja</option><option>Masalah Material</option><option>Lainnya</option></select>
+  </div>
+  <div class="fg"><label class="fl">Keterangan</label><input class="fi" id="emlNotes"></div>
+  <div class="mfoot">
+    <button class="btn brd" onclick="delMpLog()" style="margin-right:auto">🗑 Hapus</button>
+    <button class="btn" onclick="cm('editMpLog')">Batal</button>
+    <button class="btn bp" onclick="saveEditMpLog()">💾 Simpan</button>
+  </div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let P=[],ISS=[],PROC=[],MPLOGS=[],ACCLOGS=[];
+let selId=null,editProjId=null,editIssId=null,editProcId=null;
+let isDirty=false,pendImp=null,curFile=null,activeTab='overview';
+let gsUrl='',gsSheet='',gsOk=false;
+
+// Load GS config
+try{const c=JSON.parse(localStorage.getItem('atw_gs')||'{}');gsUrl=c.url||'';gsSheet=c.sheet||'';if(gsUrl)gsOk=true;}catch(e){}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
+const $=id=>document.getElementById(id);
+const sv=(id,v)=>{const e=$(id);if(e)e.value=v;};
+const gv=id=>$(id)?.value||'';
+const show=id=>$(id)?.classList.add('open');
+function cm(t){
+  const m={addProj:'ov-addProj',updProgress:'ov-updProgress',inputMp:'ov-inputMp',
+    addAccident:'ov-addAccident',editWeather:'ov-editWeather',addIssue:'ov-addIssue',
+    addProc:'ov-addProc',gsConfig:'ov-gsConfig',import:'ov-import',
+    editMpLog:'ov-editMpLog',editHist:'ov-editHist',editAcc:'ov-editAcc'};
+  $(m[t]||'ov-'+t)?.classList.remove('open');
+}
+function rv(inp,dv,bv){
+  const v=$(inp).value;
+  if(dv)$(dv).textContent=v+'%';
+  if(bv)$(bv).style.width=v+'%';
+}
+function saveLocal(){
+  try{localStorage.setItem('atw_data',JSON.stringify({P,I:ISS,PR:PROC,M:MPLOGS,A:ACCLOGS,ts:Date.now()}));}catch(e){}
+}
+function loadLocal(){
+  try{
+    const raw=localStorage.getItem('atw_data');
+    if(!raw)return false;
+    const d=JSON.parse(raw);
+    P=d.P||[];ISS=d.I||[];PROC=d.PR||[];MPLOGS=d.M||[];ACCLOGS=d.A||[];
+    return P.length>0;
+  }catch(e){return false;}
+}
+function dirty(){
+  isDirty=true;
+  $('sdot').classList.add('unsaved');
+  $('smsg').textContent='Perubahan belum disimpan — Ctrl+S';
+  $('sbar').classList.add('dirty');
+  saveLocal();
+}
+function clean(f){
+  isDirty=false;curFile=f||curFile;
+  $('sdot').classList.remove('unsaved');
+  $('smsg').textContent='Tersimpan '+new Date().toLocaleTimeString('id-ID');
+  $('flabel').textContent=curFile||'—';
+  $('sbar').classList.remove('dirty');
+  saveLocal();
+}
+function toast(msg,type='success'){
+  const el=$('toast');
+  el.textContent=msg;el.className=`toast ${type} show`;
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB SWITCH
+// ═══════════════════════════════════════════════════════════════
+function sw(t,el){
+  activeTab=t;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tp').forEach(x=>x.classList.remove('active'));
+  $('tp-'+t).classList.add('active');
+  if(t==='overview')renderOV();
+  if(t==='projects')renderProjTab();
+  if(t==='manpower')renderMP();
+  if(t==='issues')renderIssues();
+  if(t==='procurement')renderProc();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN RENDER
+// ═══════════════════════════════════════════════════════════════
+function render(){
+  renderSB();
+  updateBadge();
+  updateGsBadge();
+  $('btnUpd').disabled=!selId;
+  if(activeTab==='overview')renderOV();
+  if(activeTab==='projects')renderProjTab();
+  if(activeTab==='manpower')renderMP();
+  if(activeTab==='issues')renderIssues();
+  if(activeTab==='procurement')renderProc();
+}
+function updateBadge(){
+  const n=ISS.filter(i=>i.status!=='Closed').length;
+  $('ibadge').textContent=n>0?n:'';
+}
+function updateGsBadge(){
+  const b=$('gsBadge');
+  if(gsOk){b.className='gs-badge gs-on';b.textContent='📋 GSheet: Terhubung';}
+  else{b.className='gs-badge gs-off';b.textContent='📋 GSheet: Setup';}
+  $('btnSync').style.display=gsOk?'':'none';
+  $('btnLoad').style.display=gsOk?'':'none';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════════════════════════
+function renderSB(){
+  $('pcount').textContent=P.length;
+  const sc={'On Track':'p-on','Delayed':'p-del','Critical':'p-crit','Planning':'p-plan','Done':'p-done'};
+  const bc={'On Track':'var(--gn)','Delayed':'var(--yw)','Critical':'var(--rd)','Planning':'var(--bl)','Done':'var(--pu)'};
+  $('projList').innerHTML=P.map(p=>`
+    <div class="pi ${p.id===selId?'active':''}" onclick="selProj(${p.id})">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:3px;margin-bottom:1px">
+        <div class="pi-name">${p.nama}</div><span class="pill ${sc[p.status]||'p-plan'}">${p.status}</span>
+      </div>
+      <div class="pi-loc">📍${p.lokasi||'—'} · ${p.logo?`<img src="${p.logo}" style="height:12px;max-width:40px;object-fit:contain;vertical-align:middle;border-radius:2px" onerror="this.outerHTML='<span style=\'font-family:var(--fm);font-size:10px\'>'+p.kode+'</span>'">`:`<span style="font-family:var(--fm)">${p.kode}</span>`}</div>
+      <div class="pi-bar"><div class="pi-fill" style="width:${p.actual}%;background:${bc[p.status]||'var(--bl)'}"></div></div>
+      <div class="pi-meta">
+        <span style="color:var(--mt)">Actual <span style="font-family:var(--fm);color:${bc[p.status]||'var(--bl)'}">${p.actual}%</span></span>
+        <span style="color:var(--mt)">Plan <span style="font-family:var(--fm)">${p.plan}%</span></span>
+      </div>
+    </div>`).join('')||'<div style="padding:16px;text-align:center;color:var(--mt);font-size:11px">Belum ada project</div>';
+}
+function selProj(id){selId=id;$('btnUpd').disabled=false;renderSB();renderDetail(id);}
+
+// ═══════════════════════════════════════════════════════════════
+// OVERVIEW TAB
+// ═══════════════════════════════════════════════════════════════
+// Helper — update time lost KPI tanpa re-render seluruh overview
+function updateTimeLostKPI(){
+  const accTL=ACCLOGS.reduce((s,a)=>s+(+a.timeLost||0),0);
+  const mpTL=MPLOGS.reduce((s,m)=>s+(+m.timeLost||0),0);
+  const totTL=accTL+mpTL;
+  const ov5=$('ov5');if(ov5){ov5.textContent=totTL+' hr';ov5.title=`Accident: ${accTL} hr + Weather/Lainnya: ${mpTL} hr`;}
+  const tlt=$('tlt');if(tlt)tlt.textContent=totTL+' hrs';
+  const tltAcc=$('tltAcc');if(tltAcc)tltAcc.textContent=accTL+' hrs';
+  const tltMp=$('tltMp');if(tltMp)tltMp.textContent=mpTL+' hrs';
+  const mp4=$('mp4');if(mp4)mp4.textContent=mpTL+' hr'; // mp4 hanya manpower time lost
+  // Update breakdown di KPI card
+  const ov5el=ov5?.parentElement;
+  if(ov5el){
+    let det=ov5el.querySelector('.tl-detail');
+    if(!det){det=document.createElement('div');det.className='tl-detail';det.style.cssText='font-size:9px;color:var(--mt);margin-top:3px;line-height:1.5';ov5el.appendChild(det);}
+    det.innerHTML=`<span style="color:var(--rd)">Acc: ${accTL}hr</span> + <span style="color:var(--yw)">Weather: ${mpTL}hr</span>`;
+  }
+}
+
+function renderOV(){
+  const today=new Date().toISOString().slice(0,10);
+  const todayMp=MPLOGS.filter(m=>m.date===today);
+  const mhAct=todayMp.reduce((s,m)=>s+(+m.mhActual||0),0);
+  const mhPlan=P.reduce((s,p)=>s+(+p.mhPlan||0),0);
+  $('ov1').textContent=P.length;
+  $('ov2').textContent=mhAct+' jam';
+  $('ov2s').textContent='Plan: '+mhPlan+' jam | Var: '+(mhAct-mhPlan>=0?'+':'')+(mhAct-mhPlan);
+  $('ov2').style.color=mhAct>=mhPlan?'var(--gn)':'var(--rd)';
+  $('ovOT').textContent=P.filter(p=>p.status==='On Track').length;
+  $('ovDL').textContent=P.filter(p=>p.status==='Delayed').length;
+  $('ovCR').textContent=P.filter(p=>p.status==='Critical').length;
+  $('ov4').textContent=ISS.filter(i=>i.status!=='Closed').length;
+  const accTL=ACCLOGS.reduce((s,a)=>s+(+a.timeLost||0),0);
+  const mpTL=MPLOGS.reduce((s,m)=>s+(+m.timeLost||0),0);
+  const totTL=accTL+mpTL;
+  $('ov5').textContent=totTL+' hr';
+  $('ov5').title=`Accident: ${accTL} hr + Weather/Lainnya: ${mpTL} hr`;
+  $('tlt').textContent=totTL+' hrs';
+  if($('tltAcc'))$('tltAcc').textContent=accTL+' hrs';
+  if($('tltMp'))$('tltMp').textContent=mpTL+' hrs';
+  // Show breakdown below time lost card
+  const ov5el=$('ov5').parentElement;
+  let ov5detail=ov5el.querySelector('.tl-detail');
+  if(!ov5detail){ov5detail=document.createElement('div');ov5detail.className='tl-detail';ov5detail.style.cssText='font-size:9px;color:var(--mt);margin-top:3px;line-height:1.5';ov5el.appendChild(ov5detail);}
+  ov5detail.innerHTML=`<span style="color:var(--rd)">Acc: ${accTL}hr</span> + <span style="color:var(--yw)">Weather: ${mpTL}hr</span>`;
+
+  // WEATHER
+  const wmap={'☀️ Sunny':'Sunny','⛅ Partly Cloudy':'Partly Cloudy','🌥 Overcast':'Overcast','🌧 Rainy':'Rainy','⛈ Thunderstorm':'Thunderstorm','🌫 Foggy':'Foggy'};
+  const wico={Sunny:'☀️','Partly Cloudy':'⛅',Overcast:'🌥',Rainy:'🌧',Thunderstorm:'⛈',Foggy:'🌫'};
+  const wclr={Sunny:'var(--yw)','Partly Cloudy':'var(--tx)',Overcast:'var(--mt)',Rainy:'var(--bl)',Thunderstorm:'var(--rd)',Foggy:'var(--mt)'};
+  const wg=$('weatherGrid');
+  if(!P.length){wg.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--mt);font-size:11px;padding:12px">Belum ada project</div>';}
+  else{wg.innerHTML=P.slice(0,6).map(p=>{
+    const raw=p.weather||'⛅ Partly Cloudy';
+    const desc=wmap[raw]||raw.replace(/^[^\s]+\s/,'');
+    return `<div class="wi"><div class="wi-ico">${wico[desc]||'⛅'}</div><div class="wi-name">${p.nama.split(' ').slice(0,3).join(' ')}</div><div class="wi-desc" style="color:${wclr[desc]||'var(--tx)'}">${desc}</div></div>`;
+  }).join('');}
+
+  // ACCIDENT LOG aggregate
+  const agg={fatality:0,lti:0,minorInjury:0,medTreatment:0,propertyDamage:0,fire:0,traffic:0,environment:0,nearMiss:0};
+  ACCLOGS.forEach(a=>Object.keys(agg).forEach(k=>agg[k]+=(+a[k]||0)));
+  const rows=[['Fatality Case','fatality',true],['Lost Time Injury','lti',true],['Minor Injury','minorInjury',false],['Medical Treatment','medTreatment',false],['Property Damage','propertyDamage',false],['Fire','fire',false],['Traffic Case','traffic',false],['Near Miss','nearMiss',false]];
+  // Summary aggregat
+  const summaryHtml=rows.map(([l,k,crit])=>`<div class="acc-row"><span style="color:var(--mt)">${l}</span><span class="acc-val" style="color:${(agg[k]||0)>0?(crit?'var(--rd)':'var(--or)'):'var(--mt)'}">${(agg[k]||0)>0?agg[k]:'—'}</span></div>`).join('');
+  // Recent entries list with edit button
+  const recentHtml=ACCLOGS.length>0?`
+    <div style="margin-top:8px;padding-top:7px;border-top:1px dashed var(--bd);font-size:10px;color:var(--mt);margin-bottom:4px">Log terbaru:</div>
+    ${ACCLOGS.slice(-3).reverse().map(a=>{
+      const pr=P.find(p=>p.id===a.projId);
+      return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid rgba(30,45,69,.3);font-size:10px">
+        <span style="font-family:var(--fm);color:var(--mt);flex-shrink:0">${a.date}</span>
+        <span style="color:var(--bl);flex-shrink:0">${pr?.kode||'—'}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mt)">${a.notes||'Kejadian tercatat'}</span>
+        ${a.timeLost>0?`<span style="color:var(--rd);font-family:var(--fm);flex-shrink:0">${a.timeLost}hr</span>`:''}
+        <button class="btn btn-sm" style="padding:1px 5px;font-size:9px;flex-shrink:0" onclick="editAccLog(${a.id})">✏</button>
+      </div>`;
+    }).join('')}` : '';
+  $('accLog').innerHTML=summaryHtml+recentHtml;
+
+  // PROC STATUS
+  const ps={Overdue:0,'Due Today':0,'In Transit':0,'On Site':0,'Waiting Approval':0,'PO Issued':0};
+  PROC.forEach(i=>{if(ps[i.status]!==undefined)ps[i.status]++;});
+  const pc={Overdue:'var(--rd)','Due Today':'var(--yw)','In Transit':'var(--bl)','On Site':'var(--gn)','Waiting Approval':'var(--pu)','PO Issued':'var(--or)'};
+  $('procGrid').innerHTML=Object.entries(ps).map(([k,v])=>`<div class="proc-item"><div class="proc-dot" style="background:${pc[k]||'var(--mt)'}"></div><div class="proc-lbl">${k}</div><div class="proc-cnt" style="color:${pc[k]||'var(--mt)'}">${v}</div></div>`).join('');
+
+  renderProjStatusCards();
+}
+
+function renderProjStatusCards(){
+  const el=$('projStatusCards');
+  if(!el)return;
+  if(!P.length){el.innerHTML='<div style="text-align:center;color:var(--mt);font-size:12px;padding:20px;grid-column:1/-1">Belum ada project — tambah project untuk melihat status cards</div>';return;}
+  const statusCls={'On Track':'on','Delayed':'del','Critical':'crit','Planning':'plan','Done':'done'};
+  const barClr={'On Track':'linear-gradient(90deg,var(--gn),#34d399)','Delayed':'linear-gradient(90deg,var(--yw),#fbbf24)','Critical':'linear-gradient(90deg,var(--rd),#f87171)','Planning':'linear-gradient(90deg,var(--bl),#60a5fa)','Done':'linear-gradient(90deg,var(--pu),#a78bfa)'};
+  const metClr={'On Track':'var(--gn)','Delayed':'var(--yw)','Critical':'var(--rd)','Planning':'var(--bl)','Done':'var(--pu)'};
+  const pillBg={'On Track':'rgba(16,185,129,.15)','Delayed':'rgba(245,158,11,.15)','Critical':'rgba(239,68,68,.15)','Planning':'rgba(59,130,246,.15)','Done':'rgba(139,92,246,.15)'};
+  const pillClr={'On Track':'var(--gn)','Delayed':'var(--yw)','Critical':'var(--rd)','Planning':'var(--bl)','Done':'var(--pu)'};
+  el.innerHTML=P.map(p=>{
+    const v=p.actual-p.plan;
+    const spi=p.plan>0?(p.actual/p.plan).toFixed(2):'—';
+    const pIss=ISS.filter(i=>i.projId===p.id&&i.status!=='Closed').length;
+    const rem=p.selesai?Math.max(0,Math.ceil((new Date(p.selesai)-new Date())/86400000)):'—';
+    const mc=metClr[p.status]||'var(--bl)';
+    const bc=barClr[p.status]||'var(--bl)';
+    const varCls=v>0?'var-pos':v<0?'var-neg':'var-zero';
+    const varTxt=(v>0?'+':'')+v+'%';
+    const etaClr=p.status==='Critical'?'var(--rd)':v<0?'var(--yw)':'var(--gn)';
+    const etaTxt=p.status==='Critical'?'Needs Review 🔴':p.status==='Done'?'Selesai ✅':rem==='—'?'—':new Date(p.selesai).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+    const scls=statusCls[p.status]||'plan';
+    return `<div class="psc ${scls}" onclick="selProj(${p.id});sw('projects',document.querySelectorAll('.tab')[1])">
+      <div class="psc-head">
+        <div style="flex:1;min-width:0">
+          <div class="psc-name">${p.nama} <span style="font-family:var(--fm);font-size:9px;color:var(--mt);font-weight:400">— ${p.kode}</span></div>
+          <div class="psc-loc">📍 ${p.lokasi||'—'}${p.client?` · ${logoTag(p,18)}`:''}  </div>
+        </div>
+        <div style="background:${pillBg[p.status]||'rgba(59,130,246,.15)'};color:${pillClr[p.status]||'var(--bl)'};border:1px solid ${pillClr[p.status]||'var(--bl)'}44;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:.5px;flex-shrink:0;margin-left:8px">${p.status.toUpperCase()}</div>
+      </div>
+      <div class="psc-metrics">
+        <div class="psc-m">
+          <div class="psc-mv" style="color:${mc}">${p.actual}%</div>
+          <div class="psc-ml">Progress</div>
+        </div>
+        <div class="psc-m">
+          <div class="psc-mv" style="color:${spi!=='—'&&spi>=1?'var(--gn)':spi==='—'?'var(--mt)':'var(--rd)'}">${spi}</div>
+          <div class="psc-ml">SPI</div>
+        </div>
+        <div class="psc-m">
+          <div class="psc-mv" style="color:var(--bl)">${p.mpActual||0}</div>
+          <div class="psc-ml">Workers/hari</div>
+        </div>
+        <div class="psc-m">
+          <div class="psc-mv" style="color:${pIss>0?'var(--rd)':'var(--mt)'}">${pIss}</div>
+          <div class="psc-ml">Issues</div>
+        </div>
+      </div>
+      <div class="psc-bar-wrap">
+        <div class="psc-bar-lbl"><span>Actual</span><span style="color:${mc}">${p.actual}%</span></div>
+        <div class="psc-bar"><div class="psc-bar-fill" style="width:${p.actual}%;background:${bc}"></div></div>
+      </div>
+      <div class="psc-bar-wrap">
+        <div class="psc-bar-lbl"><span>Plan</span><span style="color:var(--bl)">${p.plan}%</span></div>
+        <div class="psc-bar"><div class="psc-bar-fill" style="width:${p.plan}%;background:rgba(59,130,246,.45)"></div></div>
+      </div>
+      <div class="psc-footer">
+        <span style="color:var(--mt)">Variance: <span class="var-badge ${varCls}">${varTxt}</span></span>
+        <span style="color:${etaClr}">ETA: ${etaTxt}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderProjTab(){
+  const n=P.length;
+  $('pk1').textContent=n;
+  if(!n)return;
+  // SPI Portfolio = rata-rata SPI semua project yang punya plan > 0
+  const vl=P.filter(p=>p.plan>0);
+  const spiPortfolio=vl.length>0?(vl.reduce((s,p)=>s+p.actual/p.plan,0)/vl.length):0;
+  const spiTxt=vl.length>0?spiPortfolio.toFixed(2):'—';
+  const spiClr=spiPortfolio>=1?'var(--gn)':spiPortfolio>=0.85?'var(--yw)':'var(--rd)';
+  const spiSub=vl.length>0?(spiPortfolio>=1?'✓ On target':spiPortfolio>=0.85?'⚠ Slightly behind':'✗ Behind schedule'):'Belum ada data';
+  $('pk2').textContent=spiTxt;
+  $('pk2').style.color=spiClr;
+  $('pk2s').textContent=spiSub;
+  $('pk3').textContent=P.reduce((s,p)=>s+(p.mpActual||0),0);
+  $('pk3s').textContent='';
+  const critCount=P.filter(p=>p.status==='Critical').length;
+  const delCount=P.filter(p=>p.status==='Delayed').length;
+  $('pk4').textContent=critCount;
+  $('pk4s').textContent=delCount>0?`+ ${delCount} Delayed`:'Semua aman';
+  $('pk4s').style.color=delCount>0?'var(--yw)':'var(--mt)';
+  $('pk5').textContent=ISS.filter(i=>i.status!=='Closed').length;
+  if(selId)renderDetail(selId);
+}
+
+function renderDetail(id){
+  const p=P.find(x=>x.id===id);if(!p)return;
+  const v=p.actual-p.plan,spi=p.plan>0?(p.actual/p.plan).toFixed(2):'—';
+  const vcl=v>0?'var(--gn)':v<0?'var(--rd)':'var(--mt)';
+  const bc={'On Track':'linear-gradient(90deg,var(--gn),#34d399)','Delayed':'linear-gradient(90deg,var(--yw),#fbbf24)','Critical':'linear-gradient(90deg,var(--rd),#f87171)','Planning':'linear-gradient(90deg,var(--bl),#60a5fa)','Done':'linear-gradient(90deg,var(--pu),#a78bfa)'}[p.status]||'var(--bl)';
+  const sc={'On Track':'p-on','Delayed':'p-del','Critical':'p-crit','Planning':'p-plan','Done':'p-done'};
+  const rem=p.selesai?Math.max(0,Math.ceil((new Date(p.selesai)-new Date())/86400000)):'—';
+  const pIss=ISS.filter(i=>i.projId===id&&i.status!=='Closed');
+  const mdActualDetail=MPLOGS.filter(m=>m.projId===id).reduce((s,m)=>s+(+m.total||0),0);
+  const mdPlanDetail=+p.mdPlan||+p.mpPlan||0;
+  const mdPct=mdPlanDetail>0?Math.min(Math.round(mdActualDetail/mdPlanDetail*100),100):0;
+  $('detail').innerHTML=`<div class="fade">
+    <div class="dtop" style="margin-bottom:11px">
+      <div><div class="dname">${p.nama}</div>
+        <div class="dmeta"><span class="pill ${sc[p.status]||'p-plan'}">${p.status}</span><span>${p.kode}</span><span style="color:var(--bd)">·</span><span>📍${p.lokasi||'—'}</span><span style="color:var(--bd)">·</span>${p.logo?`<img src="${p.logo}" style="height:22px;max-width:70px;object-fit:contain;border-radius:3px;vertical-align:middle" onerror="this.style.display='none'">`:`<span>${p.client||'—'}</span>`}${p.weather?`<span>${p.weather}</span>`:''}</div>
+      </div>
+      <div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="openModal('editProj',${p.id})">✏ Edit</button><button class="btn btn-sm bp" onclick="openModal('updProgress')">↑ Update</button></div>
+    </div>
+    <div class="g4" style="margin-bottom:9px">
+      <div class="metric"><div class="mv" style="color:${vcl}">${v>0?'+':''}${v}%</div><div class="ml">Variance</div></div>
+      <div class="metric"><div class="mv" style="color:${spi>=1?'var(--gn)':'var(--rd)'}">${spi}</div><div class="ml">SPI</div></div>
+      <div class="metric"><div class="mv" style="color:var(--bl)">${p.mpActual||0}</div><div class="ml">Workers/hari</div></div>
+      <div class="metric"><div class="mv" style="color:${typeof rem==='number'&&rem<30?'var(--rd)':'var(--yw)'}">${rem}${typeof rem==='number'?' hr':''}</div><div class="ml">Sisa Hari</div></div>
+    </div>
+    <div class="card" style="margin-bottom:9px">
+      <div class="ct">PROGRESS PLAN VS ACTUAL</div>
+      <div class="pr"><div class="pl">Actual</div><div class="pb"><div class="pf" style="width:${p.actual}%;background:${bc}"></div></div><div class="pn" style="color:var(--gn)">${p.actual}%</div></div>
+      <div class="pr"><div class="pl">Plan</div><div class="pb"><div class="pf" style="width:${p.plan}%;background:linear-gradient(90deg,var(--bl),#60a5fa);opacity:.5"></div></div><div class="pn" style="color:var(--bl)">${p.plan}%</div></div>
+      <div class="pr"><div class="pl">Mandays</div><div class="pb"><div class="pf" style="width:${mdPct}%;background:linear-gradient(90deg,var(--or),#fb923c)"></div></div><div class="pn" style="color:var(--or)">${mdActualDetail}</div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="ct">INFO PROJECT</div>
+        <table style="width:100%;font-size:11px;border-collapse:collapse">
+          ${[['Mulai',p.mulai||'—'],['Selesai',p.selesai||'—'],['Mandays Plan',(mdPlanDetail||'Belum diset')+' MD'],['MD Actual',mdActualDetail+' MD ('+mdPct+'%)'],['MH Plan/hr',(p.mhPlan||0)+' jam'],['Catatan',p.notes||'—']].map(([k,v2])=>`<tr><td style="color:var(--mt);padding:3px 0;width:80px">${k}</td><td style="padding:3px 0">${v2}</td></tr>`).join('')}
+        </table>
+      </div>
+      <div class="card"><div class="ct">OPEN ISSUES (${pIss.length})</div>
+        ${pIss.length===0?'<div style="font-size:11px;color:var(--mt);text-align:center;padding:10px">✓ Tidak ada open issue</div>':
+          pIss.slice(0,4).map(i=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:11px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.uraian}</span><span class="pill" style="margin-left:5px;background:${i.prioritas==='Critical'?'rgba(239,68,68,.2)':'rgba(245,158,11,.2)'};color:${i.prioritas==='Critical'?'var(--rd)':'var(--yw)'};border:none">${i.prioritas}</span></div>`).join('')}
+      </div>
+    </div>
+    ${(p.history||[]).length>0?`<div class="card" style="margin-top:9px">
+      <div class="ct">RIWAYAT UPDATE <span style="color:var(--mt)">${p.history.length} entri</span>
+        <span style="font-size:10px;color:var(--mt)">(klik ✏ untuk edit atau 🗑 hapus)</span>
+      </div>
+      ${p.history.slice().reverse().map((h,ri)=>{
+        const realIdx=p.history.length-1-ri;
+        return `<div class="hr" style="gap:6px">
+          <div class="hd">${h.date}</div>
+          <span style="font-family:var(--fm);color:var(--gn);font-weight:600">${h.actual}%</span>
+          <span style="font-size:10px;color:var(--mt);margin:0 2px">vs</span>
+          <span style="font-family:var(--fm);color:var(--bl)">${h.plan}%</span>
+          <span style="font-family:var(--fm);font-size:10px;color:var(--or)">${h.mp?h.mp+' org':''}</span>
+          <div class="hn">${h.notes||''}</div>
+          <button class="btn btn-sm" style="padding:1px 6px;font-size:10px;flex-shrink:0" onclick="editHistEntry(${p.id},${realIdx})">✏</button>
+          <button class="btn btn-sm brd" style="padding:1px 6px;font-size:10px;flex-shrink:0" onclick="delHistEntry(${p.id},${realIdx})">🗑</button>
+        </div>`;
+      }).join('')}
+    </div>`:''}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MANPOWER TAB
+// ═══════════════════════════════════════════════════════════════
+function renderMP(){
+  const today=new Date().toISOString().slice(0,10);
+  const todayLogs=MPLOGS.filter(m=>m.date===today);
+  const logs=todayLogs.length>0?todayLogs:MPLOGS.slice(-Math.max(P.length,1));
+
+  // Pekerja hari ini
+  const totActToday=logs.reduce((s,m)=>s+(+m.total||0),0);
+  const totPlanPerDay=P.reduce((s,p)=>s+(p.mpPlan||0),0); // target pekerja per hari
+
+  // Mandays Actual = akumulasi total pekerja dari semua log per project
+  const getMandaysActual=(projId)=>MPLOGS.filter(m=>m.projId===projId).reduce((s,m)=>s+(+m.total||0),0);
+  const totMDActual=P.reduce((s,p)=>s+getMandaysActual(p.id),0);
+  const totMDPlan=P.reduce((s,p)=>s+(+p.mdPlan||0),0); // Mandays Plan dari field baru
+  const mdV=totMDActual-totMDPlan;
+
+  // Time lost total dari semua log
+  const totTL=MPLOGS.reduce((s,m)=>s+(+m.timeLost||0),0);
+
+  $('mp1').textContent=totActToday;
+  $('mp1s').textContent='';
+  $('mp2').textContent=totMDActual+' MD';
+  $('mp2s').textContent='Plan: '+(totMDPlan||'—')+' MD';
+  $('mp3').textContent=(mdV>=0?'+':'')+mdV+' MD';
+  $('mp3').style.color=totMDPlan>0?(mdV>=0?'var(--gn)':'var(--rd)'):'var(--mt)';
+  $('mp3s').textContent=totMDPlan>0?(mdV>=0?'Ahead of plan':'Behind plan'):'Set Mandays Plan';
+  $('mp4').textContent=totTL+' hr';
+
+  if(!P.length){$('mpTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:18px;font-size:11px">Belum ada project</div>';return;}
+
+  $('mpTable').innerHTML=P.map(p=>{
+    const log=logs.find(m=>m.projId===p.id)||{};
+    const todayWorkers=+log.total||0;
+    const mdActual=getMandaysActual(p.id);
+    const mdPlan=+p.mdPlan||0;
+    const mdPct=mdPlan>0?Math.round(mdActual/mdPlan*100):0;
+    const tl=MPLOGS.filter(m=>m.projId===p.id).reduce((s,m)=>s+(+m.timeLost||0),0);
+    const bc={'On Track':'var(--gn)','Delayed':'var(--yw)','Critical':'var(--rd)','Planning':'var(--bl)','Done':'var(--pu)'}[p.status]||'var(--bl)';
+    const spv=+log.spv||0,mdr=+log.mandor||0,ins=+log.installer||0,tuk=+log.tukang||0,hlp=+log.helper||0,saf=+log.safety||0;
+    const hasDetail=spv||mdr||ins||tuk||hlp||saf;
+    const logCount=MPLOGS.filter(m=>m.projId===p.id).length;
+    return `<div class="mp-row">
+      <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">${p.kode}</div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--mt);margin-bottom:3px">
+          <span>MD Actual: <span style="font-family:var(--fm);color:${bc}">${mdActual}</span></span>
+          <span>Plan: <span style="font-family:var(--fm)">${mdPlan||'—'}</span></span>
+          <span style="color:var(--mt)">${logCount} hari input</span>
+        </div>
+        <div class="mp-bar"><div class="mp-bar-pl" style="width:100%"></div><div class="mp-bar-ac" style="width:${Math.min(mdPct,100)}%;background:${bc}"></div></div>
+        ${mdPlan>0?`<div style="font-size:9px;color:${mdActual>=mdPlan?'var(--gn)':'var(--mt)'};margin-top:2px">${mdPct}% dari target${mdActual>=mdPlan?' ✓':''}</div>`:'<div style="font-size:9px;color:var(--mt);margin-top:2px">Mandays Plan belum diset</div>'}
+      </div>
+      <div style="font-family:var(--fm);color:var(--mt);text-align:center;font-size:10px">${hasDetail?spv:'—'}</div>
+      <div style="font-family:var(--fm);color:var(--mt);text-align:center;font-size:10px">${hasDetail?mdr:'—'}</div>
+      <div style="font-family:var(--fm);color:var(--mt);text-align:center;font-size:10px">${hasDetail?ins:'—'}</div>
+      <div style="font-family:var(--fm);color:var(--mt);text-align:center;font-size:10px">${hasDetail?tuk:'—'}</div>
+      <div style="font-family:var(--fm);color:var(--mt);text-align:center;font-size:10px">${hasDetail?hlp:'—'}</div>
+      <div style="font-family:var(--fm);color:${saf>0?'var(--gn)':'var(--mt)'};text-align:center;font-size:10px">${hasDetail?saf:'—'}</div>
+      <div style="font-family:var(--fm);color:${todayWorkers>0?'var(--bl)':'var(--mt)'};text-align:center;font-size:11px;font-weight:600">${todayWorkers||'—'}</div>
+      <div style="font-family:var(--fm);color:${tl>0?'var(--rd)':'var(--mt)'};text-align:center;font-size:10px">${tl>0?tl+'h':'—'}</div>
+    </div>`;
+  }).join('');
+  // Manhour trend — with week selector
+  const weekOffset=+(gv('mpTrendWeek')||0);
+  const days=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date();
+    d.setDate(d.getDate()-i-(weekOffset*7));
+    days.push(d.toISOString().slice(0,10));
+  }
+  // Trend bar: pekerja per hari (bukan manhours)
+  const vals=days.map(d=>MPLOGS.filter(m=>m.date===d).reduce((s,m)=>s+(+m.total||0),0));
+  const maxV=Math.max(...vals,1);
+  const weekLabel=weekOffset===0?'Minggu Ini':weekOffset===1?'Minggu Lalu':`${weekOffset} Minggu Lalu`;
+  const dateRange=`${days[0].slice(5)} — ${days[6].slice(5)}`;
+  $('mpTrend').innerHTML=`
+  <div style="font-size:10px;color:var(--mt);margin-bottom:8px;display:flex;justify-content:space-between">
+    <span>${weekLabel}</span>
+    <span style="font-family:var(--fm)">${dateRange}</span>
+  </div>
+  <div style="display:flex;align-items:flex-end;gap:7px;height:75px;padding:2px 4px">
+    ${days.map((d)=>{
+      const v=vals[days.indexOf(d)];const h=Math.round(v/maxV*65);const isToday=d===today;
+      const dayName=new Date(d+'T12:00').toLocaleDateString('id-ID',{weekday:'short'});
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+        <div style="font-family:var(--fm);font-size:9px;color:${v>0?'var(--gn)':'var(--mt)'}">${v||'—'}</div>
+        <div style="width:100%;height:${h||2}px;background:${isToday?'var(--or)':weekOffset===0?'rgba(59,130,246,.45)':'rgba(139,92,246,.4)'};border-radius:3px 3px 0 0;min-height:2px"></div>
+        <div style="font-size:9px;color:${isToday?'var(--or)':'var(--mt)'}">${dayName}</div>
+        <div style="font-size:8px;color:var(--bd)">${d.slice(5)}</div>
+      </div>`;
+    }).join('')}
+  </div>
+  <div style="display:flex;gap:12px;margin-top:6px;font-size:10px;color:var(--mt)">
+    ${weekOffset===0?`<span>■ <span style="color:var(--or)">Hari ini</span></span>`:''}
+    <span>Total pekerja minggu ini: <span style="font-family:var(--fm);color:var(--tx)">${vals.reduce((s,v)=>s+v,0)} orang-hari</span></span>
+  </div>`;
+  renderMpLog();
+}
+
+function calcMpTot(){sv('mpTot',(+gv('mpSpv')||0)+(+gv('mpMandor')||0)+(+gv('mpInstaller')||0)+(+gv('mpTukang')||0)+(+gv('mpHelper')||0)+(+gv('mpSafety')||0));}
+function calcEmlTot(){sv('emlTot',(+gv('emlSpv')||0)+(+gv('emlMandor')||0)+(+gv('emlInstaller')||0)+(+gv('emlTukang')||0)+(+gv('emlHelper')||0)+(+gv('emlSafety')||0));}
+
+let editingMpLogId=null;
+function renderMpLog(){
+  const el=$('mpLogTable');if(!el)return;
+  const fp=$('mpLogFiltProj');
+  if(fp){const cur=fp.value;fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');if(cur)fp.value=cur;}
+  const filtP=gv('mpLogFiltProj');
+  const logs=MPLOGS.filter(m=>!filtP||m.projId==filtP).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if(!logs.length){el.innerHTML='<div style="text-align:center;color:var(--mt);font-size:11px;padding:16px">Belum ada data manpower log</div>';return;}
+  el.innerHTML=`<table class="tbl"><thead><tr><th>Tgl</th><th>Project</th><th>SPV</th><th>Mdr</th><th>Inst</th><th>Tukang</th><th>Helper</th><th>Safety</th><th>Total</th><th>MH Act</th><th>Time Lost</th><th>Keterangan</th><th></th></tr></thead><tbody>
+  ${logs.map(m=>{
+    const pr=P.find(p=>p.id===m.projId);
+    return `<tr>
+      <td style="font-family:var(--fm);font-size:10px;white-space:nowrap">${m.date}</td>
+      <td style="font-family:var(--fm);font-size:10px;color:var(--bl)">${pr?.kode||'—'}</td>
+      <td style="text-align:center;font-family:var(--fm)">${m.spv||0}</td>
+      <td style="text-align:center;font-family:var(--fm)">${m.mandor||0}</td>
+      <td style="text-align:center;font-family:var(--fm)">${m.installer||0}</td>
+      <td style="text-align:center;font-family:var(--fm)">${m.tukang||0}</td>
+      <td style="text-align:center;font-family:var(--fm)">${m.helper||0}</td>
+      <td style="text-align:center;font-family:var(--fm)">${m.safety||0}</td>
+      <td style="text-align:center;font-family:var(--fm);font-weight:700;color:var(--gn)">${m.total||0}</td>
+      <td style="text-align:center;font-family:var(--fm)">${m.mhActual||0}</td>
+      <td style="text-align:center;font-family:var(--fm);color:${(m.timeLost||0)>0?'var(--rd)':'var(--mt)'}">${m.timeLost||0}</td>
+      <td style="color:var(--mt);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">${m.notes||'—'}</td>
+      <td><button class="btn btn-sm" style="padding:2px 6px" onclick="editMpLog(${m.id})">✏</button></td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+}
+function editMpLog(id){
+  const m=MPLOGS.find(x=>x.id===id);if(!m)return;
+  editingMpLogId=id;
+  $('emlProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+  $('emlProj').value=m.projId;
+  sv('emlDate',m.date);sv('emlSpv',m.spv||0);sv('emlMandor',m.mandor||0);sv('emlInstaller',m.installer||0);
+  sv('emlTukang',m.tukang||0);sv('emlHelper',m.helper||0);sv('emlSafety',m.safety||0);
+  sv('emlTot',m.total||0);sv('emlMhAct',m.mhActual||0);sv('emlTL',m.timeLost||0);
+  sv('emlTLReason',m.timeLostReason||'');sv('emlNotes',m.notes||'');
+  show('ov-editMpLog');
+}
+function saveEditMpLog(){
+  const idx=MPLOGS.findIndex(x=>x.id===editingMpLogId);if(idx<0)return;
+  const tot=(+gv('emlSpv')||0)+(+gv('emlMandor')||0)+(+gv('emlInstaller')||0)+(+gv('emlTukang')||0)+(+gv('emlHelper')||0)+(+gv('emlSafety')||0);
+  MPLOGS[idx]={...MPLOGS[idx],projId:+gv('emlProj')||MPLOGS[idx].projId,date:gv('emlDate'),
+    spv:+gv('emlSpv')||0,mandor:+gv('emlMandor')||0,installer:+gv('emlInstaller')||0,
+    tukang:+gv('emlTukang')||0,helper:+gv('emlHelper')||0,safety:+gv('emlSafety')||0,total:tot,
+    mhActual:+gv('emlMhAct')||0,timeLost:+gv('emlTL')||0,timeLostReason:gv('emlTLReason'),notes:gv('emlNotes')};
+  dirty();cm('editMpLog');renderMP();renderMpLog();toast('Log diupdate ✓');gsSync();
+}
+function delMpLog(){
+  if(!confirm('Hapus entri ini?'))return;
+  MPLOGS=MPLOGS.filter(m=>m.id!==editingMpLogId);
+  dirty();cm('editMpLog');renderMP();renderMpLog();toast('Log dihapus','warn');gsSync();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ISSUES
+// ═══════════════════════════════════════════════════════════════
+function renderIssues(){
+  const fp=$('ifProj');const cur=fp.value;
+  fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+  if(cur)fp.value=cur;
+  const fP=fp.value,fPri=gv('ifPri'),fSt=gv('ifStat');
+  const filtered=ISS.filter(i=>{if(fP&&i.projId!=fP)return false;if(fPri&&i.prioritas!==fPri)return false;if(fSt&&i.status!==fSt)return false;return true;});
+  $('ic1').textContent=ISS.filter(i=>i.prioritas==='Critical'&&i.status!=='Closed').length;
+  $('ic2').textContent=ISS.filter(i=>i.status==='Open').length;
+  $('ic3').textContent=ISS.filter(i=>i.status==='In Progress').length;
+  $('ic4').textContent=ISS.filter(i=>i.status==='Closed').length;
+  const pc={'Critical':'var(--rd)','High':'var(--or)','Medium':'var(--yw)','Low':'var(--bl)'};
+  const sc={'Open':'var(--rd)','In Progress':'var(--yw)','Monitoring':'var(--bl)','Closed':'var(--gn)'};
+  if(!filtered.length){$('issueTable').innerHTML='<div style="text-align:center;color:var(--mt);font-size:12px;padding:22px">Tidak ada issue</div>';return;}
+  $('issueTable').innerHTML=`<table class="tbl"><thead><tr><th>Project</th><th>Tgl</th><th>Uraian</th><th>Kat.</th><th>Prioritas</th><th>PIC</th><th>Due</th><th>Tindakan</th><th>Status</th><th></th></tr></thead><tbody>
+    ${filtered.map(i=>{const pr=P.find(p=>p.id===i.projId);return`<tr>
+      <td style="font-family:var(--fm);font-size:10px;color:var(--bl)">${pr?.kode||'—'}</td>
+      <td style="color:var(--mt);font-size:10px;white-space:nowrap">${i.tgl||'—'}</td>
+      <td style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.uraian}</td>
+      <td style="color:var(--mt);font-size:10px">${i.kategori}</td>
+      <td><span class="pill" style="background:${pc[i.prioritas]||'var(--mt)'}22;color:${pc[i.prioritas]||'var(--mt)'};border:1px solid ${pc[i.prioritas]||'var(--mt)'}44">${i.prioritas}</span></td>
+      <td style="color:var(--mt);font-size:10px">${i.pj||'—'}</td>
+      <td style="font-family:var(--fm);font-size:10px;color:${i.status!=='Closed'&&i.due&&new Date(i.due)<new Date()?'var(--rd)':'var(--mt)'}">${i.due||'—'}</td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mt);font-size:10px">${i.action||'—'}</td>
+      <td><span style="color:${sc[i.status]||'var(--mt)'};font-weight:600;font-size:10px">${i.status}</span></td>
+      <td><button class="btn btn-sm" style="padding:2px 6px" onclick="openModal('editIssue',${i.id})">✏</button></td>
+    </tr>`}).join('')}
+  </tbody></table>`;
+  updateBadge();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROCUREMENT
+// ═══════════════════════════════════════════════════════════════
+function renderProc(){
+  // Update project dropdown
+  const fp=$('procFiltProj');
+  if(fp){const cur=fp.value;fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');if(cur)fp.value=cur;}
+  const filtProj=gv('procFiltProj');
+  const filt=gv('procFilt');
+  const filtKat=gv('procFiltKat');
+  const search=(gv('procSearch')||'').toLowerCase();
+  const filtered=PROC.filter(i=>{
+    if(filtProj&&i.projId!=filtProj)return false;
+    if(filt&&i.status!==filt)return false;
+    if(filtKat&&i.kategori!==filtKat)return false;
+    if(search&&!i.item?.toLowerCase().includes(search)&&!i.supplier?.toLowerCase().includes(search))return false;
+    return true;
+  });
+  const cnt=s=>PROC.filter(i=>i.status===s).length;
+  $('pc1').textContent=cnt('Overdue');$('pc2').textContent=cnt('Due Today');
+  $('pc3').textContent=cnt('In Transit');$('pc4').textContent=cnt('On Site');
+  $('pc5').textContent=cnt('Waiting Approval')+cnt('PO Issued');
+  const sc={Overdue:'var(--rd)','Due Today':'var(--yw)','In Transit':'var(--bl)','On Site':'var(--gn)','Waiting Approval':'var(--pu)','PO Issued':'var(--or)'};
+  if(!filtered.length){$('procTable').innerHTML=`<div style="text-align:center;color:var(--mt);font-size:12px;padding:22px">${PROC.length?'Tidak ada item yang cocok dengan filter':'Belum ada item procurement'}</div>`;return;}
+  $('procTable').innerHTML=`<table class="tbl"><thead><tr><th>Project</th><th>Item</th><th>Kat.</th><th>Qty</th><th>Supplier</th><th>Due</th><th>Status</th><th>Catatan</th><th></th></tr></thead><tbody>
+    ${filtered.map(i=>{const pr=P.find(p=>p.id===i.projId);const od=i.status!=='On Site'&&i.due&&new Date(i.due)<new Date();return`<tr>
+      <td style="font-family:var(--fm);font-size:10px;color:var(--bl)">${pr?.kode||'—'}</td>
+      <td style="font-weight:500">${i.item}</td><td style="color:var(--mt)">${i.kategori}</td>
+      <td style="font-family:var(--fm)">${i.qty||'—'} ${i.satuan||''}</td>
+      <td style="color:var(--mt)">${i.supplier||'—'}</td>
+      <td style="font-family:var(--fm);font-size:10px;color:${od?'var(--rd)':'var(--mt)'}">${i.due||'—'}</td>
+      <td><span style="color:${sc[i.status]||'var(--mt)'};font-weight:600;font-size:10px">${i.status}</span></td>
+      <td style="color:var(--mt);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.notes||'—'}</td>
+      <td><button class="btn btn-sm" style="padding:2px 6px" onclick="openModal('editProc',${i.id})">✏</button></td>
+    </tr>`}).join('')}
+  </tbody></table>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODAL OPEN
+// ═══════════════════════════════════════════════════════════════
+function openModal(type,id=null){
+  if(type==='addProj'||type==='editProj'){
+    editProjId=id;
+    $('projMT').textContent=id?'EDIT PROJECT':'TAMBAH PROJECT';
+    $('btnSaveProj').textContent=id?'💾 Simpan':'＋ Tambah';
+    $('btnDelProj').style.display=id?'block':'none';
+    const p=id?P.find(x=>x.id===id):null;
+    sv('fKode',p?.kode||`ATW-${String(P.length+1).padStart(3,'0')}`);
+    sv('fNama',p?.nama||'');sv('fLok',p?.lokasi||'');sv('fClient',p?.client||'');
+    sv('fMulai',p?.mulai||'');sv('fSelesai',p?.selesai||'');sv('fStat',p?.status||'Planning');
+    sv('fMpP',p?.mdPlan||p?.mpPlan||'');sv('fMhP',p?.mhPlan||'');sv('fNotes',p?.notes||'');
+    sv('fWeather',p?.weather||'⛅ Partly Cloudy');
+    // Load logo
+    sv('fLogo',p?.logo||'');
+    setLogoPreview(p?.logo||'');
+    $('fPlan').value=p?.plan||0;$('fActual').value=p?.actual||0;
+    rv('fPlan','fPlanV','fPlanB');rv('fActual','fActualV','fActualB');
+    show('ov-addProj');
+  }
+  if(type==='updProgress'){
+    const p=P.find(x=>x.id===selId);if(!p)return;
+    $('updNm').textContent=`${p.kode} — ${p.nama}`;
+    $('uPlan').value=p.plan;$('uActual').value=p.actual;
+    sv('uMp',p.mpActual||0);sv('uStat',p.status);sv('uNotes','');
+    rv('uPlan','uPlanV','uPlanB');rv('uActual','uActualV','uActualB');
+    show('ov-updProgress');
+  }
+  if(type==='inputMp'){
+    $('mpProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    if(selId)$('mpProj').value=selId;
+    sv('mpDate',new Date().toISOString().slice(0,10));
+    sv('mpSpv','');sv('mpMandor','');sv('mpInstaller','');sv('mpTukang','');sv('mpHelper','');sv('mpSafety','');sv('mpTot','');
+    sv('mpMhAct','');sv('mpTL','0');sv('mpTLReason','');sv('mpNotes','');
+    sv('mpStatus','');
+    fillMpPlan();
+    // Reset progress sliders
+    const p=selId?P.find(x=>x.id==selId):P[0];
+    if(p){
+      $('mpActualProg').value=p.actual||0;$('mpPlanProg').value=p.plan||0;
+      rv('mpActualProg','mpActualProgV','mpActualProgB');rv('mpPlanProg','mpPlanProgV','mpPlanProgB');
+    } else {
+      $('mpActualProg').value=0;$('mpPlanProg').value=0;
+      $('mpActualProgV').textContent='—';$('mpPlanProgV').textContent='—';
+      $('mpActualProgB').style.width='0%';$('mpPlanProgB').style.width='0%';
+    }
+    show('ov-inputMp');
+  }
+  if(type==='addAccident'){
+    $('accProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    sv('accDate',new Date().toISOString().slice(0,10));
+    ['accFat','accLti','accMin','accMed','accProp','accFire','accTraf','accEnv','accNM','accTL'].forEach(k=>sv(k,'0'));
+    sv('accNotes','');
+    show('ov-addAccident');
+  }
+  if(type==='editWeather'){
+    $('wFields').innerHTML=P.map(p=>`<div class="fg"><label class="fl">${p.kode} — ${p.nama}</label>
+      <select class="fi" id="wf_${p.id}">${['☀️ Sunny','⛅ Partly Cloudy','🌥 Overcast','🌧 Rainy','⛈ Thunderstorm','🌫 Foggy'].map(w=>`<option ${p.weather===w?'selected':''}>${w}</option>`).join('')}</select>
+    </div>`).join('');
+    show('ov-editWeather');
+  }
+  if(type==='addIssue'||type==='editIssue'){
+    editIssId=id;
+    $('issMT').textContent=id?'EDIT ISSUE':'TAMBAH ISSUE';
+    $('btnSaveIss').textContent=id?'💾 Simpan':'＋ Tambah';
+    $('btnDelIss').style.display=id?'block':'none';
+    $('iProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    const iss=id?ISS.find(x=>x.id===id):null;
+    sv('iProj',iss?.projId||(selId||''));sv('iTgl',iss?.tgl||new Date().toISOString().slice(0,10));
+    sv('iPri',iss?.prioritas||'Medium');sv('iKat',iss?.kategori||'Other');
+    sv('iUraian',iss?.uraian||'');sv('iPJ',iss?.pj||'');sv('iDue',iss?.due||'');
+    sv('iStat',iss?.status||'Open');sv('iDone',iss?.done||'');sv('iAction',iss?.action||'');
+    show('ov-addIssue');
+  }
+  if(type==='addProc'||type==='editProc'){
+    editProcId=id;
+    $('procMT').textContent=id?'EDIT ITEM':'TAMBAH ITEM';
+    $('btnSaveProc').textContent=id?'💾 Simpan':'＋ Tambah';
+    $('btnDelProc').style.display=id?'block':'none';
+    $('pProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    const pr=id?PROC.find(x=>x.id===id):null;
+    sv('pProj',pr?.projId||(selId||''));sv('pKat',pr?.kategori||'Material');
+    sv('pItem',pr?.item||'');sv('pQty',pr?.qty||'');sv('pSat',pr?.satuan||'');
+    sv('pDue',pr?.due||'');sv('pSup',pr?.supplier||'');sv('pStat',pr?.status||'Waiting Approval');sv('pNotes',pr?.notes||'');
+    show('ov-addProc');
+  }
+  if(type==='gsConfig'){sv('gsSheetUrl',gsSheet);sv('gsScriptUrl',gsUrl);$('gsTestRes').style.display='none';show('ov-gsConfig');}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SAVE ACTIONS
+// ═══════════════════════════════════════════════════════════════
+function saveProj(){
+  const kode=gv('fKode').trim(),nama=gv('fNama').trim();
+  if(!kode||!nama){toast('Kode & Nama wajib diisi','error');return;}
+  const d={kode,nama,lokasi:gv('fLok').trim(),client:gv('fClient').trim(),mulai:gv('fMulai'),selesai:gv('fSelesai'),
+    status:gv('fStat'),plan:+$('fPlan').value,actual:+$('fActual').value,
+    mdPlan:+gv('fMpP')||0,mpPlan:+gv('fMpP')||0,mhPlan:+gv('fMhP')||0,
+    weather:gv('fWeather'),notes:gv('fNotes').trim(),
+    logo:gv('fLogo')||''};
+  if(editProjId){const i=P.findIndex(p=>p.id===editProjId);P[i]={...P[i],...d};toast('Project diupdate ✓');}
+  else{d.id=Date.now();d.history=[];d.mpActual=0;P.push(d);selId=d.id;toast('Project ditambahkan ✓');}
+  dirty();cm('addProj');render();gsSync();
+}
+function delProj(){
+  if(!confirm('Hapus project ini?'))return;
+  P=P.filter(p=>p.id!==editProjId);ISS=ISS.filter(i=>i.projId!==editProjId);PROC=PROC.filter(p=>p.projId!==editProjId);
+  if(selId===editProjId)selId=P[0]?.id||null;
+  dirty();cm('addProj');render();toast('Project dihapus','warn');
+}
+function saveUpdate(){
+  const p=P.find(x=>x.id===selId);if(!p)return;
+  p.plan=+$('uPlan').value;p.actual=+$('uActual').value;p.mpActual=+gv('uMp')||0;p.status=gv('uStat');
+  const notes=gv('uNotes').trim();if(notes)p.notes=notes;
+  if(!p.history)p.history=[];
+  p.history.push({date:new Date().toLocaleDateString('id-ID'),actual:p.actual,plan:p.plan,mp:p.mpActual,notes});
+  dirty();cm('updProgress');render();toast(`Progress: ${p.actual}% actual ✓`);gsSync();
+}
+// ── CLIENT LOGO HELPERS ─────────────────────────────────────
+function previewClientLogo(input){
+  const file=input.files[0];if(!file)return;
+  if(file.size>307200){toast('Ukuran file terlalu besar (maks 300KB)','error');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    sv('fLogo',e.target.result);
+    setLogoPreview(e.target.result);
+    toast('Logo dipilih ✓');
+  };
+  reader.readAsDataURL(file);
+}
+function setLogoPreview(src){
+  const img=$('fLogoImg'),empty=$('fLogoEmpty'),preview=$('fLogoPreview');
+  if(src){
+    img.src=src;img.style.display='block';
+    if(empty)empty.style.display='none';
+    if(preview)preview.style.background='transparent';
+  }else{
+    img.src='';img.style.display='none';
+    if(empty)empty.style.display='block';
+    if(preview)preview.style.background='var(--sf2)';
+  }
+}
+function clearClientLogo(){
+  sv('fLogo','');setLogoPreview('');
+  $('fLogoFile').value='';
+  toast('Logo dihapus','warn');
+}
+// Ganti logo dashboard utama
+function changeDashLogo(input){
+  const file=input.files[0];if(!file)return;
+  if(file.size>512000){toast('Ukuran file terlalu besar (maks 512KB)','error');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const src=e.target.result;
+    const img=$('dashLogoImg');if(img)img.src=src;
+    try{localStorage.setItem('atw_dash_logo',src);}catch(err){}
+    const btn=$('btnResetLogo');if(btn)btn.style.display='flex';
+    toast('Logo dashboard diganti ✓');
+  };
+  reader.readAsDataURL(file);
+}
+function resetDashLogo(){
+  if(!confirm('Reset logo ke default ATW Solar?'))return;
+  try{localStorage.removeItem('atw_dash_logo');}catch(e){}
+  // Restore original logo from img default src baked in HTML
+  const img=$('dashLogoImg');
+  // Re-load page to restore original embedded logo
+  location.reload();
+}
+// Load custom logo saat startup jika ada
+function loadDashLogo(){
+  try{
+    const saved=localStorage.getItem('atw_dash_logo');
+    if(saved){
+      const img=$('dashLogoImg');if(img)img.src=saved;
+      const btn=$('btnResetLogo');if(btn)btn.style.display='flex';
+    }
+  }catch(e){}
+}
+function logoTag(p,h=28){
+  if(!p?.logo)return `<span style="font-size:11px;color:var(--mt)">${p?.client||'—'}</span>`;
+  return `<img src="${p.logo}" style="height:${h}px;max-width:${h*3}px;object-fit:contain;border-radius:3px;vertical-align:middle" title="${p.client||''}" onerror="this.style.display='none'">`;
+}
+
+function fillMpPlan(){
+  const projId=gv('mpProj');
+  const p=P.find(x=>x.id==projId);
+  if(p){
+    // Hitung mandays actual = akumulasi total pekerja dari semua log project ini
+    const mdActual=MPLOGS.filter(m=>m.projId===p.id).reduce((s,m)=>s+(+m.total||0),0);
+    const mdPlan=+p.mdPlan||+p.mpPlan||0; // fallback ke mpPlan lama
+    const mdVar=mdActual-mdPlan;
+    const dispPlan=$('mpMdPlanDisp');
+    const dispAct=$('mpMdActDisp');
+    const dispVar=$('mpMdVarDisp');
+    if(dispPlan)dispPlan.textContent=mdPlan||'Belum diset';
+    if(dispAct)dispAct.textContent=mdActual+' MD';
+    if(dispVar){
+      dispVar.textContent=(mdPlan>0?(mdVar>=0?'+':'')+mdVar+' MD':'—');
+      dispVar.style.color=mdPlan>0?(mdVar>=0?'var(--gn)':'var(--rd)'):'var(--mt)';
+    }
+    // Set slider progress
+    $('mpActualProg').value=p.actual||0;$('mpPlanProg').value=p.plan||0;
+    rv('mpActualProg','mpActualProgV','mpActualProgB');
+    rv('mpPlanProg','mpPlanProgV','mpPlanProgB');
+  }
+}
+function saveMp(){
+  const projId=gv('mpProj');if(!projId){toast('Pilih project','error');return;}
+  const tot=(+gv('mpSpv')||0)+(+gv('mpMandor')||0)+(+gv('mpInstaller')||0)+(+gv('mpTukang')||0)+(+gv('mpHelper')||0)+(+gv('mpSafety')||0);
+  const entry={id:Date.now(),projId:+projId||projId,date:gv('mpDate')||new Date().toISOString().slice(0,10),
+    spv:+gv('mpSpv')||0,mandor:+gv('mpMandor')||0,installer:+gv('mpInstaller')||0,
+    tukang:+gv('mpTukang')||0,helper:+gv('mpHelper')||0,safety:+gv('mpSafety')||0,total:tot,
+    mhActual:+gv('mpMhAct')||0,timeLost:+gv('mpTL')||0,timeLostReason:gv('mpTLReason'),notes:gv('mpNotes')};
+  const pi=P.findIndex(p=>p.id==projId);
+  if(pi>=0){
+    P[pi].mpActual=tot;
+    // Update manpower plan jika diubah
+    // mpActual = total pekerja hari ini
+    P[pi].mpActual=tot;
+    // Update progress jika ada input
+    const newActual=+$('mpActualProg').value;
+    const newPlan=+$('mpPlanProg').value;
+    const newStatus=gv('mpStatus');
+    const notes=gv('mpNotes').trim();
+    if(newActual>0||newPlan>0){
+      if(newActual>0)P[pi].actual=newActual;
+      if(newPlan>0)P[pi].plan=newPlan;
+      if(newStatus)P[pi].status=newStatus;
+      if(notes)P[pi].notes=notes;
+      if(!P[pi].history)P[pi].history=[];
+      P[pi].history.push({date:new Date().toLocaleDateString('id-ID'),actual:P[pi].actual,plan:P[pi].plan,mp:tot,notes:notes||'Update harian'});
+      toast('Manpower + Progress disimpan ✓');
+    } else {
+      toast('Manpower disimpan ✓');
+    }
+  }
+  MPLOGS.push(entry);
+  dirty();cm('inputMp');render();updateTimeLostKPI();gsSync();
+}
+function saveAcc(){
+  const projId=gv('accProj');if(!projId){toast('Pilih project','error');return;}
+  const entry={id:Date.now(),projId:+projId||projId,date:gv('accDate')||new Date().toISOString().slice(0,10),
+    fatality:+gv('accFat')||0,lti:+gv('accLti')||0,minorInjury:+gv('accMin')||0,medTreatment:+gv('accMed')||0,
+    propertyDamage:+gv('accProp')||0,fire:+gv('accFire')||0,traffic:+gv('accTraf')||0,
+    environment:+gv('accEnv')||0,nearMiss:+gv('accNM')||0,timeLost:+gv('accTL')||0,notes:gv('accNotes')};
+  ACCLOGS.push(entry);
+  dirty();cm('addAccident');
+  // Selalu update OV time lost KPI langsung, tidak perlu tunggu tab switch
+  updateTimeLostKPI();
+  if(activeTab==='overview')renderOV();
+  toast('Accident log disimpan ✓');gsSync();
+}
+// ── EDIT HISTORY ENTRY ──────────────────────────────────────
+function editHistEntry(projId,idx){
+  const p=P.find(x=>x.id===projId);if(!p||!p.history[idx])return;
+  const h=p.history[idx];
+  sv('ehProjId',projId);sv('ehIdx',idx);
+  sv('ehDate',h.date||'');sv('ehNotes',h.notes||'');sv('ehMp',h.mp||0);
+  sv('ehStatus',h.status||p.status||'On Track');
+  $('ehActual').value=h.actual||0;$('ehPlan').value=h.plan||0;
+  rv('ehActual','ehActualV','ehActualB');rv('ehPlan','ehPlanV','ehPlanB');
+  show('ov-editHist');
+}
+function delHistEntry(projId,idx){
+  if(!confirm('Hapus entri riwayat ini?'))return;
+  const p=P.find(x=>x.id===projId);if(!p)return;
+  p.history.splice(idx,1);
+  dirty();renderDetail(projId);toast('Entri dihapus','warn');gsSync();
+}
+function saveHistEntry(){
+  const projId=+gv('ehProjId')||gv('ehProjId');
+  const idx=+gv('ehIdx');
+  const p=P.find(x=>x.id===projId);if(!p||!p.history)return;
+  p.history[idx]={
+    date:gv('ehDate')||p.history[idx].date,
+    actual:+$('ehActual').value,plan:+$('ehPlan').value,
+    mp:+gv('ehMp')||0,notes:gv('ehNotes').trim(),status:gv('ehStatus')
+  };
+  // Sync progress ke project juga (entri terbaru)
+  const lastIdx=p.history.length-1;
+  if(idx===lastIdx){
+    p.actual=p.history[idx].actual;p.plan=p.history[idx].plan;
+    if(gv('ehStatus'))p.status=gv('ehStatus');
+  }
+  dirty();cm('editHist');renderDetail(projId);render();toast('Riwayat diupdate ✓');gsSync();
+}
+
+// ── EDIT ACCIDENT LOG ────────────────────────────────────────
+function editAccLog(id){
+  const a=ACCLOGS.find(x=>String(x.id)===String(id));if(!a)return;
+  sv('eaId',String(id));
+  $('eaProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+  sv('eaProj',a.projId);sv('eaDate',a.date);
+  sv('eaFat',a.fatality||0);sv('eaLti',a.lti||0);sv('eaMin',a.minorInjury||0);
+  sv('eaMed',a.medTreatment||0);sv('eaProp',a.propertyDamage||0);sv('eaNM',a.nearMiss||0);
+  sv('eaFire',a.fire||0);sv('eaTraf',a.traffic||0);sv('eaEnv',a.environment||0);
+  sv('eaTL',a.timeLost||0);sv('eaNotes',a.notes||'');
+  show('ov-editAcc');
+}
+function saveAccEdit(){
+  const id=gv('eaId');
+  const idx=ACCLOGS.findIndex(x=>String(x.id)===String(id));
+  if(idx<0){toast('Data tidak ditemukan','error');return;}
+  ACCLOGS[idx]={...ACCLOGS[idx],
+    projId:+gv('eaProj')||gv('eaProj'),date:gv('eaDate'),
+    fatality:+gv('eaFat')||0,lti:+gv('eaLti')||0,minorInjury:+gv('eaMin')||0,
+    medTreatment:+gv('eaMed')||0,propertyDamage:+gv('eaProp')||0,nearMiss:+gv('eaNM')||0,
+    fire:+gv('eaFire')||0,traffic:+gv('eaTraf')||0,environment:+gv('eaEnv')||0,
+    timeLost:+gv('eaTL')||0,notes:gv('eaNotes')};
+  dirty();cm('editAcc');updateTimeLostKPI();
+  if(activeTab==='overview')renderOV();
+  toast('Accident log diupdate ✓');gsSync();
+}
+function delAccLog(){
+  const id=gv('eaId');
+  const entry=ACCLOGS.find(x=>String(x.id)===String(id));
+  if(!entry){toast('Data tidak ditemukan','error');return;}
+  const tl=entry.timeLost||0;
+  const proj=P.find(p=>p.id===entry.projId)?.kode||'';
+  const ok=window.confirm(`Hapus accident log ini?\n${entry.date} · ${proj} · Time Lost: ${tl} jam`);
+  if(!ok)return;
+  ACCLOGS=ACCLOGS.filter(x=>String(x.id)!==String(id));
+  dirty();cm('editAcc');updateTimeLostKPI();
+  if(activeTab==='overview')renderOV();
+  toast('Accident log dihapus','warn');gsSync();
+}
+
+function saveWeather(){
+  P.forEach(p=>{const el=$('wf_'+p.id);if(el)p.weather=el.value;});
+  dirty();cm('editWeather');if(activeTab==='overview')renderOV();else renderSB();toast('Cuaca diupdate ✓');
+}
+function saveIss(){
+  const uraian=gv('iUraian').trim();if(!uraian){toast('Uraian wajib diisi','error');return;}
+  const d={projId:+gv('iProj')||gv('iProj'),tgl:gv('iTgl'),uraian,prioritas:gv('iPri'),
+    kategori:gv('iKat'),pj:gv('iPJ').trim(),due:gv('iDue'),status:gv('iStat'),done:gv('iDone'),action:gv('iAction').trim()};
+  if(editIssId){const i=ISS.findIndex(x=>x.id===editIssId);ISS[i]={...ISS[i],...d};toast('Issue diupdate ✓');}
+  else{d.id=Date.now();ISS.push(d);toast('Issue ditambahkan ✓');}
+  dirty();cm('addIssue');renderIssues();$('pk5').textContent=ISS.filter(i=>i.status!=='Closed').length;gsSync();
+}
+function delIss(){if(!confirm('Hapus?'))return;ISS=ISS.filter(i=>i.id!==editIssId);dirty();cm('addIssue');renderIssues();toast('Issue dihapus','warn');}
+function saveProc(){
+  const item=gv('pItem').trim();if(!item){toast('Nama item wajib diisi','error');return;}
+  const d={projId:+gv('pProj')||gv('pProj'),item,kategori:gv('pKat'),qty:gv('pQty'),satuan:gv('pSat'),
+    due:gv('pDue'),supplier:gv('pSup').trim(),status:gv('pStat'),notes:gv('pNotes').trim()};
+  if(editProcId){const i=PROC.findIndex(x=>x.id===editProcId);PROC[i]={...PROC[i],...d};toast('Item diupdate ✓');}
+  else{d.id=Date.now();PROC.push(d);toast('Item ditambahkan ✓');}
+  dirty();cm('addProc');renderProc();if(activeTab==='overview')renderOV();gsSync();
+}
+function delProc(){if(!confirm('Hapus?'))return;PROC=PROC.filter(p=>p.id!==editProcId);dirty();cm('addProc');renderProc();toast('Item dihapus','warn');}
+
+// ═══════════════════════════════════════════════════════════════
+// GOOGLE SHEET
+// ═══════════════════════════════════════════════════════════════
+const GS_SCRIPT=`// ATW Solar Project Performance Dashboard — Google Apps Script v2
+// PENTING: Setelah paste script ini, ganti SHEET_ID di bawah
+// lalu Deploy ulang sebagai Web App (Anyone can access)
+
+const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
+
+function doPost(e) {
+  try {
+    // Support both application/json dan text/plain (untuk bypass CORS preflight)
+    const raw = e.postData ? e.postData.contents : '';
+    const d = JSON.parse(raw);
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    if (d.action === 'sync') {
+      writeSheet(ss,'PROJECTS',d.projects,['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes']);
+      writeSheet(ss,'HISTORY',d.history||[],['projId','kode','date','actual','plan','mp','notes']);
+      writeSheet(ss,'ISSUES',d.issues||[],['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
+      writeSheet(ss,'PROCUREMENT',d.procurement||[],['id','projId','item','kategori','qty','satuan','supplier','due','status','notes']);
+      writeSheet(ss,'MANPOWER_LOG',d.manpowerLogs||[],['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
+      writeSheet(ss,'ACCIDENT_LOG',d.accidentLogs||[],['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
+      // Simpan timestamp sync terakhir
+      const meta = ss.getSheetByName('_META') || ss.insertSheet('_META');
+      meta.clearContents();
+      meta.appendRow(['lastSaved','version']);
+      meta.appendRow([d.lastSaved||Date.now(),'4.0']);
+    }
+    return makeOutput({status:'ok',ts:new Date().toISOString()});
+  } catch(err) {
+    return makeOutput({status:'error',msg:err.toString()});
+  }
+}
+
+function doGet(e) {
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const meta = readSheet(ss,'_META');
+    const lastSaved = meta.length>0 ? (+meta[0].lastSaved||0) : 0;
+    return makeOutput({
+      lastSaved: lastSaved,
+      projects:     readSheet(ss,'PROJECTS')||[],
+      history:      readSheet(ss,'HISTORY')||[],
+      issues:       readSheet(ss,'ISSUES')||[],
+      procurement:  readSheet(ss,'PROCUREMENT')||[],
+      manpowerLogs: readSheet(ss,'MANPOWER_LOG')||[],
+      accidentLogs: readSheet(ss,'ACCIDENT_LOG')||[],
+    });
+  } catch(err) {
+    return makeOutput({status:'error',msg:err.toString()});
+  }
+}
+
+function writeSheet(ss, name, data, cols) {
+  let sh = ss.getSheetByName(name) || ss.insertSheet(name);
+  sh.clearContents();
+  sh.appendRow(cols);
+  if (data && data.length) {
+    data.forEach(row => sh.appendRow(cols.map(c => row[c]!==undefined ? row[c] : '')));
+  }
+}
+
+function readSheet(ss, name) {
+  const sh = ss.getSheetByName(name);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const [headers, ...rows] = sh.getDataRange().getValues();
+  return rows.map(r => Object.fromEntries(headers.map((k,i) => [k, r[i]])));
+}
+
+function makeOutput(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+function saveGS(){
+  gsUrl=gv('gsScriptUrl').trim();gsSheet=gv('gsSheetUrl').trim();
+  if(!gsUrl){toast('URL Script wajib diisi','error');return;}
+  gsOk=true;
+  localStorage.setItem('atw_gs',JSON.stringify({url:gsUrl,sheet:gsSheet}));
+  updateGsBadge();cm('gsConfig');toast('Google Sheet tersambung ✓');
+  if(P.length)gsSync();
+}
+async function testGS(){
+  const url=gv('gsScriptUrl').trim();if(!url){toast('Isi URL dulu','error');return;}
+  const r=$('gsTestRes');r.style.display='block';r.style.background='rgba(100,116,139,.1)';r.style.border='1px solid var(--bd)';r.textContent='⏳ Testing...';
+  try{
+    await fetch(url,{mode:'no-cors'});
+    r.style.background='rgba(16,185,129,.1)';r.style.border='1px solid var(--gn)';r.style.color='var(--gn)';
+    r.textContent='✓ URL dapat dijangkau. Pastikan sudah di-deploy sebagai Web App dengan akses Anyone.';
+  }catch(e){
+    r.style.background='rgba(239,68,68,.1)';r.style.border='1px solid var(--rd)';r.style.color='var(--rd)';
+    r.textContent='✗ Tidak dapat terhubung. Periksa URL dan pastikan sudah di-deploy.';
+  }
+}
+function copyGsScript(){
+  navigator.clipboard?.writeText(GS_SCRIPT).then(()=>toast('Script disalin ✓')).catch(()=>{
+    const t=document.createElement('textarea');t.value=GS_SCRIPT;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('Script disalin ✓');
+  });
+}
+async function gsSync(){
+  if(!gsOk||!gsUrl)return;
+  try{
+    const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
+    const payload={action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS};
+    // Gunakan fetch dengan mode no-cors — data terkirim walau response tidak bisa dibaca
+    fetch(gsUrl,{
+      method:'POST',
+      body:JSON.stringify(payload),
+      mode:'no-cors',
+      headers:{'Content-Type':'text/plain'} // text/plain lolos preflight CORS
+    }).catch(e=>console.log('GS sync bg error:',e));
+  }catch(e){console.log('GS sync:',e);}
+}
+async function syncAllGS(){
+  if(!gsOk||!gsUrl){toast('Google Sheet belum tersambung','warn');return;}
+  toast('Sinkronisasi ke Google Sheet...');
+  await gsSync();
+  toast('Data disinkronkan ke Google Sheet ✓');
+}
+async function loadFromGS(){
+  if(!gsOk||!gsUrl){toast('Google Sheet belum tersambung','warn');return;}
+  toast('Memuat dari Google Sheet...');
+  try{
+    const r=await fetch(gsUrl+'?t='+Date.now());
+    const d=await r.json();
+    if(d.projects?.length){
+      P=d.projects.map(p=>({...p,plan:+p.plan||0,actual:+p.actual||0,mpPlan:+p.mpPlan||0,mpActual:+p.mpActual||0,mhPlan:+p.mhPlan||0,history:[]}));
+      ISS=d.issues||[];
+      PROC=d.procurement||[];
+      MPLOGS=(d.manpowerLogs||[]).map(m=>({...m,total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0}));
+      ACCLOGS=(d.accidentLogs||[]).map(a=>({...a,fatality:+a.fatality||0,lti:+a.lti||0,minorInjury:+a.minorInjury||0,medTreatment:+a.medTreatment||0,propertyDamage:+a.propertyDamage||0,fire:+a.fire||0,traffic:+a.traffic||0,environment:+a.environment||0,nearMiss:+a.nearMiss||0,timeLost:+a.timeLost||0}));
+      if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
+      selId=P[0]?.id||null;clean('Google Sheet');render();
+      toast(`✓ ${P.length} project dimuat dari Google Sheet`);
+    }else{toast('Tidak ada data di Google Sheet','warn');}
+  }catch(e){toast('Gagal load dari GS. Gunakan Import Excel sebagai alternatif.','error');}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXCEL EXPORT/IMPORT
+// ═══════════════════════════════════════════════════════════════
+function exportExcel(){
+  if(!P.length){toast('Tidak ada data','warn');return;}
+  const wb=XLSX.utils.book_new();
+  const toSheet=(data,cols)=>XLSX.utils.json_to_sheet(data.length?data:[{Info:'Empty'}]);
+  // PROJECTS
+  const ps=XLSX.utils.json_to_sheet(P.map(p=>({ID:p.id,Kode:p.kode,'Nama Project':p.nama,Lokasi:p.lokasi||'',Client:p.client||'','Tgl Mulai':p.mulai||'','Tgl Selesai':p.selesai||'',Status:p.status,'Plan (%)':p.plan,'Actual (%)':p.actual,'Variance (%)':p.actual-p.plan,SPI:p.plan>0?+(p.actual/p.plan).toFixed(2):0,'Mandays Plan':p.mdPlan||p.mpPlan||0,'MP Actual (workers)':p.mpActual||0,'MH Plan/hr':p.mhPlan||0,Weather:p.weather||'',Catatan:p.notes||''})));
+  ps['!cols']=[{wch:14},{wch:10},{wch:28},{wch:20},{wch:20},{wch:12},{wch:12},{wch:12},{wch:8},{wch:8},{wch:10},{wch:6},{wch:8},{wch:8},{wch:8},{wch:18},{wch:28}];
+  XLSX.utils.book_append_sheet(wb,ps,'PROJECTS');
+  // HISTORY
+  const hs=[];P.forEach(p=>(p.history||[]).forEach(h=>hs.push({ID_Project:p.id,Kode:p.kode,Tanggal:h.date,'Actual (%)':h.actual,'Plan (%)':h.plan,Manpower:h.mp||0,Keterangan:h.notes||''})));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(hs.length?hs:[{Info:'No history'}]),'HISTORY');
+  // ISSUES
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ISS.length?ISS.map(i=>{const pr=P.find(p=>p.id===i.projId);return{ID:i.id,'ID Project':i.projId,'Kode Project':pr?.kode||'',Uraian:i.uraian,Tanggal:i.tgl||'',Kategori:i.kategori,Prioritas:i.prioritas,PIC:i.pj||'','Due Date':i.due||'',Tindakan:i.action||'',Status:i.status,'Tgl Selesai':i.done||''};}):[{Info:'No issues'}]),'ISSUES');
+  // PROCUREMENT
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(PROC.length?PROC.map(i=>{const pr=P.find(p=>p.id===i.projId);return{ID:i.id,'ID Project':i.projId,'Kode Project':pr?.kode||'',Item:i.item,Kategori:i.kategori,Qty:i.qty||'',Satuan:i.satuan||'',Supplier:i.supplier||'','Due Date':i.due||'',Status:i.status,Catatan:i.notes||''};}):[{Info:'No procurement'}]),'PROCUREMENT');
+  // MANPOWER LOG
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(MPLOGS.length?MPLOGS.map(m=>{const pr=P.find(p=>p.id===m.projId);return{ID:m.id,'ID Project':m.projId,'Kode Project':pr?.kode||'',Tanggal:m.date,SPV:m.spv||0,Mandor:m.mandor||0,Installer:m.installer||0,Tukang:m.tukang||0,Helper:m.helper||0,'Safety Man':m.safety||0,'Total Pekerja':m.total||0,'MH Actual':m.mhActual||0,'Time Lost (jam)':m.timeLost||0,'Alasan Time Lost':m.timeLostReason||'',Catatan:m.notes||''};}):[{Info:'No manpower logs'}]),'MANPOWER_LOG');
+  // ACCIDENT LOG
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ACCLOGS.length?ACCLOGS.map(a=>{const pr=P.find(p=>p.id===a.projId);return{ID:a.id,'ID Project':a.projId,'Kode Project':pr?.kode||'',Tanggal:a.date,Fatality:a.fatality||0,LTI:a.lti||0,'Minor Injury':a.minorInjury||0,'Med Treatment':a.medTreatment||0,'Property Damage':a.propertyDamage||0,Fire:a.fire||0,Traffic:a.traffic||0,Environment:a.environment||0,'Near Miss':a.nearMiss||0,'Time Lost (jam)':a.timeLost||0,Keterangan:a.notes||''};}):[{Info:'No accident logs'}]),'ACCIDENT_LOG');
+  // META
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([{App:'ATW Solar Dashboard',Version:'4.0',Exported:new Date().toLocaleString('id-ID'),Projects:P.length,Sig:'ATW_DASH_V4'}]),'_META');
+  const fn=`ATW_Portfolio_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb,fn);clean(fn);toast(`✓ Tersimpan: "${fn}"`);
+}
+function triggerImport(){$('fileIn').click();}
+function importExcel(e){const f=e.target.files[0];if(f)readXL(f);e.target.value='';}
+function dov(e){e.preventDefault();$('dz').classList.add('drag');}
+function dol(){$('dz').classList.remove('drag');}
+function dof(e){e.preventDefault();dol();const f=e.dataTransfer.files[0];if(f)readXL(f);}
+function readXL(file){
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const meta=wb.Sheets['_META']?XLSX.utils.sheet_to_json(wb.Sheets['_META'])[0]:null;
+      if(meta&&!['KWP_DASHBOARD_V2','KWP_DASHBOARD_V3','ATW_DASH_V4'].includes(meta.Sig)){toast('File tidak dikenali','error');return;}
+      const rows=wb.Sheets['PROJECTS']?XLSX.utils.sheet_to_json(wb.Sheets['PROJECTS']):[];
+      if(!rows.length){toast('Sheet PROJECTS kosong','warn');return;}
+      const hist=wb.Sheets['HISTORY']?XLSX.utils.sheet_to_json(wb.Sheets['HISTORY']):[];
+      const imp=rows.map(r=>({
+        id:r['ID']||Date.now()+Math.random(),kode:r['Kode']||'',nama:r['Nama Project']||'',
+        lokasi:r['Lokasi']||'',client:r['Client']||'',mulai:r['Tgl Mulai']||'',selesai:r['Tgl Selesai']||'',
+        status:r['Status']||'Planning',plan:+r['Plan (%)']||0,actual:+r['Actual (%)']||0,
+        mpPlan:+r['Mandays Plan']||+r['MP Plan']||0,mdPlan:+r['Mandays Plan']||+r['MP Plan']||0,mpActual:+r['MP Actual (workers)']||+r['MP Actual']||0,mhPlan:+r['MH Plan/hr']||+r['MH Plan']||0,
+        weather:r['Weather']||'⛅ Partly Cloudy',notes:r['Catatan']||'',
+        history:hist.filter(h=>h['ID_Project']==r['ID']).map(h=>({date:h['Tanggal'],actual:h['Actual (%)'],plan:h['Plan (%)'],mp:h['Manpower']||0,notes:h['Keterangan']||''}))
+      }));
+      const impI=wb.Sheets['ISSUES']?XLSX.utils.sheet_to_json(wb.Sheets['ISSUES']).filter(r=>r['Uraian']).map(r=>({id:r['ID']||Date.now()+Math.random(),projId:r['ID Project'],uraian:r['Uraian'],tgl:r['Tanggal']||'',kategori:r['Kategori']||'Other',prioritas:r['Prioritas']||'Medium',pj:r['PIC']||'',due:r['Due Date']||'',action:r['Tindakan']||'',status:r['Status']||'Open',done:r['Tgl Selesai']||''})):[];
+      const impP=wb.Sheets['PROCUREMENT']?XLSX.utils.sheet_to_json(wb.Sheets['PROCUREMENT']).filter(r=>r['Item']).map(r=>({id:r['ID']||Date.now()+Math.random(),projId:r['ID Project'],item:r['Item'],kategori:r['Kategori']||'Material',qty:r['Qty']||'',satuan:r['Satuan']||'',supplier:r['Supplier']||'',due:r['Due Date']||'',status:r['Status']||'Waiting Approval',notes:r['Catatan']||''})):[];
+      const impM=wb.Sheets['MANPOWER_LOG']?XLSX.utils.sheet_to_json(wb.Sheets['MANPOWER_LOG']).filter(r=>r['Tanggal']).map(r=>({id:r['ID']||Date.now()+Math.random(),projId:r['ID Project'],date:r['Tanggal'],spv:+r['SPV']||0,mandor:+r['Mandor']||0,installer:+r['Installer']||0,tukang:+r['Tukang']||0,helper:+r['Helper']||0,safety:+r['Safety Man']||0,total:+r['Total Pekerja']||0,mhActual:+r['MH Actual']||0,timeLost:+r['Time Lost (jam)']||0,timeLostReason:r['Alasan Time Lost']||'',notes:r['Catatan']||''})):[];
+      const impA=wb.Sheets['ACCIDENT_LOG']?XLSX.utils.sheet_to_json(wb.Sheets['ACCIDENT_LOG']).filter(r=>r['Tanggal']).map(r=>({id:r['ID']||Date.now()+Math.random(),projId:r['ID Project'],date:r['Tanggal'],fatality:+r['Fatality']||0,lti:+r['LTI']||0,minorInjury:+r['Minor Injury']||0,medTreatment:+r['Med Treatment']||0,propertyDamage:+r['Property Damage']||0,fire:+r['Fire']||0,traffic:+r['Traffic']||0,environment:+r['Environment']||0,nearMiss:+r['Near Miss']||0,timeLost:+r['Time Lost (jam)']||0,notes:r['Keterangan']||''})):[];
+      pendImp={P:imp,I:impI,PR:impP,M:impM,A:impA,fn:file.name};
+      $('impInfo').textContent=`📄 ${file.name} · ${imp.length} project · ${impI.length} issue · ${impP.length} proc · ${impM.length} manpower log`;
+      $('impTbl').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:var(--sf2)">${['Kode','Nama','Status','Actual','Plan'].map(h=>`<th style="padding:5px 7px;font-size:9px;text-transform:uppercase;color:var(--mt);text-align:left;border-bottom:1px solid var(--bd)">${h}</th>`).join('')}</tr>${imp.map(p=>`<tr><td style="padding:4px 7px;font-family:var(--fm);font-size:10px">${p.kode}</td><td style="padding:4px 7px">${p.nama}</td><td style="padding:4px 7px"><span class="pill p-${({'On Track':'on','Delayed':'del','Critical':'crit','Planning':'plan','Done':'done'})[p.status]||'plan'}">${p.status}</span></td><td style="padding:4px 7px;font-family:var(--fm);color:var(--gn)">${p.actual}%</td><td style="padding:4px 7px;font-family:var(--fm);color:var(--bl)">${p.plan}%</td></tr>`).join('')}</table>`;
+      $('impPrev').style.display='block';$('btnConfImp').style.display='block';
+      show('ov-import');
+    }catch(err){toast('Gagal baca file: '+err.message,'error');}
+  };
+  r.readAsArrayBuffer(file);
+}
+function confirmImport(){
+  if(!pendImp)return;
+  P=pendImp.P;ISS=pendImp.I;PROC=pendImp.PR;MPLOGS=pendImp.M;ACCLOGS=pendImp.A;
+  selId=P[0]?.id||null;clean(pendImp.fn);cm('import');render();
+  toast(`✓ ${P.length} project, ${ISS.length} issue, ${PROC.length} proc, ${MPLOGS.length} mp log dimuat`);
+  pendImp=null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LIVE DATE & KEYBOARD
+// ═══════════════════════════════════════════════════════════════
+const fmtD=()=>new Date().toLocaleString('id-ID',{weekday:'short',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+$('liveDate').textContent=fmtD();
+setInterval(()=>$('liveDate').textContent=fmtD(),1000);
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();exportExcel();}});
+
+// ═══════════════════════════════════════════════════════════════
+// STARTUP — localStorage sebagai sumber data utama
+// GSheet sebagai backup/sync sekunder
+// ═══════════════════════════════════════════════════════════════
+async function autoLoadOnStart(){
+  // LANGKAH 1: load dari localStorage dulu (instan, tidak butuh internet)
+  const hasLocal = loadLocal();
+  if(hasLocal){
+    selId=P[0]?.id||null;
+    render();
+    $('smsg').textContent='Data dimuat dari penyimpanan lokal';
+    $('sdot').style.background='var(--gn)';
+    $('sdot').classList.remove('unsaved');
+    const ts=JSON.parse(localStorage.getItem('atw_data')||'{}').ts;
+    $('flabel').textContent='Lokal · '+(ts?new Date(ts).toLocaleString('id-ID'):'');
+  }else{
+    render();
+    $('smsg').textContent='Belum ada data — tambah project atau load dari GSheet';
+    $('sdot').style.background='var(--mt)';
+  }
+
+  // LANGKAH 2: jika GSheet tersambung, coba sync di background
+  if(gsOk && gsUrl){
+    $('smsg').textContent=(hasLocal?'Data lokal dimuat · ':'')+'Sinkronisasi GSheet...';
+    try{
+      const res=await fetch(gsUrl+'?t='+Date.now());
+      const d=await res.json();
+      if(d.projects&&d.projects.length>0){
+        // Cek apakah data GSheet lebih baru dari lokal
+        const gTs=d.lastSaved||0;
+        const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||0;
+        if(gTs>=lTs||!hasLocal){
+          P=d.projects.map(p=>({...p,plan:+p.plan||0,actual:+p.actual||0,mpPlan:+p.mpPlan||0,mpActual:+p.mpActual||0,mhPlan:+p.mhPlan||0,history:[]}));
+          ISS=(d.issues||[]).filter(r=>r.uraian);
+          PROC=(d.procurement||[]).filter(r=>r.item);
+          MPLOGS=(d.manpowerLogs||[]).filter(r=>r.date).map(m=>({...m,total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0}));
+          ACCLOGS=(d.accidentLogs||[]).filter(r=>r.date).map(a=>({...a,fatality:+a.fatality||0,lti:+a.lti||0,minorInjury:+a.minorInjury||0,medTreatment:+a.medTreatment||0,propertyDamage:+a.propertyDamage||0,fire:+a.fire||0,traffic:+a.traffic||0,environment:+a.environment||0,nearMiss:+a.nearMiss||0,timeLost:+a.timeLost||0}));
+          if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
+          selId=P[0]?.id||null;
+          saveLocal();
+          render();
+          $('smsg').textContent='Tersinkronisasi dari Google Sheet';
+          $('sdot').style.background='var(--gn)';
+          $('sdot').classList.remove('unsaved');
+          $('flabel').textContent='Google Sheet · '+new Date().toLocaleTimeString('id-ID');
+        }else{
+          $('smsg').textContent='Data lokal lebih baru · GSheet terhubung';
+          $('sdot').style.background='var(--gn)';
+        }
+      }else{
+        $('smsg').textContent=hasLocal?'Data lokal dimuat · GSheet kosong':'GSheet kosong — tambah project';
+      }
+    }catch(e){
+      $('smsg').textContent=hasLocal?'Data lokal dimuat · GSheet tidak dapat dijangkau':'Tidak dapat terhubung ke GSheet';
+      $('sdot').style.background=hasLocal?'var(--yw)':'var(--rd)';
+    }
+  }
+}
+
+autoLoadOnStart();
+loadDashLogo();
+</script>
+</body>
+</html>
