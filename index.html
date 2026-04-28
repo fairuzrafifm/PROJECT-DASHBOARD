@@ -1873,15 +1873,19 @@ function delProc(){if(!confirm('Hapus?'))return;PROC=PROC.filter(p=>p.id!==editP
 // ═══════════════════════════════════════════════════════════════
 // GOOGLE SHEET
 // ═══════════════════════════════════════════════════════════════
-const GS_SCRIPT=`// ATW Solar Project Performance Dashboard — Google Apps Script v2
-// PENTING: Setelah paste script ini, ganti SHEET_ID di bawah
-// lalu Deploy ulang sebagai Web App (Anyone can access)
+const GS_SCRIPT=`// ATW Solar Project Performance Dashboard — Google Apps Script v3
+// PENTING: Ganti SHEET_ID lalu Deploy ulang sebagai Web App (Anyone can access)
 
 const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
 
+// Handle CORS preflight request
+function doOptions(e) {
+  return ContentService.createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT);
+}
+
 function doPost(e) {
   try {
-    // Support both application/json dan text/plain (untuk bypass CORS preflight)
     const raw = e.postData ? e.postData.contents : '';
     const d = JSON.parse(raw);
     const ss = SpreadsheetApp.openById(SHEET_ID);
@@ -1892,7 +1896,6 @@ function doPost(e) {
       writeSheet(ss,'PROCUREMENT',d.procurement||[],['id','projId','item','kategori','qty','satuan','supplier','due','status','notes']);
       writeSheet(ss,'MANPOWER_LOG',d.manpowerLogs||[],['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
       writeSheet(ss,'ACCIDENT_LOG',d.accidentLogs||[],['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
-      // Simpan timestamp sync terakhir
       const meta = ss.getSheetByName('_META') || ss.insertSheet('_META');
       meta.clearContents();
       meta.appendRow(['lastSaved','version']);
@@ -1974,39 +1977,55 @@ async function gsSync(){
   if(!gsOk||!gsUrl)return;
   try{
     const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
-    const payload={action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS};
-    // Gunakan fetch dengan mode no-cors — data terkirim walau response tidak bisa dibaca
-    fetch(gsUrl,{
-      method:'POST',
-      body:JSON.stringify(payload),
-      mode:'no-cors',
-      headers:{'Content-Type':'text/plain'} // text/plain lolos preflight CORS
-    }).catch(e=>console.log('GS sync bg error:',e));
-  }catch(e){console.log('GS sync:',e);}
+    const body=JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS});
+    // text/plain bypass CORS preflight, Works from both localhost and GitHub Pages
+    const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
+    if(r.ok){const txt=await r.text();try{const d=JSON.parse(txt);if(d.status==='ok')console.log('GS sync OK',d.ts);}catch(e){}}
+  }catch(e){
+    // Fallback: no-cors (data terkirim tapi response tidak terbaca)
+    try{
+      const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
+      fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
+      console.log('GS sync via no-cors fallback');
+    }catch(e2){console.log('GS sync error:',e2);}
+  }
 }
 async function syncAllGS(){
   if(!gsOk||!gsUrl){toast('Google Sheet belum tersambung','warn');return;}
-  toast('Sinkronisasi ke Google Sheet...');
+  toast('Mengirim ke Google Sheet...');
   await gsSync();
-  toast('Data disinkronkan ke Google Sheet ✓');
+  toast('↑ Data berhasil disinkronkan ke Google Sheet ✓');
+  clean(curFile);
 }
 async function loadFromGS(){
   if(!gsOk||!gsUrl){toast('Google Sheet belum tersambung','warn');return;}
-  toast('Memuat dari Google Sheet...');
+  $('smsg').textContent='⏳ Memuat dari Google Sheet...';
+  $('sdot').style.background='var(--yw)';
   try{
-    const r=await fetch(gsUrl+'?t='+Date.now());
-    const d=await r.json();
-    if(d.projects?.length){
-      P=d.projects.map(p=>({...p,plan:+p.plan||0,actual:+p.actual||0,mpPlan:+p.mpPlan||0,mpActual:+p.mpActual||0,mhPlan:+p.mhPlan||0,history:[]}));
-      ISS=d.issues||[];
-      PROC=d.procurement||[];
-      MPLOGS=(d.manpowerLogs||[]).map(m=>({...m,total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0}));
-      ACCLOGS=(d.accidentLogs||[]).map(a=>({...a,fatality:+a.fatality||0,lti:+a.lti||0,minorInjury:+a.minorInjury||0,medTreatment:+a.medTreatment||0,propertyDamage:+a.propertyDamage||0,fire:+a.fire||0,traffic:+a.traffic||0,environment:+a.environment||0,nearMiss:+a.nearMiss||0,timeLost:+a.timeLost||0}));
+    const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-cache'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const txt=await r.text();
+    const d=JSON.parse(txt);
+    if(d.status==='error')throw new Error(d.msg);
+    if(d.projects&&d.projects.length>0){
+      P=d.projects.map(p=>({...p,plan:+p.plan||0,actual:+p.actual||0,mpPlan:+p.mpPlan||0,mpActual:+p.mpActual||0,mhPlan:+p.mhPlan||0,mdPlan:+p.mdPlan||+p.mpPlan||0,history:[]}));
+      ISS=(d.issues||[]).filter(r=>r.uraian);
+      PROC=(d.procurement||[]).filter(r=>r.item);
+      MPLOGS=(d.manpowerLogs||[]).filter(r=>r.date).map(m=>({...m,total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0}));
+      ACCLOGS=(d.accidentLogs||[]).filter(r=>r.date).map(a=>({...a,fatality:+a.fatality||0,lti:+a.lti||0,minorInjury:+a.minorInjury||0,medTreatment:+a.medTreatment||0,propertyDamage:+a.propertyDamage||0,fire:+a.fire||0,traffic:+a.traffic||0,environment:+a.environment||0,nearMiss:+a.nearMiss||0,timeLost:+a.timeLost||0}));
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
-      selId=P[0]?.id||null;clean('Google Sheet');render();
-      toast(`✓ ${P.length} project dimuat dari Google Sheet`);
-    }else{toast('Tidak ada data di Google Sheet','warn');}
-  }catch(e){toast('Gagal load dari GS. Gunakan Import Excel sebagai alternatif.','error');}
+      selId=P[0]?.id||null;saveLocal();clean('Google Sheet');render();
+      toast('✓ '+P.length+' project dimuat dari Google Sheet');
+    }else{
+      $('sdot').style.background='var(--mt)';
+      $('smsg').textContent='Google Sheet terhubung — belum ada data';
+      toast('Google Sheet kosong. Klik ↑ Sync untuk kirim data ke GSheet.','warn');
+    }
+  }catch(e){
+    $('sdot').style.background='var(--rd)';
+    $('smsg').textContent='Gagal load GSheet: '+e.message;
+    toast('Gagal load GSheet: '+e.message,'error');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
