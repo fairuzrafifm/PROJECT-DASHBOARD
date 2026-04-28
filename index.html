@@ -1996,10 +1996,43 @@ async function gsSync(){
 }
 async function syncAllGS(){
   if(!gsOk||!gsUrl){toast('Google Sheet belum tersambung','warn');return;}
-  toast('Mengirim ke Google Sheet...');
-  await gsSync();
-  toast('↑ Data berhasil disinkronkan ke Google Sheet ✓');
-  clean(curFile);
+  const btn=$('btnSync');
+  if(btn){btn.textContent='⏳ Mengirim...';btn.disabled=true;}
+  try{
+    const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
+    const body=JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS});
+    const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
+    if(r.ok){
+      const txt=await r.text();
+      try{
+        const d=JSON.parse(txt);
+        if(d.status==='ok'){
+          toast('✅ Data berhasil tersimpan di Google Sheet!');
+          $('smsg').textContent='Tersinkronisasi ke GSheet · '+new Date().toLocaleTimeString('id-ID');
+          $('sdot').style.background='var(--gn)';$('sdot').classList.remove('unsaved');
+          isDirty=false;$('sbar').classList.remove('dirty');
+        }else{
+          toast('⚠ GSheet response: '+(d.msg||'unknown'),'warn');
+        }
+      }catch(pe){
+        // Response tidak bisa di-parse tapi request berhasil
+        toast('✅ Data dikirim ke Google Sheet (no-cors mode)');
+      }
+    }else{
+      throw new Error('HTTP '+r.status);
+    }
+  }catch(e){
+    // Fallback no-cors
+    try{
+      const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
+      await fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
+      toast('📤 Data dikirim (verifikasi tidak tersedia). Coba Load GSheet untuk konfirmasi.','warn');
+    }catch(e2){
+      toast('❌ Gagal sync: '+e.message+'. Cek koneksi internet & URL Apps Script.','error');
+    }
+  }finally{
+    if(btn){btn.textContent='↑ Sync GSheet';btn.disabled=false;}
+  }
 }
 async function loadFromGS(){
   if(!gsOk||!gsUrl){toast('Google Sheet belum tersambung','warn');return;}
@@ -2225,6 +2258,34 @@ autoLoadOnStart();
 loadDashLogo();
 loadTheme();
 initFromUrlParams();
+
+// ── AUTO-POLLING: load dari GSheet setiap 2 menit jika terhubung ──
+setInterval(async()=>{
+  if(!gsOk||!gsUrl)return;
+  if(isDirty)return; // jangan overwrite kalau ada perubahan belum disimpan
+  try{
+    const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-cache'});
+    if(!r.ok)return;
+    const d=await r.json();
+    if(!d.projects||!d.projects.length)return;
+    // Cek apakah GSheet lebih baru dari data lokal
+    const gTs=+d.lastSaved||0;
+    const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||0;
+    if(gTs>lTs){
+      // Ada data baru di GSheet — update silently
+      P=d.projects.map(p=>({...p,plan:+p.plan||0,actual:+p.actual||0,mpPlan:+p.mpPlan||0,mpActual:+p.mpActual||0,mhPlan:+p.mhPlan||0,mdPlan:+p.mdPlan||+p.mpPlan||0,history:[]}));
+      ISS=(d.issues||[]).filter(r=>r.uraian);
+      PROC=(d.procurement||[]).filter(r=>r.item);
+      MPLOGS=(d.manpowerLogs||[]).filter(r=>r.date).map(m=>({...m,total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0}));
+      ACCLOGS=(d.accidentLogs||[]).filter(r=>r.date);
+      if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
+      selId=selId||(P[0]?.id||null);
+      saveLocal();render();
+      $('smsg').textContent='Auto-update dari GSheet · '+new Date().toLocaleTimeString('id-ID');
+      $('sdot').style.background='var(--gn)';$('sdot').classList.remove('unsaved');
+    }
+  }catch(e){/* silent fail — no toast for polling errors */}
+},120000); // 2 menit
 </script>
 </body>
 </html>
