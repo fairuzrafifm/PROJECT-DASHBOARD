@@ -230,7 +230,7 @@ body.viewer-mode input,body.viewer-mode select,body.viewer-mode textarea{pointer
 
 /* CHANGE PASSWORD MODAL */
 .pw-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
-</style>
+/* MODAL */
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(3px)}
 .ov.open{opacity:1;pointer-events:all}
 .modal{background:var(--sf);border:1px solid var(--bd);border-radius:14px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;padding:20px;animation:su .2s ease}
@@ -330,7 +330,7 @@ body.viewer-mode input,body.viewer-mode select,body.viewer-mode textarea{pointer
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Ganti tema">🌙 Gelap</button>
     <div id="roleBadgeHdr" class="role-badge rb-viewer" style="display:none"></div>
     <button class="btn btn-sm" id="btnChangePw" onclick="openModal('changePw')" style="display:none;border-color:var(--mt);color:var(--mt)" title="Ganti Password">🔐</button>
-    <button class="btn btn-sm brd" onclick="doLogout()" id="btnLogout" style="display:none">⏏ Logout</button>
+    <button class="btn btn-sm" onclick="doLogout()" id="btnLogout" style="display:none;border-color:var(--mt);color:var(--mt)">⏏ Keluar</button>
     <div id="gsBadge" class="gs-badge gs-off" onclick="openModal('gsConfig')" title="Konfigurasi Google Sheets">📋 GSheet: —</div>
     <button class="btn bg btn-sm" onclick="openModal('addProj')">＋ Project</button>
     <button class="btn bp btn-sm" id="btnUpd" onclick="openModal('updProgress')" disabled>↑ Update</button>
@@ -967,10 +967,10 @@ body.viewer-mode input,body.viewer-mode select,body.viewer-mode textarea{pointer
         <div class="role-name">Editor</div>
         <div class="role-desc">Input & update</div>
       </div>
-      <div class="role-btn" id="rb-viewer" onclick="selectRole('viewer')">
+      <div class="role-btn" id="rb-viewer" onclick="quickViewerLogin()">
         <div class="role-ico">👁️</div>
         <div class="role-name">Viewer</div>
-        <div class="role-desc">Lihat saja</div>
+        <div class="role-desc">Tanpa password</div>
       </div>
     </div>
 
@@ -982,7 +982,7 @@ body.viewer-mode input,body.viewer-mode select,body.viewer-mode textarea{pointer
     <button class="btn bp" onclick="doLogin()" style="width:100%;justify-content:center;margin-top:4px;padding:10px">Masuk →</button>
 
     <div style="text-align:center;margin-top:14px;font-size:10px;color:var(--mt)">
-      Default: Admin <span style="font-family:var(--fm)">admin123</span> · Editor <span style="font-family:var(--fm)">edit123</span> · Viewer <span style="font-family:var(--fm)">view123</span>
+      Default: Admin <span style="font-family:var(--fm)">admin123</span> · Editor <span style="font-family:var(--fm)">edit123</span>
     </div>
   </div>
 </div>
@@ -999,7 +999,6 @@ body.viewer-mode input,body.viewer-mode select,body.viewer-mode textarea{pointer
       <select class="fi" id="cpRole">
         <option value="admin">👑 Admin</option>
         <option value="editor">✏️ Editor</option>
-        <option value="viewer">👁️ Viewer</option>
       </select>
     </div>
     <div class="fg"><label class="fl">Password Baru</label>
@@ -1037,6 +1036,14 @@ const sv=(id,v)=>{const e=$(id);if(e)e.value=v;};
 const gv=id=>$(id)?.value||'';
 const show=id=>$(id)?.classList.add('open');
 // cm() defined below in auth section
+function cm(t){
+  const m={addProj:'ov-addProj',updProgress:'ov-updProgress',inputMp:'ov-inputMp',
+    addAccident:'ov-addAccident',editWeather:'ov-editWeather',addIssue:'ov-addIssue',
+    addProc:'ov-addProc',gsConfig:'ov-gsConfig',import:'ov-import',
+    editMpLog:'ov-editMpLog',editHist:'ov-editHist',editAcc:'ov-editAcc',
+    changePw:'ov-changePw'};
+  $(m[t]||'ov-'+t)?.classList.remove('open');
+}
 function rv(inp,dv,bv){
   const v=$(inp).value;
   if(dv)$(dv).textContent=v+'%';
@@ -1623,6 +1630,13 @@ function renderProc(){
 // MODAL OPEN
 // ═══════════════════════════════════════════════════════════════
 function openModal(type,id=null){
+  // Auth: change password
+  if(type==='changePw'){
+    sv('cpRole',currentRole==='admin'?'admin':'editor');
+    sv('cpNewPw','');sv('cpConfPw','');
+    $('ov-changePw')?.classList.add('open');
+    return;
+  }
   if(type==='addProj'||type==='editProj'){
     editProjId=id;
     $('projMT').textContent=id?'EDIT PROJECT':'TAMBAH PROJECT';
@@ -2426,6 +2440,19 @@ function getRolePw(role){
   return saved[role]||DEFAULT_PW[role];
 }
 
+function quickViewerLogin(){
+  // Viewer langsung masuk tanpa password
+  currentRole='viewer';
+  localStorage.setItem('atw_session',JSON.stringify({role:'viewer',ts:Date.now()}));
+  $('authScreen').style.display='none';
+  applyRole('viewer');
+  autoLoadOnStart();
+  loadDashLogo();
+  loadTheme();
+  initFromUrlParams();
+  setTimeout(()=>{loadLogosCache();render();},300);
+}
+
 function selectRole(role){
   selectedRoleLogin=role;
   document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('selected'));
@@ -2465,10 +2492,10 @@ function applyRole(role){
   // Role badge di header
   const badge=$('roleBadgeHdr');
   if(badge){badge.textContent=labels[role]||role;badge.className='role-badge '+(cls[role]||'rb-viewer');badge.style.display='';}
-  // Tombol logout & change pw
-  $('btnLogout').style.display='';
+  // Tombol logout — tampil untuk SEMUA role
+  $('btnLogout').style.display='inline-flex';
   // Hanya admin bisa ganti password
-  if($('btnChangePw'))$('btnChangePw').style.display=role==='admin'?'':'none';
+  if($('btnChangePw'))$('btnChangePw').style.display=role==='admin'?'inline-flex':'none';
   // Apply viewer mode
   if(role==='viewer'){
     document.body.classList.add('viewer-mode');
@@ -2484,19 +2511,29 @@ function applyRole(role){
 }
 
 function doLogout(){
-  if(!confirm('Yakin ingin logout?'))return;
   currentRole=null;
   localStorage.removeItem('atw_session');
   document.body.classList.remove('viewer-mode');
-  $('roleBadgeHdr').style.display='none';
+  // Reset header
+  const badge=$('roleBadgeHdr');
+  if(badge)badge.style.display='none';
   $('btnLogout').style.display='none';
   if($('btnChangePw'))$('btnChangePw').style.display='none';
+  // Hide GSheet buttons
+  $('btnSync').style.display='none';
+  $('btnLoad').style.display='none';
+  const shareBtn=$('btnShareUrl');
+  if(shareBtn)shareBtn.style.display='none';
   // Reset auth form
-  $('authPw').value='';
-  $('authErr').style.display='none';
+  if($('authPw'))$('authPw').value='';
+  if($('authErr'))$('authErr').style.display='none';
   document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('selected'));
   selectedRoleLogin=null;
-  $('authScreen').style.display='flex';
+  // Tampilkan auth screen
+  const as=$('authScreen');
+  if(as){
+    as.style.cssText='position:fixed;inset:0;background:linear-gradient(135deg,#060a14 0%,#0a0f1e 50%,#0d1525 100%);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column';
+  }
 }
 
 function saveNewPw(){
@@ -2531,55 +2568,20 @@ const shakeStyle=document.createElement('style');
 shakeStyle.textContent='@keyframes shake{0%,100%{transform:none}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}';
 document.head.appendChild(shakeStyle);
 
-// Update cm map untuk changePw
-const _origCm=cm;
-
-// Init: cek session atau tampilkan login
+// ── STARTUP ──────────────────────────────────────────────────
 function initAuth(){
-  // Set logo di auth screen
   try{
     const saved=localStorage.getItem('atw_dash_logo');
     if(saved){const ai=$('authLogoImg');if(ai)ai.src=saved;}
   }catch(e){}
   if(!checkSession()){
-    // Tidak ada session — tampilkan login screen
-    $('authScreen').style.display='flex';
-    // Jangan panggil autoLoadOnStart dulu — tunggu login
+    const as=$('authScreen');
+    if(as)as.style.cssText='position:fixed;inset:0;background:linear-gradient(135deg,#060a14 0%,#0a0f1e 50%,#0d1525 100%);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column';
   }else{
-    // Sudah login — lanjut startup normal
-    autoLoadOnStart();
-    loadDashLogo();
-    loadTheme();
-    initFromUrlParams();
+    autoLoadOnStart();loadDashLogo();loadTheme();initFromUrlParams();
     setTimeout(()=>{loadLogosCache();render();},300);
   }
 }
-
-// Tambahkan changePw ke cm
-const _cmMap_auth={changePw:'ov-changePw'};
-function cm(t){
-  const m={addProj:'ov-addProj',updProgress:'ov-updProgress',inputMp:'ov-inputMp',
-    addAccident:'ov-addAccident',editWeather:'ov-editWeather',addIssue:'ov-addIssue',
-    addProc:'ov-addProc',gsConfig:'ov-gsConfig',import:'ov-import',
-    editMpLog:'ov-editMpLog',editHist:'ov-editHist',editAcc:'ov-editAcc',
-    changePw:'ov-changePw'};
-  $(m[t]||'ov-'+t)?.classList.remove('open');
-}
-
-// Override openModal untuk changePw
-const _origOpenModal=openModal;
-function openModal(type,id=null){
-  if(type==='changePw'){
-    sv('cpRole',currentRole==='admin'?'admin':'editor');
-    sv('cpNewPw','');sv('cpConfPw','');
-    $('ov-changePw')?.classList.add('open');
-    return;
-  }
-  _origOpenModal(type,id);
-}
-
-
-// ── STARTUP ──────────────────────────────────────────────────
 initAuth();
 
 // AUTO-POLLING
