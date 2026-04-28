@@ -15,6 +15,46 @@
   --atb:#2d7ab5;--att:#1d6c7a;
   --fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;--fm:'JetBrains Mono',monospace;
 }
+/* LIGHT THEME */
+:root.light{
+  --bg:#f0f4f8;--sf:#ffffff;--sf2:#e8eef5;--bd:#d0dbe8;
+  --or:#ea6c10;--bl:#1d6eb5;--gn:#0a9268;--yw:#c47d0a;
+  --rd:#dc2626;--pu:#7c3aed;--tx:#0f172a;--mt:#64748b;
+  --ib:#f1f5f9;--ibr:#cbd5e1;
+  --atb:#1d6eb5;--att:#0f6e56;
+}
+:root.light body{background:var(--bg)}
+:root.light .hdr{background:linear-gradient(135deg,#0f2444 0%,#1a3a6b 100%)}
+:root.light .hdr::after{opacity:.5}
+:root.light .sbar{background:#e8f5e9;border-bottom-color:#c8e6c9}
+:root.light .sbar.dirty{background:#fff8e1;border-bottom-color:#ffe082}
+:root.light .tabs{background:#ffffff;border-bottom-color:var(--bd)}
+:root.light .sidebar{background:#ffffff;border-right-color:var(--bd)}
+:root.light .pi:hover{background:#f1f5f9}
+:root.light .pi.active{background:rgba(234,108,16,.08)}
+:root.light .card{background:#ffffff;border-color:var(--bd)}
+:root.light .kpi{background:#ffffff;border-color:var(--bd)}
+:root.light .metric{background:#f8fafc;border-color:var(--bd)}
+:root.light .modal{background:#ffffff;border-color:var(--bd)}
+:root.light .fi{background:#f8fafc;border-color:#cbd5e1;color:var(--tx)}
+:root.light .fi:focus{border-color:var(--or)}
+:root.light .btn{background:#f1f5f9;border-color:var(--bd);color:var(--tx)}
+:root.light .bp{background:var(--or);border-color:var(--or);color:#fff}
+:root.light .bg{background:rgba(10,146,104,.1);border-color:var(--gn);color:var(--gn)}
+:root.light .bb{background:rgba(29,110,181,.1);border-color:var(--bl);color:var(--bl)}
+:root.light .bgs{background:rgba(29,110,181,.1);border-color:var(--atb);color:var(--atb)}
+:root.light .psc{background:#ffffff;border-color:var(--bd)}
+:root.light .wi{background:#f1f5f9}
+:root.light .proc-item{background:#f1f5f9}
+:root.light .mp-bar{background:#e8eef5}
+:root.light .pb{background:#e8eef5}
+:root.light .mb{background:#e8eef5}
+:root.light ::-webkit-scrollbar-track{background:#f0f4f8}
+:root.light ::-webkit-scrollbar-thumb{background:#cbd5e1}
+
+/* THEME TOGGLE BUTTON */
+.theme-toggle{background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--tx);display:flex;align-items:center;gap:5px;transition:all .2s;user-select:none;white-space:nowrap}
+.theme-toggle:hover{border-color:var(--or);color:var(--or)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;height:100vh;overflow:hidden;display:flex;flex-direction:column}
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
@@ -207,7 +247,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .psc.on{border-top:3px solid var(--gn);border-left:none}
 .psc.plan{border-top:3px solid var(--bl);border-left:none}
 .psc.done{border-top:3px solid var(--pu);border-left:none}
-.psc-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.psc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .psc-name{font-weight:700;font-size:15px;margin-bottom:4px;color:var(--tx)}
 .psc-loc{font-size:10px;color:var(--mt);display:flex;align-items:center;gap:4px}
 .psc-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;text-align:center}
@@ -254,6 +294,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
     <div style="font-family:var(--fm);font-size:9px;color:var(--mt);margin-top:2px" id="liveDate"></div>
   </div>
   <div class="hdr-right">
+    <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Ganti tema">🌙 Gelap</button>
     <div id="gsBadge" class="gs-badge gs-off" onclick="openModal('gsConfig')" title="Konfigurasi Google Sheets">📋 GSheet: —</div>
     <button class="btn bg btn-sm" onclick="openModal('addProj')">＋ Project</button>
     <button class="btn bp btn-sm" id="btnUpd" onclick="openModal('updProgress')" disabled>↑ Update</button>
@@ -985,10 +1026,17 @@ function renderSB(){
   const bc={'On Track':'var(--gn)','Delayed':'var(--yw)','Critical':'var(--rd)','Planning':'var(--bl)','Done':'var(--pu)'};
   $('projList').innerHTML=P.map(p=>`
     <div class="pi ${p.id===selId?'active':''}" onclick="selProj(${p.id})">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:3px;margin-bottom:1px">
-        <div class="pi-name">${p.nama}</div><span class="pill ${sc[p.status]||'p-plan'}">${p.status}</span>
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+        ${p.logo?`<div style="width:32px;height:32px;background:var(--sf2);border:1px solid var(--bd);border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;padding:3px">
+          <img src="${p.logo}" style="max-width:26px;max-height:26px;object-fit:contain" onerror="this.parentElement.style.display='none'">
+        </div>`:''}
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:3px">
+            <div class="pi-name">${p.nama}</div><span class="pill ${sc[p.status]||'p-plan'}">${p.status}</span>
+          </div>
+          <div class="pi-loc">📍${p.lokasi||'—'}</div>
+        </div>
       </div>
-      <div class="pi-loc">📍${p.lokasi||'—'} · ${p.logo?`<img src="${p.logo}" style="height:12px;max-width:40px;object-fit:contain;vertical-align:middle;border-radius:2px" onerror="this.outerHTML='<span style=\'font-family:var(--fm);font-size:10px\'>'+p.kode+'</span>'">`:`<span style="font-family:var(--fm)">${p.kode}</span>`}</div>
       <div class="pi-bar"><div class="pi-fill" style="width:${p.actual}%;background:${bc[p.status]||'var(--bl)'}"></div></div>
       <div class="pi-meta">
         <span style="color:var(--mt)">Actual <span style="font-family:var(--fm);color:${bc[p.status]||'var(--bl)'}">${p.actual}%</span></span>
@@ -1112,9 +1160,12 @@ function renderProjStatusCards(){
     const scls=statusCls[p.status]||'plan';
     return `<div class="psc ${scls}" onclick="selProj(${p.id});sw('projects',document.querySelectorAll('.tab')[1])">
       <div class="psc-head">
-        <div style="flex:1;min-width:0">
+        ${p.logo?`<div style="width:48px;height:48px;background:var(--sf2);border:1px solid var(--bd);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;padding:4px">
+          <img src="${p.logo}" style="max-width:40px;max-height:40px;object-fit:contain" onerror="this.parentElement.style.display='none'">
+        </div>`:''}
+        <div style="flex:1;min-width:0;${p.logo?'margin-left:10px':''}">
           <div class="psc-name">${p.nama} <span style="font-family:var(--fm);font-size:9px;color:var(--mt);font-weight:400">— ${p.kode}</span></div>
-          <div class="psc-loc">📍 ${p.lokasi||'—'}${p.client?` · ${logoTag(p,18)}`:''}  </div>
+          <div class="psc-loc">📍 ${p.lokasi||'—'}${p.client&&!p.logo?' · '+p.client:''}  </div>
         </div>
         <div style="background:${pillBg[p.status]||'rgba(59,130,246,.15)'};color:${pillClr[p.status]||'var(--bl)'};border:1px solid ${pillClr[p.status]||'var(--bl)'}44;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:.5px;flex-shrink:0;margin-left:8px">${p.status.toUpperCase()}</div>
       </div>
@@ -1189,7 +1240,7 @@ function renderDetail(id){
   $('detail').innerHTML=`<div class="fade">
     <div class="dtop" style="margin-bottom:11px">
       <div><div class="dname">${p.nama}</div>
-        <div class="dmeta"><span class="pill ${sc[p.status]||'p-plan'}">${p.status}</span><span>${p.kode}</span><span style="color:var(--bd)">·</span><span>📍${p.lokasi||'—'}</span><span style="color:var(--bd)">·</span>${p.logo?`<img src="${p.logo}" style="height:22px;max-width:70px;object-fit:contain;border-radius:3px;vertical-align:middle" onerror="this.style.display='none'">`:`<span>${p.client||'—'}</span>`}${p.weather?`<span>${p.weather}</span>`:''}</div>
+        <div class="dmeta"><span class="pill ${sc[p.status]||'p-plan'}">${p.status}</span><span>${p.kode}</span><span style="color:var(--bd)">·</span><span>📍${p.lokasi||'—'}</span><span style="color:var(--bd)">·</span>${p.logo?`<img src="${p.logo}" style="height:36px;max-width:120px;object-fit:contain;border-radius:4px;vertical-align:middle" onerror="this.style.display='none'">`:`<span>${p.client||'—'}</span>`}${p.weather?`<span>${p.weather}</span>`:''}</div>
       </div>
       <div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="openModal('editProj',${p.id})">✏ Edit</button><button class="btn btn-sm bp" onclick="openModal('updProgress')">↑ Update</button></div>
     </div>
@@ -1647,9 +1698,9 @@ function loadDashLogo(){
     }
   }catch(e){}
 }
-function logoTag(p,h=28){
+function logoTag(p,h=36){
   if(!p?.logo)return `<span style="font-size:11px;color:var(--mt)">${p?.client||'—'}</span>`;
-  return `<img src="${p.logo}" style="height:${h}px;max-width:${h*3}px;object-fit:contain;border-radius:3px;vertical-align:middle" title="${p.client||''}" onerror="this.style.display='none'">`;
+  return `<img src="${p.logo}" style="height:${h}px;max-width:${h*3.5}px;object-fit:contain;border-radius:4px;vertical-align:middle" title="${p.client||''}" onerror="this.style.display='none'">`;
 }
 
 function fillMpPlan(){
@@ -2096,8 +2147,26 @@ async function autoLoadOnStart(){
   }
 }
 
+// ── THEME ────────────────────────────────────────────────────
+function toggleTheme(){
+  const isLight=document.documentElement.classList.toggle('light');
+  const btn=$('themeBtn');
+  if(btn){btn.textContent=isLight?'☀️ Terang':'🌙 Gelap';}
+  try{localStorage.setItem('atw_theme',isLight?'light':'dark');}catch(e){}
+}
+function loadTheme(){
+  try{
+    const saved=localStorage.getItem('atw_theme');
+    if(saved==='light'){
+      document.documentElement.classList.add('light');
+      const btn=$('themeBtn');if(btn)btn.textContent='☀️ Terang';
+    }
+  }catch(e){}
+}
+
 autoLoadOnStart();
 loadDashLogo();
+loadTheme();
 </script>
 </body>
 </html>
