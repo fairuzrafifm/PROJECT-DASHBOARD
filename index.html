@@ -197,7 +197,50 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .hd{color:var(--mt);width:80px;flex-shrink:0;font-family:var(--fm);font-size:10px}
 .hn{color:var(--mt);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* AUTH SCREEN */
+/* ── PDF / PRINT STYLES ─────────────────────────────────── */
+@media print {
+  /* Reset */
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  body{background:#fff!important;color:#111!important;overflow:visible!important;height:auto!important;font-size:11px}
+  /* Hide UI elements */
+  .hdr,.sbar,.tabs,.sidebar,.auth-screen,.ov,#toast,.theme-toggle,
+  #btnLogout,#btnChangePw,#gsBadge,#btnSync,#btnLoad,#btnShareUrl,
+  .btn,.edit-only{display:none!important}
+  /* Show content full width */
+  .layout{display:block!important}
+  .content{overflow:visible!important;padding:0!important}
+  .tp{display:block!important}
+  /* PDF header */
+  .pdf-header{display:flex!important}
+  /* Cards */
+  .card,.kpi,.psc,.metric{
+    background:#f8fafc!important;border:1px solid #d1d5db!important;
+    break-inside:avoid;page-break-inside:avoid;
+    color:#111!important
+  }
+  .krow{display:grid!important}
+  .g3{display:grid!important;grid-template-columns:1fr 1fr 1fr!important}
+  .g2{display:grid!important;grid-template-columns:1fr 1fr!important}
+  /* Text colors for print */
+  .kv,.mv,.psc-mv{color:#111!important}
+  .kl,.ks,.ml,.psc-ml,.mt{color:#555!important}
+  /* Progress bars */
+  .pf,.pi-fill,.psc-bar-fill,.mp-bar-ac{opacity:1!important}
+  /* Page breaks */
+  #tp-overview .g3{page-break-after:always}
+  /* Status cards grid */
+  #projStatusCards{grid-template-columns:1fr 1fr!important}
+  /* Table */
+  .tbl{width:100%!important;border-collapse:collapse!important}
+  .tbl th,.tbl td{border:0.5px solid #d1d5db!important;padding:4px 6px!important;color:#111!important}
+  .tbl th{background:#f1f5f9!important;font-weight:600!important}
+}
+/* PDF Header (hidden normally, visible in print) */
+.pdf-header{display:none;align-items:center;gap:12px;padding:10px 0 16px;border-bottom:2px solid #2d7ab5;margin-bottom:16px}
+.pdf-header img{height:36px}
+.pdf-header-title{font-size:18px;font-weight:700;letter-spacing:2px;color:#0f172a}
+.pdf-header-sub{font-size:10px;color:#64748b;letter-spacing:2px;text-transform:uppercase}
+.pdf-header-date{margin-left:auto;font-size:11px;color:#64748b;text-align:right}
 .auth-screen{position:fixed;inset:0;background:linear-gradient(135deg,#060a14 0%,#0a0f1e 50%,#0d1525 100%);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column}
 .auth-box{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:32px 36px;width:360px;max-width:95vw;animation:su .3s ease}
 .auth-logo{text-align:center;margin-bottom:24px}
@@ -352,6 +395,7 @@ select.fi{color-scheme:dark}
     <span id="flabel" style="font-family:var(--fm);font-size:10px">Belum ada file</span>
   </div>
   <div style="display:flex;gap:6px">
+    <button class="btn btn-sm" onclick="exportPDF()" style="border-color:#8b5cf6;color:#8b5cf6">📄 Export PDF</button>
     <button class="btn btn-sm" style="border-color:var(--pu);color:var(--pu)" onclick="copyShareUrl()" id="btnShareUrl" title="Salin link untuk dibagikan ke tim">🔗 Share Link</button>
     <button class="btn btn-sm bgs" onclick="syncAllGS()" id="btnSync" style="display:none">↑ Sync GSheet</button>
     <button class="btn btn-sm bgs" onclick="loadFromGS()" id="btnLoad" style="display:none">↓ Load GSheet</button>
@@ -384,6 +428,15 @@ select.fi{color-scheme:dark}
 
   <!-- CONTENT -->
   <div class="content">
+    <!-- PDF HEADER — hanya tampil saat print/export PDF -->
+    <div class="pdf-header" id="pdfHeader">
+      <img id="pdfLogoImg" src="" alt="ATW Solar" style="height:36px;object-fit:contain" onerror="this.style.display='none'">
+      <div>
+        <div class="pdf-header-title">PROJECT PERFORMANCE DASHBOARD</div>
+        <div class="pdf-header-sub">ATW Solar · Portfolio Monitor</div>
+      </div>
+      <div class="pdf-header-date" id="pdfHeaderDate"></div>
+    </div>
 
     <!-- ══ PORTFOLIO OVERVIEW ══ -->
     <div id="tp-overview" class="tp active">
@@ -987,9 +1040,6 @@ select.fi{color-scheme:dark}
     <div class="auth-err" id="authErr">Password salah. Coba lagi.</div>
     <button class="btn bp" onclick="doLogin()" style="width:100%;justify-content:center;margin-top:4px;padding:10px">Masuk →</button>
 
-    <div style="text-align:center;margin-top:14px;font-size:10px;color:var(--mt)">
-      Default: Admin <span style="font-family:var(--fm)">admin123</span> · Editor <span style="font-family:var(--fm)">edit123</span>
-    </div>
   </div>
 </div>
 
@@ -2437,6 +2487,31 @@ function copyShareUrl(){
     toast('✓ Link disalin ke clipboard!');
   });
 }
+// ── EXPORT PDF ───────────────────────────────────────────────
+function exportPDF(){
+  // Siapkan PDF header
+  const logo=localStorage.getItem('atw_dash_logo')||$('dashLogoImg')?.src||'';
+  const pdfLogo=$('pdfLogoImg');
+  if(pdfLogo&&logo&&logo.startsWith('data:'))pdfLogo.src=logo;
+  const dateStr=new Date().toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  const pdfDate=$('pdfHeaderDate');
+  if(pdfDate)pdfDate.innerHTML=`Dicetak: ${dateStr} &nbsp;|&nbsp; Total Project: ${P.length} &nbsp;|&nbsp; Tab: ${({'overview':'Portfolio Overview','projects':'Projects','manpower':'Manpower','issues':'Issues','procurement':'Procurement'})[activeTab]||''}`;
+
+  // Switch ke overview untuk tampilan terlengkap
+  const goOverview=confirm('Export PDF\n\nOK = Export Portfolio Overview (tampilan lengkap)\nBatal = Export tab yang sedang aktif saja');
+  if(goOverview){
+    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+    document.querySelectorAll('.tp').forEach((p,i)=>p.classList.toggle('active',i===0));
+    activeTab='overview';
+    renderOV();
+  }
+  // Render selesai → print
+  setTimeout(()=>window.print(),500);
+}
+window.addEventListener('afterprint',()=>{
+  // data-tip: user bisa klik tab untuk kembali ke tampilan sebelumnya
+});
+
 function toggleTheme(){
   const isLight=document.documentElement.classList.toggle('light');
   const btn=$('themeBtn');
