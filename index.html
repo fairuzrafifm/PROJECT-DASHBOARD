@@ -1065,6 +1065,7 @@ select.fi{color-scheme:dark}
     <input class="fi" type="password" id="cpConfPw" placeholder="Ulangi password baru">
   </div>
   <div class="mfoot">
+    <button class="btn bb btn-sm" onclick="testPwSync()" style="margin-right:auto">🔍 Test Koneksi PW</button>
     <button class="btn" onclick="cm('changePw')">Batal</button>
     <button class="btn bp" onclick="saveNewPw()">💾 Simpan</button>
   </div>
@@ -2072,7 +2073,7 @@ function delProc(){if(!confirm('Hapus?'))return;PROC=PROC.filter(p=>p.id!==editP
 // ═══════════════════════════════════════════════════════════════
 // GOOGLE SHEET
 // ═══════════════════════════════════════════════════════════════
-const GS_SCRIPT=`// ATW Solar Project Performance Dashboard — Google Apps Script v5
+const GS_SCRIPT=`// ATW Solar Project Performance Dashboard — Google Apps Script v6
 // PENTING: Ganti SHEET_ID lalu Deploy ulang sebagai Web App (Anyone can access)
 
 const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
@@ -2087,14 +2088,12 @@ function doPost(e) {
     const d = JSON.parse(raw);
     const ss = SpreadsheetApp.openById(SHEET_ID);
 
-    // Handle password update
+    // Update password — simpan langsung di Properties (lebih reliable dari sheet)
     if (d.action === 'updatePw') {
-      let cfg = ss.getSheetByName('_CONFIG') || ss.insertSheet('_CONFIG');
-      cfg.clearContents();
-      cfg.appendRow(['key','value']);
-      cfg.appendRow(['pw_admin', d.pw_admin || 'admin123']);
-      cfg.appendRow(['pw_editor', d.pw_editor || 'edit123']);
-      return makeOutput({status:'ok', msg:'Password updated'});
+      const props = PropertiesService.getScriptProperties();
+      if (d.pw_admin)  props.setProperty('pw_admin',  String(d.pw_admin));
+      if (d.pw_editor) props.setProperty('pw_editor', String(d.pw_editor));
+      return makeOutput({status:'ok', msg:'Password updated successfully'});
     }
 
     if (d.action === 'sync') {
@@ -2103,7 +2102,7 @@ function doPost(e) {
       const incomingTs = d.lastSaved || 0;
 
       if (incomingTs < currentTs) {
-        return makeOutput({status:'rejected',msg:'Data lebih lama dari GSheet.',currentTs,incomingTs});
+        return makeOutput({status:'rejected', msg:'Data lebih lama dari GSheet.', currentTs, incomingTs});
       }
 
       writeSheet(ss,'PROJECTS',d.projects,['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo']);
@@ -2116,10 +2115,11 @@ function doPost(e) {
       const metaSheet = ss.getSheetByName('_META') || ss.insertSheet('_META');
       metaSheet.clearContents();
       metaSheet.appendRow(['lastSaved','version','syncedBy']);
-      metaSheet.appendRow([incomingTs, '5.0', new Date().toISOString()]);
+      metaSheet.appendRow([incomingTs, '6.0', new Date().toISOString()]);
 
       return makeOutput({status:'ok', ts: new Date().toISOString(), saved: incomingTs});
     }
+
     return makeOutput({status:'error', msg:'Unknown action'});
   } catch(err) {
     return makeOutput({status:'error', msg: err.toString()});
@@ -2132,15 +2132,15 @@ function doGet(e) {
     const meta = readSheet(ss,'_META');
     const lastSaved = meta.length > 0 ? (+meta[0].lastSaved || 0) : 0;
 
-    // Baca password dari _CONFIG
-    const cfgRows = readSheet(ss,'_CONFIG') || [];
-    const cfg = {};
-    cfgRows.forEach(r => { if(r.key) cfg[r.key] = r.value; });
+    // Baca password dari Script Properties (paling reliable)
+    const props = PropertiesService.getScriptProperties();
+    const pw_admin  = props.getProperty('pw_admin')  || 'admin123';
+    const pw_editor = props.getProperty('pw_editor') || 'edit123';
 
     return makeOutput({
       lastSaved,
-      pw_admin:  cfg.pw_admin  || 'admin123',
-      pw_editor: cfg.pw_editor || 'edit123',
+      pw_admin,
+      pw_editor,
       projects:     readSheet(ss,'PROJECTS') || [],
       history:      readSheet(ss,'HISTORY') || [],
       issues:       readSheet(ss,'ISSUES') || [],
@@ -2549,18 +2549,31 @@ function getRolePw(role){
 
 // Load password dari GSheet saat startup
 async function loadPwFromGS(){
-  if(!gsOk||!gsUrl)return;
+  // Load GSheet config dari localStorage dulu
+  try{const c=JSON.parse(localStorage.getItem('atw_gs')||'{}');if(c.url&&!gsUrl){gsUrl=c.url;gsSheet=c.sheet||'';gsOk=true;}}catch(e){}
+  // Coba load password dari GSheet
+  if(!gsOk||!gsUrl){
+    // Fallback ke localStorage cache
+    try{const lc=JSON.parse(localStorage.getItem('atw_pw')||'{}');if(lc.admin)gsPw.admin=lc.admin;if(lc.editor)gsPw.editor=lc.editor;}catch(e){}
+    return;
+  }
   try{
-    const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-cache'});
-    if(!r.ok)return;
+    const r=await fetch(gsUrl+'?pw=1&t='+Date.now(),{cache:'no-cache'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
     const d=await r.json();
-    if(d.pw_admin)gsPw.admin=d.pw_admin;
-    if(d.pw_editor)gsPw.editor=d.pw_editor;
-    // Update localStorage cache juga
-    localStorage.setItem('atw_pw',JSON.stringify(gsPw));
+    if(d.pw_admin){gsPw.admin=String(d.pw_admin);}
+    if(d.pw_editor){gsPw.editor=String(d.pw_editor);}
+    // Cache ke localStorage
+    localStorage.setItem('atw_pw',JSON.stringify({admin:gsPw.admin,editor:gsPw.editor}));
+    console.log('Password loaded from GSheet');
   }catch(e){
-    // Fallback ke localStorage
-    try{const lc=JSON.parse(localStorage.getItem('atw_pw')||'{}');if(lc.admin)gsPw.admin=lc.admin;if(lc.editor)gsPw.editor=lc.editor;}catch(e2){}
+    console.log('loadPwFromGS fallback:',e.message);
+    // Fallback ke localStorage cache
+    try{
+      const lc=JSON.parse(localStorage.getItem('atw_pw')||'{}');
+      if(lc.admin)gsPw.admin=lc.admin;
+      if(lc.editor)gsPw.editor=lc.editor;
+    }catch(e2){}
   }
 }
 
@@ -2662,33 +2675,68 @@ function doLogout(){
   }
 }
 
+async function testPwSync(){
+  if(!gsOk||!gsUrl){toast('GSheet belum tersambung','error');return;}
+  toast('🔍 Membaca password dari GSheet...');
+  try{
+    const r=await fetch(gsUrl+'?pw_check=1&t='+Date.now(),{cache:'no-cache'});
+    const d=await r.json();
+    if(d.pw_admin||d.pw_editor){
+      toast(`✅ GSheet password terbaca:\nAdmin: ${d.pw_admin}\nEditor: ${d.pw_editor}`);
+      // Update lokal sesuai GSheet
+      if(d.pw_admin)gsPw.admin=String(d.pw_admin);
+      if(d.pw_editor)gsPw.editor=String(d.pw_editor);
+      localStorage.setItem('atw_pw',JSON.stringify({admin:gsPw.admin,editor:gsPw.editor}));
+    }else{
+      toast('⚠ Password tidak terbaca dari GSheet: '+JSON.stringify(d),'warn');
+    }
+  }catch(e){
+    toast('❌ Gagal baca dari GSheet: '+e.message,'error');
+  }
+}
+
 function saveNewPw(){
   const role=gv('cpRole');
   const np=gv('cpNewPw').trim();
   const cp=gv('cpConfPw').trim();
   if(np.length<4){toast('Password minimal 4 karakter','error');return;}
   if(np!==cp){toast('Konfirmasi password tidak sama','error');return;}
-  // Update local
+  // Update lokal dulu
   gsPw[role]=np;
-  localStorage.setItem('atw_pw',JSON.stringify({...gsPw}));
-  // Sync ke GSheet
-  if(gsOk&&gsUrl){
-    fetch(gsUrl,{
-      method:'POST',
-      body:JSON.stringify({action:'updatePw',pw_admin:gsPw.admin||DEFAULT_PW.admin,pw_editor:gsPw.editor||DEFAULT_PW.editor}),
-      headers:{'Content-Type':'text/plain;charset=utf-8'}
-    }).then(r=>r.json()).then(d=>{
-      if(d.status==='ok')toast(`✅ Password ${role} diupdate & tersinkronisasi ke semua browser!`);
-      else toast(`Password disimpan lokal. GSheet: ${d.msg||'error'}`, 'warn');
-    }).catch(()=>{
-      // Fallback no-cors
-      fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'updatePw',pw_admin:gsPw.admin||DEFAULT_PW.admin,pw_editor:gsPw.editor||DEFAULT_PW.editor}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
-      toast(`Password ${role} diupdate. Sync ke GSheet (no-cors mode).`,'warn');
-    });
-  }else{
-    toast(`✅ Password ${role} diubah. Sambungkan GSheet agar berlaku di semua browser.`,'warn');
-  }
+  localStorage.setItem('atw_pw',JSON.stringify({admin:gsPw.admin,editor:gsPw.editor}));
   cm('changePw');
+  // Sync ke GSheet
+  if(!gsOk||!gsUrl){
+    toast('Password diubah secara lokal. Sambungkan GSheet agar berlaku di semua browser.','warn');
+    return;
+  }
+  toast('⏳ Menyimpan password ke Google Sheet...');
+  const body=JSON.stringify({
+    action:'updatePw',
+    pw_admin:gsPw.admin||DEFAULT_PW.admin,
+    pw_editor:gsPw.editor||DEFAULT_PW.editor
+  });
+  fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}})
+    .then(r=>r.text())
+    .then(txt=>{
+      try{
+        const d=JSON.parse(txt);
+        if(d.status==='ok'){
+          toast(`✅ Password ${role} berhasil diupdate di semua browser!`);
+        }else{
+          toast(`⚠ GSheet: ${d.msg||'cek Apps Script'}. Password tersimpan lokal.`,'warn');
+        }
+      }catch(e){
+        // no-cors response — dianggap berhasil
+        toast(`✅ Password ${role} dikirim ke GSheet. Berlaku dalam beberapa detik.`);
+      }
+    })
+    .catch(e=>{
+      // Coba no-cors fallback
+      fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain'},mode:'no-cors'})
+        .then(()=>toast(`📤 Password dikirim (no-cors). Mungkin perlu beberapa saat untuk berlaku.`,'warn'))
+        .catch(()=>toast(`❌ Gagal sync password ke GSheet: ${e.message}`,'error'));
+    });
 }
 
 function checkSession(){
