@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Project Performance Dashboard — ATW Solar</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -620,14 +621,52 @@ select.fi{color-scheme:dark}
         </div>
         <button class="btn bg btn-sm" onclick="openModal('addProc')">＋ Tambah Item</button>
       </div>
-      <div class="krow" style="grid-template-columns:repeat(5,1fr)">
+      <div class="krow" style="grid-template-columns:repeat(6,1fr)">
         <div class="kpi kr"><div class="kl">Overdue</div><div class="kv" id="pc1" style="color:var(--rd)">0</div></div>
         <div class="kpi ky"><div class="kl">Due Today</div><div class="kv" id="pc2" style="color:var(--yw)">0</div></div>
+        <div class="kpi ky"><div class="kl">⚠ Due ≤3 Hari</div><div class="kv" id="pc6" style="color:var(--yw)">0</div></div>
         <div class="kpi kb"><div class="kl">In Transit</div><div class="kv" id="pc3" style="color:var(--bl)">0</div></div>
         <div class="kpi kg"><div class="kl">On Site</div><div class="kv" id="pc4" style="color:var(--gn)">0</div></div>
         <div class="kpi ko"><div class="kl">Waiting</div><div class="kv" id="pc5" style="color:var(--or)">0</div></div>
       </div>
       <div class="card"><div class="ct">DAFTAR ITEM PENGADAAN</div><div id="procTable" style="overflow-x:auto"></div></div>
+    </div>
+
+    <!-- ══ S-CURVE ══ -->
+    <div id="tp-scurve" class="tp">
+      <!-- KPI Row -->
+      <div class="krow" style="grid-template-columns:repeat(5,1fr)">
+        <div class="kpi kb"><div class="kl">Project</div><div class="kv" id="sc-proj" style="color:var(--bl);font-size:14px">—</div><div class="ks" id="sc-dur">— minggu</div></div>
+        <div class="kpi kg"><div class="kl">Cum. Plan</div><div class="kv" id="sc-cplan" style="color:var(--gn)">0%</div><div class="ks">Minggu ini</div></div>
+        <div class="kpi ko"><div class="kl">Cum. Actual</div><div class="kv" id="sc-cact" style="color:var(--or)">0%</div><div class="ks">Minggu ini</div></div>
+        <div class="kpi ky"><div class="kl">Variance</div><div class="kv" id="sc-var" style="color:var(--yw)">0%</div><div class="ks" id="sc-var-lbl">—</div></div>
+        <div class="kpi kb"><div class="kl">Minggu Aktif</div><div class="kv" id="sc-week" style="color:var(--bl)">W—</div><div class="ks" id="sc-wdate">—</div></div>
+      </div>
+
+      <!-- Controls -->
+      <div class="card" style="padding:10px 14px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="font-size:12px;color:var(--mt)">Project:</div>
+          <select class="fi" style="width:auto;min-width:200px" id="scProjSel" onchange="renderSCurve()"></select>
+          <button class="btn btn-sm edit-only" style="border-color:var(--bl);color:var(--bl)" onclick="openModal('scPlan')">📋 Input Plan</button>
+          <button class="btn btn-sm bp edit-only" onclick="openModal('scActual')">✏ Update Actual</button>
+          <button class="btn btn-sm" onclick="openModal('scManage')" style="border-color:var(--mt);color:var(--mt)">⚙ Kelola Data</button>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="card">
+        <div class="ct">CONSTRUCTION S-CURVE — PLAN VS ACTUAL
+          <span id="scChartTitle" style="color:var(--mt);font-weight:400;font-size:11px"></span>
+        </div>
+        <div id="scChart" style="padding:10px 0"></div>
+      </div>
+
+      <!-- Detail table -->
+      <div class="card">
+        <div class="ct">DATA PROGRESS MINGGUAN</div>
+        <div id="scTable" style="overflow-x:auto"></div>
+      </div>
     </div>
 
   </div><!-- /content -->
@@ -961,7 +1000,96 @@ select.fi{color-scheme:dark}
   </div>
 </div></div>
 
-<!-- IMPORT -->
+<!-- S-CURVE INPUT PLAN -->
+<div class="ov" id="ov-scPlan" onclick="if(event.target===this)cm('scPlan')">
+<div class="modal wide">
+  <div class="mtitle">📋 INPUT PLAN — S-CURVE<button class="mclose" onclick="cm('scPlan')">✕</button></div>
+  <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:var(--mt)">
+    Isi <b style="color:var(--bl)">Weekly Plan %</b> untuk semua minggu sekaligus. Cumulative Plan dihitung otomatis. Biasanya diisi sekali di awal project.
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Project *</label><select class="fi" id="scPlanProj" onchange="renderPlanInputRows()"></select></div>
+    <div class="fg"><label class="fl">Jumlah Minggu</label>
+      <select class="fi" id="scPlanDur" onchange="renderPlanInputRows()">
+        <option value="8">8 Minggu</option><option value="10">10 Minggu</option>
+        <option value="12">12 Minggu</option><option value="16">16 Minggu</option>
+        <option value="20" selected>20 Minggu</option><option value="24">24 Minggu</option>
+      </select>
+    </div>
+  </div>
+  <div id="planInputRows" style="max-height:360px;overflow-y:auto;border:1px solid var(--bd);border-radius:8px;padding:8px"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--mt)">
+    <span>Total: <span id="planTotal" style="font-family:var(--fm);color:var(--bl);font-weight:600">0.0%</span> (harus 100%)</span>
+    <span style="color:var(--mt)">Cumulative dihitung otomatis</span>
+  </div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('scPlan')">Batal</button>
+    <button class="btn bg" onclick="saveSCurvePlan()">💾 Simpan Plan</button>
+  </div>
+</div></div>
+
+<!-- S-CURVE UPDATE ACTUAL -->
+<div class="ov" id="ov-scActual" onclick="if(event.target===this)cm('scActual')">
+<div class="modal" style="width:480px">
+  <div class="mtitle">✏ UPDATE ACTUAL MINGGU INI<button class="mclose" onclick="cm('scActual')">✕</button></div>
+  <div style="background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:var(--mt)">
+    Isi <b style="color:var(--or)">Weekly Actual %</b> setiap minggu sesuai laporan S-Curve.
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Project *</label><select class="fi" id="scActProj" onchange="scFillActualWeek()"></select></div>
+    <div class="fg"><label class="fl">Minggu</label>
+      <select class="fi" id="scActWeek" onchange="scFillActualWeek()">
+        <option value="1">W01</option><option value="2">W02</option><option value="3">W03</option>
+        <option value="4">W04</option><option value="5">W05</option><option value="6">W06</option>
+        <option value="7">W07</option><option value="8">W08</option><option value="9">W09</option>
+        <option value="10">W10</option><option value="11">W11</option><option value="12">W12</option>
+        <option value="13">W13</option><option value="14">W14</option><option value="15">W15</option>
+        <option value="16">W16</option><option value="17">W17</option><option value="18">W18</option>
+        <option value="19">W19</option><option value="20">W20</option>
+        <option value="21">W21</option><option value="22">W22</option><option value="23">W23</option>
+        <option value="24">W24</option>
+      </select>
+    </div>
+  </div>
+  <div style="background:rgba(59,130,246,.07);border-radius:7px;padding:8px 12px;margin-bottom:10px;font-size:12px;display:flex;gap:20px">
+    <span>Plan minggu ini: <b id="scActWPlan" style="color:var(--bl)">—</b></span>
+    <span>Cum. Plan: <b id="scActCPlan" style="color:var(--bl)">—</b></span>
+  </div>
+  <div class="f2">
+    <div class="fg">
+      <label class="fl" style="color:var(--or)">Weekly Actual (%)</label>
+      <input class="fi" type="number" id="scActWAct" placeholder="0.0" min="0" max="100" step="0.1"
+        oninput="scPreviewCumActual()" style="border-color:var(--or);background:rgba(249,115,22,.06);font-size:15px;font-weight:600">
+    </div>
+    <div class="fg">
+      <label class="fl">Cum. Actual (%) <span style="color:var(--mt);font-size:9px">opsional</span></label>
+      <input class="fi" type="number" id="scActCAct" placeholder="auto-hitung" min="0" max="100" step="0.1">
+    </div>
+  </div>
+  <div style="background:var(--sf2);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--mt);margin-bottom:2px">
+    Cum. Actual → <b id="scActCumPreview" style="color:var(--or)">—</b>
+    <span id="scActVarPreview"></span>
+  </div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('scActual')">Batal</button>
+    <button class="btn bp" onclick="saveSCurveActual()">💾 Simpan Actual</button>
+  </div>
+</div></div>
+
+<!-- S-CURVE MANAGE -->
+<div class="ov" id="ov-scManage" onclick="if(event.target===this)cm('scManage')">
+<div class="modal wide">
+  <div class="mtitle">KELOLA DATA S-CURVE<button class="mclose" onclick="cm('scManage')">✕</button></div>
+  <div class="fg" style="margin-bottom:10px">
+    <label class="fl">Project</label>
+    <select class="fi" id="scMgProj" onchange="renderScManageTable()"></select>
+  </div>
+  <div id="scMgTable" style="overflow-x:auto;max-height:400px;overflow-y:auto"></div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('scManage')">Tutup</button>
+  </div>
+</div></div>
+
 <div class="ov" id="ov-import" onclick="if(event.target===this)cm('import')">
 <div class="modal">
   <div class="mtitle">BUKA FILE EXCEL<button class="mclose" onclick="cm('import')">✕</button></div>
@@ -1085,7 +1213,7 @@ select.fi{color-scheme:dark}
 // ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
-let P=[],ISS=[],PROC=[],MPLOGS=[],ACCLOGS=[];
+let P=[],ISS=[],PROC=[],MPLOGS=[],ACCLOGS=[],SCURVE=[];
 let selId=null,editProjId=null,editIssId=null,editProcId=null;
 let isDirty=false,pendImp=null,curFile=null,activeTab='overview';
 let gsUrl='',gsSheet='',gsOk=false;
@@ -1118,7 +1246,7 @@ function cm(t){
     addAccident:'ov-addAccident',editWeather:'ov-editWeather',addIssue:'ov-addIssue',
     addProc:'ov-addProc',gsConfig:'ov-gsConfig',import:'ov-import',
     editMpLog:'ov-editMpLog',editHist:'ov-editHist',editAcc:'ov-editAcc',
-    changePw:'ov-changePw'};
+    changePw:'ov-changePw',scPlan:'ov-scPlan',scActual:'ov-scActual',scManage:'ov-scManage'};
   $(m[t]||'ov-'+t)?.classList.remove('open');
 }
 function rv(inp,dv,bv){
@@ -1127,7 +1255,7 @@ function rv(inp,dv,bv){
   if(bv)$(bv).style.width=v+'%';
 }
 function saveLocal(ts){
-  try{localStorage.setItem('atw_data',JSON.stringify({P,I:ISS,PR:PROC,M:MPLOGS,A:ACCLOGS,ts:ts||Date.now()}));}catch(e){}
+  try{localStorage.setItem('atw_data',JSON.stringify({P,I:ISS,PR:PROC,M:MPLOGS,A:ACCLOGS,SC:SCURVE,ts:ts||Date.now()}));}catch(e){}
 }
 function loadLocal(){
   try{
@@ -1148,6 +1276,7 @@ function loadLocal(){
     PROC=sanitizeProc(d.PR||[]);
     MPLOGS=sanitizeMpLogs(d.M||[]);
     ACCLOGS=sanitizeAccLogs(d.A||[]);
+    SCURVE=d.SC||[];
     (d.P||[]).forEach(lp=>{const p=P.find(x=>x.id==lp.id);if(p&&Array.isArray(lp.history))p.history=lp.history;});
     return P.length>0;
   }catch(e){
@@ -1488,166 +1617,148 @@ function renderDetail(id){
         </div>`;
       }).join('')}
     </div>`:''}
-  </div>`;
-}
 
-// ═══════════════════════════════════════════════════════════════
-// MANPOWER TAB
-// ═══════════════════════════════════════════════════════════════
-function renderMP(){
-  const today=new Date().toISOString().slice(0,10);
-  const todayLogs=MPLOGS.filter(m=>m.date===today);
-  const logs=todayLogs.length>0?todayLogs:MPLOGS.slice(-Math.max(P.length,1));
-
-  // Pekerja hari ini
-  const totActToday=logs.reduce((s,m)=>s+(+m.total||0),0);
-  const totPlanPerDay=P.reduce((s,p)=>s+(p.mpPlan||0),0); // target pekerja per hari
-
-  // Mandays Actual = akumulasi total pekerja dari semua log per project
-  const getMandaysActual=(projId)=>MPLOGS.filter(m=>m.projId===projId).reduce((s,m)=>s+(+m.total||0),0);
-  const totMDActual=P.reduce((s,p)=>s+getMandaysActual(p.id),0);
-  const totMDPlan=P.reduce((s,p)=>s+(+p.mdPlan||0),0); // Mandays Plan dari field baru
-  const mdV=totMDActual-totMDPlan;
-
-  // Time lost total dari semua log
-  const totTL=MPLOGS.reduce((s,m)=>s+(+m.timeLost||0),0);
-
-  $('mp1').textContent=totActToday;
-  $('mp1s').textContent='';
-  $('mp2').textContent=totMDActual+' MD';
-  $('mp2s').textContent='Plan: '+(totMDPlan||'—')+' MD';
-  $('mp3').textContent=(mdV>=0?'+':'')+mdV+' MD';
-  $('mp3').style.color=totMDPlan>0?(mdV>=0?'var(--gn)':'var(--rd)'):'var(--mt)';
-  $('mp3s').textContent=totMDPlan>0?(mdV>=0?'Ahead of plan':'Behind plan'):'Set Mandays Plan';
-  $('mp4').textContent=totTL+' hr';
-
-  if(!P.length){$('mpTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:18px;font-size:11px">Belum ada project</div>';return;}
-
-  $('mpTable').innerHTML=P.map(p=>{
-    const log=logs.find(m=>m.projId===p.id)||{};
-    const todayWorkers=+log.total||0;
-    const mdActual=getMandaysActual(p.id);
-    const mdPlan=+p.mdPlan||0;
-    const mdPct=mdPlan>0?Math.round(mdActual/mdPlan*100):0;
-    const tl=MPLOGS.filter(m=>m.projId===p.id).reduce((s,m)=>s+(+m.timeLost||0),0);
-    const bc={'On Track':'var(--gn)','Delayed':'var(--yw)','Critical':'var(--rd)','Planning':'var(--bl)','Done':'var(--pu)'}[p.status]||'var(--bl)';
-    const spv=+log.spv||0,mdr=+log.mandor||0,ins=+log.installer||0,tuk=+log.tukang||0,hlp=+log.helper||0,saf=+log.safety||0;
-    const hasDetail=spv||mdr||ins||tuk||hlp||saf;
-    const logCount=MPLOGS.filter(m=>m.projId===p.id).length;
-    return `<div class="mp-row">
-      <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">${p.kode}</div>
-      <div>
-        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--mt);margin-bottom:3px">
-          <span>MD Actual: <span style="font-family:var(--fm);color:${bc}">${mdActual}</span></span>
-          <span>Plan: <span style="font-family:var(--fm)">${mdPlan||'—'}</span></span>
-          <span style="color:var(--mt)">${logCount} hari input</span>
+    <!-- S-CURVE INLINE -->
+    <div class="card" style="margin-top:9px">
+      <div class="ct" style="display:flex;align-items:center;gap:0;flex-wrap:wrap">
+        <span style="flex:1">📈 S-CURVE — PLAN VS ACTUAL</span>
+        <div style="display:flex;border:1px solid var(--bd);border-radius:6px;overflow:hidden">
+          <button class="btn btn-sm edit-only" style="border:none;border-radius:0;border-right:1px solid var(--bd);color:var(--bl)" onclick="openModal('scPlan')">📋 Input Plan</button>
+          <button class="btn btn-sm bp edit-only" style="border:none;border-radius:0" onclick="openModal('scActual')">✏ Update Actual</button>
         </div>
-        <div class="mp-bar"><div class="mp-bar-pl" style="width:100%"></div><div class="mp-bar-ac" style="width:${Math.min(mdPct,100)}%;background:${bc}"></div></div>
-        ${mdPlan>0?`<div style="font-size:9px;color:${mdActual>=mdPlan?'var(--gn)':'var(--mt)'};margin-top:2px">${mdPct}% dari target${mdActual>=mdPlan?' ✓':''}</div>`:'<div style="font-size:9px;color:var(--mt);margin-top:2px">Mandays Plan belum diset</div>'}
       </div>
-      <div style="font-family:var(--fm);color:var(--mt);text-align:center;font-size:10px">${hasDetail?spv:'—'}</div>
-      <div style="font-family:var(--fm);color:var(--mt);text-align:center;font-size:10px">${hasDetail?mdr:'—'}</div>
-      <div style="font-family:var(--fm);color:var(--mt);text-align:center;font-size:10px">${hasDetail?ins:'—'}</div>
-      <div style="font-family:var(--fm);color:var(--mt);text-align:center;font-size:10px">${hasDetail?tuk:'—'}</div>
-      <div style="font-family:var(--fm);color:var(--mt);text-align:center;font-size:10px">${hasDetail?hlp:'—'}</div>
-      <div style="font-family:var(--fm);color:${saf>0?'var(--gn)':'var(--mt)'};text-align:center;font-size:10px">${hasDetail?saf:'—'}</div>
-      <div style="font-family:var(--fm);color:${todayWorkers>0?'var(--bl)':'var(--mt)'};text-align:center;font-size:11px;font-weight:600">${todayWorkers||'—'}</div>
-      <div style="font-family:var(--fm);color:${tl>0?'var(--rd)':'var(--mt)'};text-align:center;font-size:10px">${tl>0?tl+'h':'—'}</div>
-    </div>`;
-  }).join('');
-  // Manhour trend — with week selector
-  const weekOffset=+(gv('mpTrendWeek')||0);
-  const days=[];
-  for(let i=6;i>=0;i--){
-    const d=new Date();
-    d.setDate(d.getDate()-i-(weekOffset*7));
-    days.push(d.toISOString().slice(0,10));
-  }
-  // Trend bar: pekerja per hari (bukan manhours)
-  const vals=days.map(d=>MPLOGS.filter(m=>m.date===d).reduce((s,m)=>s+(+m.total||0),0));
-  const maxV=Math.max(...vals,1);
-  const weekLabel=weekOffset===0?'Minggu Ini':weekOffset===1?'Minggu Lalu':`${weekOffset} Minggu Lalu`;
-  const dateRange=`${days[0].slice(5)} — ${days[6].slice(5)}`;
-  $('mpTrend').innerHTML=`
-  <div style="font-size:10px;color:var(--mt);margin-bottom:8px;display:flex;justify-content:space-between">
-    <span>${weekLabel}</span>
-    <span style="font-family:var(--fm)">${dateRange}</span>
-  </div>
-  <div style="display:flex;align-items:flex-end;gap:7px;height:75px;padding:2px 4px">
-    ${days.map((d)=>{
-      const v=vals[days.indexOf(d)];const h=Math.round(v/maxV*65);const isToday=d===today;
-      const dayName=new Date(d+'T12:00').toLocaleDateString('id-ID',{weekday:'short'});
-      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-        <div style="font-family:var(--fm);font-size:9px;color:${v>0?'var(--gn)':'var(--mt)'}">${v||'—'}</div>
-        <div style="width:100%;height:${h||2}px;background:${isToday?'var(--or)':weekOffset===0?'rgba(59,130,246,.45)':'rgba(139,92,246,.4)'};border-radius:3px 3px 0 0;min-height:2px"></div>
-        <div style="font-size:9px;color:${isToday?'var(--or)':'var(--mt)'}">${dayName}</div>
-        <div style="font-size:8px;color:var(--bd)">${d.slice(5)}</div>
-      </div>`;
-    }).join('')}
-  </div>
-  <div style="display:flex;gap:12px;margin-top:6px;font-size:10px;color:var(--mt)">
-    ${weekOffset===0?`<span>■ <span style="color:var(--or)">Hari ini</span></span>`:''}
-    <span>Total pekerja minggu ini: <span style="font-family:var(--fm);color:var(--tx)">${vals.reduce((s,v)=>s+v,0)} orang-hari</span></span>
+      <div id="inlineScChart_${id}" style="min-height:60px"></div>
+    </div>
   </div>`;
-  renderMpLog();
+
+  // Render S-Curve after DOM update
+  setTimeout(()=>renderInlineSCurve(id), 60);
 }
 
-function calcMpTot(){sv('mpTot',(+gv('mpSpv')||0)+(+gv('mpMandor')||0)+(+gv('mpInstaller')||0)+(+gv('mpTukang')||0)+(+gv('mpHelper')||0)+(+gv('mpSafety')||0));}
-function calcEmlTot(){sv('emlTot',(+gv('emlSpv')||0)+(+gv('emlMandor')||0)+(+gv('emlInstaller')||0)+(+gv('emlTukang')||0)+(+gv('emlHelper')||0)+(+gv('emlSafety')||0));}
+// ── S-CURVE INLINE IN PROJECT DETAIL ────────────────────────
+function renderInlineSCurve(projId){
+  const el=$('inlineScChart_'+projId);
+  if(!el)return;
+  const data=SCURVE.filter(d=>String(d.projId)===String(projId)).sort((a,b)=>a.week-b.week);
+  if(!data.length){
+    el.innerHTML='<div style="text-align:center;color:var(--mt);font-size:11px;padding:28px">Belum ada data S-Curve — klik 📋 Input Plan untuk mulai</div>';
+    return;
+  }
+  const displayData=data.filter(d=>(+d.wPlan||0)>0||(+d.wAct||0)>0);
+  if(!displayData.length){
+    el.innerHTML='<div style="text-align:center;color:var(--mt);font-size:11px;padding:28px">Belum ada data bermakna</div>';
+    return;
+  }
+  let cumPl=0,cumAct=0;
+  const weeks=displayData.map(d=>{
+    cumPl+=+d.wPlan||0;cumAct+=+d.wAct||0;
+    return{...d,
+      cPlanCalc:d.cPlan!=null?+d.cPlan:Math.round(cumPl*10)/10,
+      cActCalc:(+d.wAct>0||d.cAct!=null)?(d.cAct!=null?+d.cAct:Math.round(cumAct*10)/10):null
+    };
+  });
+  const n=weeks.length;
+  const labels=weeks.map(w=>'W'+String(w.week).padStart(2,'0'));
+  const light=document.documentElement.classList.contains('light');
+  const lastW=weeks.filter(w=>w.cActCalc!=null).slice(-1)[0]||weeks.slice(-1)[0];
+  const cumActLast=lastW?.cActCalc??0;
+  const cumPlanLast=lastW?.cPlanCalc??0;
+  const varr=(cumActLast-cumPlanLast).toFixed(1);
+  const vClr=+varr>=0?'var(--gn)':+varr>=-5?'var(--yw)':'var(--rd)';
+  const canvasId='sc_'+projId+'_'+Date.now();
 
-let editingMpLogId=null;
-function renderMpLog(){
-  const el=$('mpLogTable');if(!el)return;
-  const fp=$('mpLogFiltProj');
-  if(fp){const cur=fp.value;fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');if(cur)fp.value=cur;}
-  const filtP=gv('mpLogFiltProj');
-  const logs=MPLOGS.filter(m=>!filtP||m.projId==filtP).slice().sort((a,b)=>b.date.localeCompare(a.date));
-  if(!logs.length){el.innerHTML='<div style="text-align:center;color:var(--mt);font-size:11px;padding:16px">Belum ada data manpower log</div>';return;}
-  el.innerHTML=`<table class="tbl"><thead><tr><th>Tgl</th><th>Project</th><th>SPV</th><th>Mdr</th><th>Inst</th><th>Tukang</th><th>Helper</th><th>Safety</th><th>Total</th><th>MH Act</th><th>Time Lost</th><th>Keterangan</th><th></th></tr></thead><tbody>
-  ${logs.map(m=>{
-    const pr=P.find(p=>p.id===m.projId);
-    return `<tr>
-      <td style="font-family:var(--fm);font-size:10px;white-space:nowrap">${fmtDate(m.date)}</td>
-      <td style="font-family:var(--fm);font-size:10px;color:var(--bl)">${pr?.kode||'—'}</td>
-      <td style="text-align:center;font-family:var(--fm)">${m.spv||0}</td>
-      <td style="text-align:center;font-family:var(--fm)">${m.mandor||0}</td>
-      <td style="text-align:center;font-family:var(--fm)">${m.installer||0}</td>
-      <td style="text-align:center;font-family:var(--fm)">${m.tukang||0}</td>
-      <td style="text-align:center;font-family:var(--fm)">${m.helper||0}</td>
-      <td style="text-align:center;font-family:var(--fm)">${m.safety||0}</td>
-      <td style="text-align:center;font-family:var(--fm);font-weight:700;color:var(--gn)">${m.total||0}</td>
-      <td style="text-align:center;font-family:var(--fm)">${m.mhActual||0}</td>
-      <td style="text-align:center;font-family:var(--fm);color:${(m.timeLost||0)>0?'var(--rd)':'var(--mt)'}">${m.timeLost||0}</td>
-      <td style="color:var(--mt);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">${m.notes||'—'}</td>
-      <td><button class="btn btn-sm" style="padding:2px 6px" onclick="editMpLog(${m.id})">✏</button></td>
-    </tr>`;
-  }).join('')}</tbody></table>`;
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+      <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center">
+        <div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Cum. Plan</div>
+        <div style="font-family:var(--fd);font-size:20px;color:var(--gn);letter-spacing:1px">${cumPlanLast.toFixed(1)}%</div>
+      </div>
+      <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center">
+        <div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Cum. Actual</div>
+        <div style="font-family:var(--fd);font-size:20px;color:var(--or);letter-spacing:1px">${cumActLast.toFixed(1)}%</div>
+      </div>
+      <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center">
+        <div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Variance</div>
+        <div style="font-family:var(--fd);font-size:20px;color:${vClr};letter-spacing:1px">${+varr>=0?'+':''}${varr}%</div>
+      </div>
+      <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center">
+        <div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Progress</div>
+        <div style="font-family:var(--fd);font-size:20px;color:var(--bl);letter-spacing:1px">${cumActLast.toFixed(0)}%</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:var(--mt);padding:0 2px">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;background:#3b82f6;opacity:.8;border-radius:2px;display:inline-block"></span>Weekly Plan</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;background:#f97316;border-radius:2px;display:inline-block"></span>Weekly Actual</span>
+      <span style="display:flex;align-items:center;gap:5px"><svg width="20" height="12" style="vertical-align:middle"><line x1="0" y1="6" x2="20" y2="6" stroke="#10b981" stroke-width="2.5"/><circle cx="10" cy="6" r="3" fill="#10b981"/></svg>Cum. Plan</span>
+      <span style="display:flex;align-items:center;gap:5px"><svg width="20" height="12" style="vertical-align:middle"><line x1="0" y1="6" x2="20" y2="6" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3"/><circle cx="10" cy="6" r="3" fill="#f59e0b"/></svg>Cum. Actual</span>
+    </div>
+    <div style="position:relative;width:100%;height:280px">
+      <canvas id="${canvasId}" role="img" aria-label="S-Curve chart"></canvas>
+    </div>`;
+
+  setTimeout(()=>{
+    const ctx=document.getElementById(canvasId);
+    if(!ctx||!window.Chart)return;
+    const GRID=light?'rgba(0,0,0,.06)':'rgba(255,255,255,.06)';
+    const TICK=light?'#94a3b8':'#64748b';
+    const BG=light?'#1e293b':'#0f172a';
+    const maxBar=Math.max(...weeks.map(w=>Math.max(+w.wPlan||0,+w.wAct||0)),1)*1.4;
+    if(window['_sc_'+projId])window['_sc_'+projId].destroy();
+    window['_sc_'+projId]=new Chart(ctx,{
+      data:{
+        labels,
+        datasets:[
+          {type:'bar',label:'Weekly Plan',data:weeks.map(w=>+(+w.wPlan||0).toFixed(2)),
+            backgroundColor:'rgba(59,130,246,.5)',borderColor:'#3b82f6',borderWidth:1.5,
+            borderRadius:{topLeft:3,topRight:3},yAxisID:'yB',order:3},
+          {type:'bar',label:'Weekly Actual',data:weeks.map(w=>+(+w.wAct||0).toFixed(2)),
+            backgroundColor:'rgba(249,115,22,.75)',borderColor:'#f97316',borderWidth:1.5,
+            borderRadius:{topLeft:3,topRight:3},yAxisID:'yB',order:2},
+          {type:'line',label:'Cum. Plan',data:weeks.map(w=>+w.cPlanCalc.toFixed(2)),
+            borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.12)',
+            borderWidth:2.5,pointBackgroundColor:'#10b981',pointRadius:4,pointHoverRadius:7,
+            fill:true,tension:0.4,yAxisID:'yC',order:1},
+          {type:'line',label:'Cum. Actual',data:weeks.map(w=>w.cActCalc!=null?+w.cActCalc.toFixed(2):null),
+            borderColor:'#f59e0b',backgroundColor:'transparent',borderDash:[6,3],
+            borderWidth:2.5,pointBackgroundColor:'#f59e0b',pointStyle:'circle',
+            pointRadius:4,pointHoverRadius:7,fill:false,tension:0.4,spanGaps:false,yAxisID:'yC',order:0}
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        layout:{padding:{top:8,right:8,bottom:4,left:4}},
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            backgroundColor:BG+'EE',titleColor:'#f1f5f9',bodyColor:'#94a3b8',
+            borderColor:'rgba(255,255,255,.1)',borderWidth:1,
+            padding:12,cornerRadius:8,
+            callbacks:{
+              title:i=>'Minggu '+i[0].label,
+              label:i=>{
+                if(i.raw===null||i.raw===undefined)return null;
+                const n=['W.Plan','W.Actual','Cum.Plan','Cum.Actual'][i.datasetIndex];
+                return ` ${n}: ${(+i.raw).toFixed(1)}%`;
+              },
+              afterBody:items=>{
+                const cp=items[2]?.raw,ca=items[3]?.raw;
+                if(cp!=null&&ca!=null){const v=(ca-cp).toFixed(1);const sym=+v>=0?String.fromCharCode(9650)+' Ahead':String.fromCharCode(9660)+' Behind';return['  '+sym+': '+(+v>=0?'+':'')+v+'%'];}
+                return[];
+              }
+            }
+          }
+        },
+        scales:{
+          x:{grid:{color:GRID,drawBorder:false},ticks:{color:TICK,font:{size:10},maxRotation:0,autoSkip:n>10,maxTicksLimit:14},border:{display:false}},
+          yB:{type:'linear',position:'left',grid:{display:false},ticks:{color:TICK,font:{size:10},callback:v=>v+'%'},border:{display:false},min:0,suggestedMax:maxBar,title:{display:true,text:'Weekly %',color:TICK,font:{size:10}}},
+          yC:{type:'linear',position:'right',grid:{color:GRID,drawBorder:false},ticks:{color:TICK,font:{size:10},callback:v=>v+'%',stepSize:25},border:{display:false},min:0,max:100,title:{display:true,text:'Cumulative %',color:TICK,font:{size:10}}}
+        }
+      }
+    });
+  },80);
 }
-function editMpLog(id){
-  const m=MPLOGS.find(x=>x.id===id);if(!m)return;
-  editingMpLogId=id;
-  $('emlProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
-  $('emlProj').value=m.projId;
-  sv('emlDate',m.date);sv('emlSpv',m.spv||0);sv('emlMandor',m.mandor||0);sv('emlInstaller',m.installer||0);
-  sv('emlTukang',m.tukang||0);sv('emlHelper',m.helper||0);sv('emlSafety',m.safety||0);
-  sv('emlTot',m.total||0);sv('emlMhAct',m.mhActual||0);sv('emlTL',m.timeLost||0);
-  sv('emlTLReason',m.timeLostReason||'');sv('emlNotes',m.notes||'');
-  show('ov-editMpLog');
-}
-function saveEditMpLog(){
-  const idx=MPLOGS.findIndex(x=>x.id===editingMpLogId);if(idx<0)return;
-  const tot=(+gv('emlSpv')||0)+(+gv('emlMandor')||0)+(+gv('emlInstaller')||0)+(+gv('emlTukang')||0)+(+gv('emlHelper')||0)+(+gv('emlSafety')||0);
-  MPLOGS[idx]={...MPLOGS[idx],projId:+gv('emlProj')||MPLOGS[idx].projId,date:gv('emlDate'),
-    spv:+gv('emlSpv')||0,mandor:+gv('emlMandor')||0,installer:+gv('emlInstaller')||0,
-    tukang:+gv('emlTukang')||0,helper:+gv('emlHelper')||0,safety:+gv('emlSafety')||0,total:tot,
-    mhActual:+gv('emlMhAct')||0,timeLost:+gv('emlTL')||0,timeLostReason:gv('emlTLReason'),notes:gv('emlNotes')};
-  dirty();cm('editMpLog');renderMP();renderMpLog();toast('Log diupdate ✓');gsSync();
-}
-function delMpLog(){
-  if(!confirm('Hapus entri ini?'))return;
-  MPLOGS=MPLOGS.filter(m=>m.id!==editingMpLogId);
-  dirty();cm('editMpLog');renderMP();renderMpLog();toast('Log dihapus','warn');gsSync();
-}
+
 
 // ═══════════════════════════════════════════════════════════════
 // ISSUES
@@ -1704,13 +1815,21 @@ function renderProc(){
   $('pc1').textContent=cnt('Overdue');$('pc2').textContent=cnt('Due Today');
   $('pc3').textContent=cnt('In Transit');$('pc4').textContent=cnt('On Site');
   $('pc5').textContent=cnt('Waiting Approval')+cnt('PO Issued');
+  // Due ≤3 hari (tidak termasuk yang sudah overdue/hari ini/done)
+  const now2=new Date();now2.setHours(0,0,0,0);
+  const dueSoon=filtered.filter(i=>{
+    if(i.status==='On Site'||i.status==='Done')return false;
+    if(!i.due)return false;
+    const d=new Date(i.due);d.setHours(0,0,0,0);
+    const days=Math.ceil((d-now2)/86400000);
+    return days>0&&days<=3;
+  }).length;
+  if($('pc6'))$('pc6').textContent=dueSoon;
   const sc={Overdue:'var(--rd)','Due Today':'var(--yw)','In Transit':'var(--bl)','On Site':'var(--gn)','Waiting Approval':'var(--pu)','PO Issued':'var(--or)'};
   if(!filtered.length){$('procTable').innerHTML=`<div style="text-align:center;color:var(--mt);font-size:12px;padding:22px">${PROC.length?'Tidak ada item yang cocok dengan filter':'Belum ada item procurement'}</div>`;return;}
   $('procTable').innerHTML=`<table class="tbl"><thead><tr><th>Project</th><th>Item</th><th>Kat.</th><th>Qty</th><th>Supplier</th><th>Due</th><th>Status</th><th>Catatan</th><th></th></tr></thead><tbody>
     ${filtered.map(i=>{
       const pr=P.find(p=>p.id===i.projId);
-      const od=i.status!=='On Site'&&i.due&&new Date(i.due)<new Date();
-      // Sanitasi ulang semua field sebelum render
       const item=safeStr(i.item)||'—';
       const kat=safeStr(i.kategori)||'—';
       const qty=safeStr(i.qty)||'—';
@@ -1719,12 +1838,30 @@ function renderProc(){
       const due=safeStr(i.due)||'—';
       const stat=safeStr(i.status)||'—';
       const notes=safeStr(i.notes)||'—';
-      return`<tr>
+      const done=stat==='On Site'||stat==='Done';
+      // Hitung sisa hari
+      const now=new Date();now.setHours(0,0,0,0);
+      const dueDate=i.due?new Date(i.due):null;
+      if(dueDate)dueDate.setHours(0,0,0,0);
+      const daysLeft=dueDate?Math.ceil((dueDate-now)/86400000):null;
+      const isOverdue=!done&&dueDate&&daysLeft<0;
+      const isWarning=!done&&dueDate&&daysLeft>=0&&daysLeft<=3;
+      // Due date cell style + label
+      let dueColor='var(--mt)';
+      let dueLabel='';
+      if(!done&&dueDate){
+        if(isOverdue){dueColor='var(--rd)';dueLabel=`<span style="background:rgba(239,68,68,.15);color:var(--rd);font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:600">OVERDUE</span>`;}
+        else if(daysLeft===0){dueColor='var(--rd)';dueLabel=`<span style="background:rgba(239,68,68,.15);color:var(--rd);font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:600">HARI INI</span>`;}
+        else if(isWarning){dueColor='var(--yw)';dueLabel=`<span style="background:rgba(245,158,11,.15);color:var(--yw);font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:600">⚠ ${daysLeft}H</span>`;}
+      }
+      const rowBg=isOverdue?'rgba(239,68,68,.04)':isWarning?'rgba(245,158,11,.04)':'';
+      return`<tr style="background:${rowBg}">
       <td style="font-family:var(--fm);font-size:10px;color:var(--bl)">${pr?.kode||'—'}</td>
-      <td style="font-weight:500">${item}</td><td style="color:var(--mt)">${kat}</td>
+      <td style="font-weight:500">${item}</td>
+      <td style="color:var(--mt)">${kat}</td>
       <td style="font-family:var(--fm)">${qty} ${sat}</td>
       <td style="color:var(--mt)">${sup}</td>
-      <td style="font-family:var(--fm);font-size:10px;color:${od?'var(--rd)':'var(--mt)'}">${due}</td>
+      <td style="font-family:var(--fm);font-size:10px;color:${dueColor};white-space:nowrap">${due}${dueLabel}</td>
       <td><span style="color:${sc[stat]||'var(--mt)'};font-weight:600;font-size:10px">${stat}</span></td>
       <td style="color:var(--mt);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${notes}</td>
       <td><button class="btn btn-sm" style="padding:2px 6px" onclick="openModal('editProc',${i.id})">✏</button></td>
@@ -1737,6 +1874,25 @@ function renderProc(){
 // ═══════════════════════════════════════════════════════════════
 function openModal(type,id=null){
   // Auth: change password
+  if(type==='scPlan'){
+    $('scPlanProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    const cur=id||selId||$('scProjSel')?.value;if(cur)$('scPlanProj').value=cur;
+    renderPlanInputRows();
+    show('ov-scPlan');return;
+  }
+  if(type==='scActual'){
+    $('scActProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    const cur=id||selId||$('scProjSel')?.value;if(cur)$('scActProj').value=cur;
+    const wsel=$('scActWeek');if(wsel)wsel.dataset.init='';
+    sv('scActWAct','');sv('scActCAct','');
+    scFillActualWeek();
+    show('ov-scActual');return;
+  }
+  if(type==='scManage'){
+    $('scMgProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    const cur=$('scProjSel')?.value;if(cur)$('scMgProj').value=cur;
+    renderScManageTable();show('ov-scManage');return;
+  }
   if(type==='changePw'){
     sv('cpRole',currentRole==='admin'?'admin':'editor');
     sv('cpNewPw','');sv('cpConfPw','');
@@ -2110,113 +2266,103 @@ function delProc(){if(!confirm('Hapus?'))return;PROC=PROC.filter(p=>p.id!==editP
 // ═══════════════════════════════════════════════════════════════
 // GOOGLE SHEET
 // ═══════════════════════════════════════════════════════════════
-const GS_SCRIPT=`// ATW Solar Project Performance Dashboard — Google Apps Script v6
-// PENTING: Ganti SHEET_ID lalu Deploy ulang sebagai Web App (Anyone can access)
+const GS_SCRIPT=`// ATW Solar Dashboard — Google Apps Script v7
+// Ganti SHEET_ID lalu Deploy sebagai Web App (Anyone can access)
 
 const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
 
 function doOptions(e) {
-  return ContentService.createTextOutput('').setMimeType(ContentService.MimeType.TEXT);
+  return ContentService.createTextOutput('ok').setMimeType(ContentService.MimeType.TEXT);
 }
 
 function doPost(e) {
   try {
-    const raw = e.postData ? e.postData.contents : '';
-    const d = JSON.parse(raw);
+    const d = JSON.parse(e.postData.contents || '{}');
     const ss = SpreadsheetApp.openById(SHEET_ID);
 
-    // Update password — simpan langsung di Properties (lebih reliable dari sheet)
     if (d.action === 'updatePw') {
-      const props = PropertiesService.getScriptProperties();
-      if (d.pw_admin)  props.setProperty('pw_admin',  String(d.pw_admin));
-      if (d.pw_editor) props.setProperty('pw_editor', String(d.pw_editor));
-      return makeOutput({status:'ok', msg:'Password updated successfully'});
+      let sh = ss.getSheetByName('_CONFIG') || ss.insertSheet('_CONFIG');
+      sh.clearContents();
+      sh.appendRow(['key', 'value']);
+      sh.appendRow(['pw_admin',  String(d.pw_admin  || 'admin123')]);
+      sh.appendRow(['pw_editor', String(d.pw_editor || 'edit123')]);
+      return makeOutput({status:'ok'});
     }
 
     if (d.action === 'sync') {
       const meta = ss.getSheetByName('_META');
-      const currentTs = meta && meta.getLastRow() >= 2 ? (+meta.getRange(2,1).getValue() || 0) : 0;
-      const incomingTs = d.lastSaved || 0;
-
-      if (incomingTs < currentTs) {
-        return makeOutput({status:'rejected', msg:'Data lebih lama dari GSheet.', currentTs, incomingTs});
+      const currentTs = meta && meta.getLastRow() >= 2 ? +meta.getRange(2,1).getValue() : 0;
+      if ((d.lastSaved||0) < currentTs) {
+        return makeOutput({status:'rejected', currentTs, incomingTs: d.lastSaved||0});
       }
-
-      writeSheet(ss,'PROJECTS',d.projects,['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo']);
-      writeSheet(ss,'HISTORY',d.history||[],['projId','kode','date','actual','plan','mp','notes']);
-      writeSheet(ss,'ISSUES',d.issues||[],['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
-      writeSheet(ss,'PROCUREMENT',d.procurement||[],['id','projId','item','kategori','qty','satuan','supplier','due','status','notes']);
+      writeSheet(ss,'PROJECTS',   d.projects||[],    ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo']);
+      writeSheet(ss,'HISTORY',    d.history||[],     ['projId','kode','date','actual','plan','mp','notes']);
+      writeSheet(ss,'ISSUES',     d.issues||[],      ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
+      writeSheet(ss,'PROCUREMENT',d.procurement||[], ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes']);
       writeSheet(ss,'MANPOWER_LOG',d.manpowerLogs||[],['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
       writeSheet(ss,'ACCIDENT_LOG',d.accidentLogs||[],['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
-
-      const metaSheet = ss.getSheetByName('_META') || ss.insertSheet('_META');
-      metaSheet.clearContents();
-      metaSheet.appendRow(['lastSaved','version','syncedBy']);
-      metaSheet.appendRow([incomingTs, '6.0', new Date().toISOString()]);
-
-      return makeOutput({status:'ok', ts: new Date().toISOString(), saved: incomingTs});
+      let ms = ss.getSheetByName('_META') || ss.insertSheet('_META');
+      ms.clearContents();
+      ms.appendRow(['lastSaved','version']);
+      ms.appendRow([d.lastSaved||Date.now(), '7.0']);
+      return makeOutput({status:'ok', ts: new Date().toISOString()});
     }
 
     return makeOutput({status:'error', msg:'Unknown action'});
   } catch(err) {
-    return makeOutput({status:'error', msg: err.toString()});
+    return makeOutput({status:'error', msg: err.message});
   }
 }
 
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.openById(SHEET_ID);
+    let pw_admin = 'admin123', pw_editor = 'edit123';
+    const cfg = ss.getSheetByName('_CONFIG');
+    if (cfg && cfg.getLastRow() >= 2) {
+      cfg.getDataRange().getValues().slice(1).forEach(r => {
+        if (String(r[0]).trim() === 'pw_admin')  pw_admin  = String(r[1]).trim();
+        if (String(r[0]).trim() === 'pw_editor') pw_editor = String(r[1]).trim();
+      });
+    }
     const meta = readSheet(ss,'_META');
-    const lastSaved = meta.length > 0 ? (+meta[0].lastSaved || 0) : 0;
-
-    // Baca password dari Script Properties (paling reliable)
-    const props = PropertiesService.getScriptProperties();
-    const pw_admin  = props.getProperty('pw_admin')  || 'admin123';
-    const pw_editor = props.getProperty('pw_editor') || 'edit123';
-
     return makeOutput({
-      lastSaved,
-      pw_admin,
-      pw_editor,
-      projects:     readSheet(ss,'PROJECTS') || [],
-      history:      readSheet(ss,'HISTORY') || [],
-      issues:       readSheet(ss,'ISSUES') || [],
-      procurement:  readSheet(ss,'PROCUREMENT') || [],
-      manpowerLogs: readSheet(ss,'MANPOWER_LOG') || [],
-      accidentLogs: readSheet(ss,'ACCIDENT_LOG') || [],
+      lastSaved:    meta.length ? (+meta[0].lastSaved||0) : 0,
+      pw_admin, pw_editor,
+      projects:     readSheet(ss,'PROJECTS')    ||[],
+      history:      readSheet(ss,'HISTORY')     ||[],
+      issues:       readSheet(ss,'ISSUES')      ||[],
+      procurement:  readSheet(ss,'PROCUREMENT') ||[],
+      manpowerLogs: readSheet(ss,'MANPOWER_LOG')||[],
+      accidentLogs: readSheet(ss,'ACCIDENT_LOG')||[],
     });
   } catch(err) {
-    return makeOutput({status:'error', msg: err.toString()});
+    return makeOutput({status:'error', msg: err.message});
   }
 }
 
 function writeSheet(ss, name, data, cols) {
-  let sh = ss.getSheetByName(name) || ss.insertSheet(name);
+  const sh = ss.getSheetByName(name) || ss.insertSheet(name);
   sh.clearContents();
   sh.appendRow(cols);
-  if (data && data.length) {
-    data.forEach(row => sh.appendRow(cols.map(c => row[c] !== undefined ? row[c] : '')));
-  }
+  data.forEach(row => sh.appendRow(cols.map(c => {
+    const v = row[c];
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'object') return String(v);
+    return v;
+  })));
 }
 
 function readSheet(ss, name) {
   const sh = ss.getSheetByName(name);
   if (!sh || sh.getLastRow() < 2) return [];
   const [headers, ...rows] = sh.getDataRange().getValues();
-  return rows.map(r => Object.fromEntries(headers.map((k,i) => {
-    let v = r[i];
-    // Google Sheets mengembalikan Date objects — konversi ke string ISO
-    if (v instanceof Date) {
-      v = v.getTime() > 0 ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd') : '';
-    }
-    // Konversi semua nilai ke tipe primitif
-    if (v === null || v === undefined) v = '';
-    return [k, v];
-  })));
+  return rows.map(r => Object.fromEntries(headers.map((k,i) => [k, r[i]])));
 }
 
 function makeOutput(data) {
-  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }`;
 
 function saveGS(){
@@ -2271,7 +2417,7 @@ async function syncAllGS(){
     const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
     // Gunakan timestamp dari localStorage sebagai lastSaved
     const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
-    const body=JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS});
+    const body=JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE});
     const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
     if(r.ok){
       const txt=await r.text();
@@ -2339,6 +2485,7 @@ async function loadFromGS(){
       PROC=sanitizeProc(d.procurement);
       MPLOGS=sanitizeMpLogs(d.manpowerLogs);
       ACCLOGS=sanitizeAccLogs(d.accidentLogs);
+      SCURVE=Array.isArray(d.scurve)?d.scurve.map(s=>({projId:s.projId,week:+s.week||0,wPlan:+s.wPlan||0,wAct:+s.wAct||0,cPlan:s.cPlan!=null&&s.cPlan!==''?+s.cPlan:null,cAct:s.cAct!=null&&s.cAct!==''?+s.cAct:null,dateStart:safeStr(s.dateStart)})):[];
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
       selId=P[0]?.id||null;
       saveLocal();saveLogosCache();
@@ -2537,7 +2684,453 @@ function copyShareUrl(){
   });
 }
 // Helper — sanitize string value dari GSheet (prevent JSON object dari masuk ke innerHTML)
-// ── VERSION CHECK — hapus cache data lama yang mungkin corrupt ──
+// ═══════════════════════════════════════════════════════════════
+// S-CURVE
+// ═══════════════════════════════════════════════════════════════
+function renderSCurve(){
+  // Populate project dropdown
+  const sel=$('scProjSel');
+  if(sel){
+    const cur=sel.value;
+    sel.innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    if(cur)sel.value=cur;
+  }
+  const projId=sel?.value||P[0]?.id;
+  if(!projId){
+    $('scChart').innerHTML='<div style="text-align:center;color:var(--mt);padding:30px">Belum ada project</div>';
+    return;
+  }
+  const proj=P.find(p=>String(p.id)===String(projId));
+  if(!proj)return;
+
+  // Get S-Curve data for this project
+  const data=SCURVE.filter(d=>String(d.projId)===String(projId)).sort((a,b)=>a.week-b.week);
+
+  // Auto-calculate cumulative if not set
+  let cumPlan=0,cumAct=0;
+  const weeks=data.map(d=>{
+    cumPlan+=(+d.wPlan||0);
+    cumAct+=(+d.wAct||0);
+    return {
+      ...d,
+      cPlan:d.cPlan!=null?+d.cPlan:Math.round(cumPlan*10)/10,
+      cAct:d.cAct!=null?+d.cAct:Math.round(cumAct*10)/10
+    };
+  });
+
+  // Current week (last with actual data)
+  const lastW=weeks.filter(w=>w.wAct>0||w.cAct>0).slice(-1)[0];
+  const weekNum=lastW?lastW.week:0;
+
+  // KPIs
+  $('sc-proj').textContent=proj.kode;
+  $('sc-dur').textContent=proj.durasi?proj.durasi+' minggu':'—';
+  $('sc-cplan').textContent=(lastW?.cPlan||0).toFixed(1)+'%';
+  $('sc-cact').textContent=(lastW?.cAct||0).toFixed(1)+'%';
+  const varr=((lastW?.cAct||0)-(lastW?.cPlan||0));
+  $('sc-var').textContent=(varr>=0?'+':'')+varr.toFixed(1)+'%';
+  $('sc-var').style.color=varr>=0?'var(--gn)':varr>=-5?'var(--yw)':'var(--rd)';
+  $('sc-var-lbl').textContent=varr>=0?'Ahead':'Behind';
+  $('sc-week').textContent=weekNum?'W'+String(weekNum).padStart(2,'0'):'—';
+  $('sc-wdate').textContent=lastW?.dateStart||'—';
+  $('scChartTitle').textContent=proj.nama;
+
+  // Draw chart
+  drawSCurveChart(weeks, proj);
+  renderScTable(weeks);
+}
+
+function drawSCurveChart(weeks, proj){
+  if(!weeks.length){
+    $('scChart').innerHTML='<div style="text-align:center;color:var(--mt);padding:40px;font-size:12px">Belum ada data — klik ＋ Input Minggu Ini untuk mulai</div>';
+    return;
+  }
+  const light=document.documentElement.classList.contains('light');
+  const labels=weeks.map(w=>'W'+String(w.week).padStart(2,'0'));
+  const wPlanData=weeks.map(w=>+(+w.wPlan||0).toFixed(2));
+  const wActData=weeks.map(w=>+(+w.wAct||0).toFixed(2));
+  const cPlanData=weeks.map(w=>+(+w.cPlan||0).toFixed(2));
+  const cActData=weeks.map(w=>{
+    const v=+w.cAct;
+    return (w.wAct>0||w.cAct>0)?+v.toFixed(2):null;
+  });
+
+  // Colors
+  const BLUE='#3b82f6';
+  const ORANGE='#f97316';
+  const GREEN='#10b981';
+  const AMBER='#f59e0b';
+  const GRID=light?'rgba(0,0,0,.06)':'rgba(255,255,255,.06)';
+  const TICK=light?'#94a3b8':'#64748b';
+  const TOOLTIP_BG=light?'#1e293b':'#0f172a';
+
+  // Destroy existing chart
+  if(window._scChart){window._scChart.destroy();window._scChart=null;}
+
+  // Setup canvas
+  $('scChart').innerHTML=`
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;padding:0 4px">
+      <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:${TICK}">
+        <span style="width:14px;height:14px;background:${BLUE};opacity:.75;border-radius:3px;display:inline-block"></span>Weekly Plan
+      </span>
+      <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:${TICK}">
+        <span style="width:14px;height:14px;background:${ORANGE};border-radius:3px;display:inline-block"></span>Weekly Actual
+      </span>
+      <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:${TICK}">
+        <svg width="24" height="14" style="vertical-align:middle"><line x1="0" y1="7" x2="24" y2="7" stroke="${GREEN}" stroke-width="2.5"/><circle cx="12" cy="7" r="3.5" fill="${GREEN}"/></svg>Cum. Plan
+      </span>
+      <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:${TICK}">
+        <svg width="24" height="14" style="vertical-align:middle"><line x1="0" y1="7" x2="24" y2="7" stroke="${AMBER}" stroke-width="2.5" stroke-dasharray="5,3"/><circle cx="12" cy="7" r="3.5" fill="${AMBER}"/></svg>Cum. Actual
+      </span>
+    </div>
+    <div style="position:relative;width:100%;height:320px">
+      <canvas id="scCanvas" role="img" aria-label="S-Curve chart showing weekly and cumulative plan vs actual progress"></canvas>
+    </div>`;
+
+  setTimeout(()=>{
+    const ctx=document.getElementById('scCanvas');
+    if(!ctx)return;
+    window._scChart=new Chart(ctx,{
+      data:{
+        labels,
+        datasets:[
+          {type:'bar',label:'Weekly Plan',data:wPlanData,backgroundColor:BLUE+'BF',borderColor:BLUE,borderWidth:1,borderRadius:3,borderSkipped:'bottom',yAxisID:'yBar',order:3},
+          {type:'bar',label:'Weekly Actual',data:wActData,backgroundColor:ORANGE+'E6',borderColor:ORANGE,borderWidth:1,borderRadius:3,borderSkipped:'bottom',yAxisID:'yBar',order:2},
+          {type:'line',label:'Cum. Plan',data:cPlanData,borderColor:GREEN,backgroundColor:GREEN+'18',borderWidth:2.5,pointBackgroundColor:GREEN,pointRadius:4,pointHoverRadius:6,fill:true,tension:0.35,yAxisID:'yCum',order:1},
+          {type:'line',label:'Cum. Actual',data:cActData,borderColor:AMBER,backgroundColor:AMBER+'10',borderWidth:2.5,borderDash:[6,3],pointBackgroundColor:AMBER,pointStyle:'rectRot',pointRadius:5,pointHoverRadius:7,fill:false,tension:0.35,spanGaps:false,yAxisID:'yCum',order:0}
+        ]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            backgroundColor:TOOLTIP_BG,
+            titleColor:'#e2e8f0',
+            bodyColor:'#94a3b8',
+            borderColor:'rgba(255,255,255,.1)',
+            borderWidth:1,
+            padding:12,
+            cornerRadius:8,
+            titleFont:{size:12,weight:'600'},
+            bodyFont:{size:11},
+            callbacks:{
+              title:items=>'Minggu '+items[0].label,
+              label:item=>{
+                const v=item.raw;
+                if(v===null||v===undefined)return null;
+                const icons=['','','',''];
+                const names=['W.Plan','W.Actual','Cum.Plan','Cum.Actual'];
+                return ` ${names[item.datasetIndex]}: ${(+v).toFixed(1)}%`;
+              }
+            }
+          }
+        },
+        scales:{
+          x:{
+            grid:{color:GRID,drawBorder:false},
+            ticks:{color:TICK,font:{size:10},maxRotation:0,autoSkip:weeks.length>12},
+            border:{display:false}
+          },
+          yBar:{
+            type:'linear',position:'left',
+            title:{display:true,text:'Weekly %',color:TICK,font:{size:10}},
+            grid:{display:false},
+            ticks:{color:TICK,font:{size:10},callback:v=>v+'%'},
+            border:{display:false},
+            min:0,
+            suggestedMax:Math.max(...[...wPlanData,...wActData].filter(Boolean),10)*1.25
+          },
+          yCum:{
+            type:'linear',position:'right',
+            title:{display:true,text:'Cumulative %',color:TICK,font:{size:10}},
+            grid:{color:GRID,drawBorder:false},
+            ticks:{color:TICK,font:{size:10},callback:v=>v+'%'},
+            border:{display:false},
+            min:0,max:100
+          }
+        }
+      }
+    });
+  },50);
+}
+
+
+function renderScTable(weeks){
+  if(!weeks.length){$('scTable').innerHTML='';return;}
+  const light=document.documentElement.classList.contains('light');
+  const rows=weeks.map(w=>{
+    const varW=((+w.wAct||0)-(+w.wPlan||0));
+    const varC=((+w.cAct||0)-(+w.cPlan||0));
+    const vc=varC>=0?'var(--gn)':varC>=-5?'var(--yw)':'var(--rd)';
+    return `<tr>
+      <td style="font-family:var(--fm);font-weight:600;color:var(--bl)">W${String(w.week).padStart(2,'0')}</td>
+      <td style="color:var(--mt);font-size:10px">${w.dateStart||'—'}</td>
+      <td style="font-family:var(--fm);color:#3b82f6">${(+w.wPlan||0).toFixed(1)}%</td>
+      <td style="font-family:var(--fm);color:var(--or)">${(+w.wAct||0).toFixed(1)}%</td>
+      <td style="font-family:var(--fm);color:${varW>=0?'var(--gn)':'var(--rd)'}">${(varW>=0?'+':'')+varW.toFixed(1)}%</td>
+      <td style="font-family:var(--fm);color:var(--gn)">${(+w.cPlan||0).toFixed(1)}%</td>
+      <td style="font-family:var(--fm);color:var(--yw)">${(+w.cAct||0).toFixed(1)}%</td>
+      <td style="font-family:var(--fm);font-weight:600;color:${vc}">${(varC>=0?'+':'')+varC.toFixed(1)}%</td>
+      <td class="edit-only"><button class="btn btn-sm brd" style="padding:1px 6px;font-size:10px" onclick="delScWeek('${w.projId}',${w.week})">🗑</button></td>
+    </tr>`;
+  }).join('');
+  $('scTable').innerHTML=`<table class="tbl"><thead><tr>
+    <th>Minggu</th><th>Tanggal</th>
+    <th style="color:#3b82f6">W.Plan</th><th style="color:var(--or)">W.Actual</th><th>Variance</th>
+    <th style="color:var(--gn)">Cum.Plan</th><th style="color:var(--yw)">Cum.Actual</th><th>Var.Cum</th><th></th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── S-CURVE PLAN INPUT ───────────────────────────────────────
+function renderPlanInputRows(){
+  const dur=+$('scPlanDur').value||20;
+  const projId=$('scPlanProj')?.value;
+  const existing=SCURVE.filter(d=>String(d.projId)===String(projId));
+  let rows='';
+  let cumTotal=0;
+  for(let w=1;w<=dur;w++){
+    const ex=existing.find(d=>d.week===w);
+    const val=ex?(+ex.wPlan||0).toFixed(1):'';
+    cumTotal+=ex?(+ex.wPlan||0):0;
+    rows+=`<div style="display:grid;grid-template-columns:60px 1fr 80px;align-items:center;gap:8px;padding:5px 6px;border-bottom:1px solid var(--bd)">
+      <label style="font-family:var(--fm);font-size:11px;font-weight:600;color:var(--bl)">W${String(w).padStart(2,'0')}</label>
+      <input type="range" min="0" max="30" step="0.1" value="${val||0}" id="spR${w}"
+        oninput="$('spV${w}').value=parseFloat(this.value).toFixed(1);calcPlanTotal()"
+        style="flex:1">
+      <input type="number" min="0" max="100" step="0.1" value="${val||0}" id="spV${w}"
+        oninput="$('spR${w}').value=this.value;calcPlanTotal()"
+        style="width:72px;padding:3px 6px;font-size:11px;text-align:right" class="fi">
+    </div>`;
+  }
+  $('planInputRows').innerHTML=rows;
+  calcPlanTotal();
+}
+
+function calcPlanTotal(){
+  const dur=+$('scPlanDur').value||20;
+  let total=0;
+  for(let w=1;w<=dur;w++){
+    const el=$('spV'+w);
+    if(el)total+=parseFloat(el.value)||0;
+  }
+  const el=$('planTotal');
+  if(el){
+    el.textContent=total.toFixed(1)+'%';
+    el.style.color=Math.abs(total-100)<0.5?'var(--gn)':total>100?'var(--rd)':'var(--yw)';
+  }
+}
+
+function saveSCurvePlan(){
+  const projId=$('scPlanProj').value;
+  if(!projId){toast('Pilih project','error');return;}
+  const dur=+$('scPlanDur').value||20;
+  const proj=P.find(p=>String(p.id)===String(projId));
+  let cumPlan=0;
+  for(let w=1;w<=dur;w++){
+    const wPlan=parseFloat($('spV'+w)?.value)||0;
+    cumPlan+=wPlan;
+    // Get existing actual
+    const ex=SCURVE.find(d=>String(d.projId)===String(projId)&&d.week===w);
+    let dateStart='';
+    if(proj?.mulai){
+      const d=new Date(proj.mulai);d.setDate(d.getDate()+(w-1)*7);
+      dateStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+    }
+    if(ex){
+      ex.wPlan=wPlan;
+      ex.cPlan=Math.round(cumPlan*10)/10;
+      ex.dateStart=dateStart;
+    }else{
+      SCURVE.push({projId,week:w,wPlan,wAct:0,cPlan:Math.round(cumPlan*10)/10,cAct:null,dateStart});
+    }
+  }
+  // Sync project.plan dari cumulative plan S-Curve
+  const proj2=P.find(p=>String(p.id)===String(projId));
+  if(proj2){proj2.plan=Math.round(cumPlan*10)/10;}
+
+  dirty();cm('scPlan');
+  render(); // full render
+  renderInlineSCurve(projId);
+  toast(`✓ Plan ${dur} minggu disimpan`);gsSync();
+}
+
+// ── S-CURVE ACTUAL UPDATE ────────────────────────────────────
+function scFillActualWeek(){
+  const projId=$('scActProj')?.value;
+  if(!projId)return;
+  const data=SCURVE.filter(d=>String(d.projId)===String(projId));
+  const lastActWeek=data.filter(d=>+d.wAct>0||+d.cAct>0).reduce((m,d)=>Math.max(m,d.week),0);
+  const nextWeek=Math.min(lastActWeek+1,24);
+  const sel=$('scActWeek');
+  const isInit=sel?.dataset.init!=='1';
+  if(sel&&isInit){sel.value=nextWeek;sel.dataset.init='1';}
+  const week=+(sel?.value||nextWeek);
+  const entry=data.find(d=>d.week===week);
+  const cumPlan=data.filter(d=>d.week<=week).reduce((s,d)=>s+(+d.wPlan||0),0);
+  if(entry&&+entry.wAct>0)sv('scActWAct',(+entry.wAct).toFixed(1));
+  if($('scActWPlan'))$('scActWPlan').textContent=entry?(+entry.wPlan||0).toFixed(1)+'%':'—';
+  if($('scActCPlan'))$('scActCPlan').textContent=cumPlan.toFixed(1)+'%';
+  scPreviewCumActual();
+}
+
+function scPreviewCumActual(){
+  const projId=$('scActProj')?.value;
+  const week=+($('scActWeek')?.value||1);
+  const wAct=parseFloat($('scActWAct')?.value)||0;
+  const data=SCURVE.filter(d=>String(d.projId)===String(projId));
+  const prevCumAct=data.filter(d=>d.week<week&&(+d.wAct>0||+d.cAct>0))
+    .reduce((s,d)=>s+(+d.wAct||0),0);
+  const cumAct=Math.round((prevCumAct+wAct)*10)/10;
+  const cumPlan=data.filter(d=>d.week<=week).reduce((s,d)=>s+(+d.wPlan||0),0);
+  const varr=(cumAct-cumPlan).toFixed(1);
+  if($('scActCumPreview'))$('scActCumPreview').textContent=cumAct.toFixed(1)+'%';
+  if($('scActVarPreview'))$('scActVarPreview').innerHTML=` &nbsp; Variance: <b style="color:${+varr>=0?'var(--gn)':'var(--rd)'}">${+varr>=0?'+':''}${varr}%</b>`;
+}
+
+function saveSCurveActual(){
+  const projId=$('scActProj')?.value;
+  if(!projId){toast('Pilih project','error');return;}
+  const week=+($('scActWeek')?.value||1);
+  const wAct=parseFloat($('scActWAct')?.value)||0;
+  const cActRaw=$('scActCAct')?.value;
+  const cAct=cActRaw!==''&&cActRaw!=null?parseFloat(cActRaw):null;
+  _doSaveSCurveActual(projId,week,wAct,cAct);
+}
+
+function _doSaveSCurveActual(projId,week,wAct,cAct){
+  const proj=P.find(p=>String(p.id)===String(projId));
+  const data=SCURVE.filter(d=>String(d.projId)===String(projId));
+  const ex=SCURVE.find(d=>String(d.projId)===String(projId)&&d.week===week);
+
+  let dateStart='';
+  if(proj?.mulai){
+    const d=new Date(proj.mulai);d.setDate(d.getDate()+(week-1)*7);
+    dateStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+  }
+  if(ex){ex.wAct=wAct;if(cAct!==null)ex.cAct=cAct;ex.dateStart=ex.dateStart||dateStart;}
+  else{SCURVE.push({projId,week,wPlan:0,wAct,cPlan:null,cAct,dateStart});}
+
+  // ── Sync progress project dari S-Curve ──────────────────────
+  if(proj){
+    // Hitung cumulative actual dari akumulasi wAct
+    const allData=SCURVE.filter(d=>String(d.projId)===String(projId)).sort((a,b)=>a.week-b.week);
+    let cumAct=0,cumPlan=0;
+    allData.forEach(d=>{cumAct+=(+d.wAct||0);cumPlan+=(+d.wPlan||0);});
+    // Gunakan cAct jika di-set manual di entry terakhir
+    const lastEntry=[...allData].filter(d=>+d.wAct>0||d.cAct!=null).slice(-1)[0];
+    const finalAct=lastEntry?.cAct!=null?+lastEntry.cAct:Math.round(cumAct*10)/10;
+    const finalPlan=lastEntry?.cPlan!=null?+lastEntry.cPlan:Math.round(cumPlan*10)/10;
+
+    proj.actual=Math.round(finalAct*10)/10;
+    proj.plan=Math.round(finalPlan*10)/10;
+
+    // Auto-update status berdasarkan variance
+    const variance=finalAct-finalPlan;
+    if(finalAct>=100)proj.status='Done';
+    else if(variance>=-3)proj.status='On Track';
+    else if(variance>=-10)proj.status='Delayed';
+    else proj.status='Critical';
+
+    // Tambah ke history
+    if(!proj.history)proj.history=[];
+    proj.history.push({
+      date:new Date().toLocaleDateString('id-ID'),
+      actual:proj.actual,plan:proj.plan,
+      notes:`Update dari S-Curve W${String(week).padStart(2,'0')}`
+    });
+
+    toast(`✓ W${String(week).padStart(2,'0')} disimpan · Progress ${proj.actual}% (${proj.status})`);
+  }else{
+    toast(`✓ W${String(week).padStart(2,'0')} Actual disimpan`);
+  }
+
+  dirty();cm('scActual');
+  render();
+  if(selId)renderDetail(selId);
+  renderInlineSCurve(projId);
+  gsSync();
+}
+
+// Sync project selection from plan panel to actual panel in combined modal
+function scSyncActProj(){
+  const projId=$('scPlanProj')?.value;
+  if(projId){
+    // Sync to the week dropdown in right panel
+    const wsel=$('scActWeek');if(wsel)wsel.dataset.init='';
+    scFillActualWeek();
+  }
+}
+
+// Standalone actual modal (ov-scActual) functions
+function scFillActualWeek2(){
+  const projId=$('scActProj')?.value;
+  if(!projId)return;
+  const data=SCURVE.filter(d=>String(d.projId)===String(projId));
+  const sel=$('scActWeek2');
+  const isInit=sel?.dataset.init!=='1';
+  if(sel&&isInit){
+    const lastActWeek=data.filter(d=>+d.wAct>0||+d.cAct>0).reduce((m,d)=>Math.max(m,d.week),0);
+    sel.value=Math.min(lastActWeek+1,24);
+    sel.dataset.init='1';
+  }
+  const week=+(sel?.value||1);
+  const entry=data.find(d=>d.week===week);
+  const cumPlan=data.filter(d=>d.week<=week).reduce((s,d)=>s+(+d.wPlan||0),0);
+  if(entry&&+entry.wAct>0)sv('scActWAct2',(+entry.wAct).toFixed(1));
+  if($('scActWPlan2'))$('scActWPlan2').textContent=entry?(+entry.wPlan||0).toFixed(1)+'%':'—';
+  if($('scActCPlan2'))$('scActCPlan2').textContent=cumPlan.toFixed(1)+'%';
+  scPreviewCumActual2();
+}
+function scPreviewCumActual2(){
+  const projId=$('scActProj')?.value;
+  const week=+($('scActWeek2')?.value||1);
+  const wAct=parseFloat($('scActWAct2')?.value)||0;
+  const data=SCURVE.filter(d=>String(d.projId)===String(projId));
+  const prevCum=data.filter(d=>d.week<week&&(+d.wAct>0||+d.cAct>0)).reduce((s,d)=>s+(+d.wAct||0),0);
+  const cumAct=Math.round((prevCum+wAct)*10)/10;
+  const cumPlan=data.filter(d=>d.week<=week).reduce((s,d)=>s+(+d.wPlan||0),0);
+  const varr=(cumAct-cumPlan).toFixed(1);
+  if($('scActCumPreview2'))$('scActCumPreview2').textContent=cumAct.toFixed(1)+'%';
+  if($('scActVarPreview2'))$('scActVarPreview2').innerHTML=` &nbsp;Variance: <b style="color:${+varr>=0?'var(--gn)':'var(--rd)'}">${+varr>=0?'+':''}${varr}%</b>`;
+}
+function saveSCurveActual2(){
+  // Route to main saveSCurveActual using the 2-suffix inputs
+  const projId=$('scActProj').value;
+  if(!projId){toast('Pilih project','error');return;}
+  const week=+$('scActWeek2').value;
+  const wAct=parseFloat($('scActWAct2').value)||0;
+  const cActRaw=$('scActCAct2').value;
+  const cAct=cActRaw!==''?parseFloat(cActRaw):null;
+  _doSaveSCurveActual(projId,week,wAct,cAct);
+  cm('scActual');
+}
+
+function delScWeek(projId,week){
+  if(!confirm(`Hapus data W${String(week).padStart(2,'0')}?`))return;
+  SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.week===week));
+  dirty();renderSCurve();renderScManageTable();toast('Data dihapus','warn');gsSync();
+}
+
+function renderScManageTable(){
+  const projId=$('scMgProj')?.value;
+  if(!projId)return;
+  const data=SCURVE.filter(d=>String(d.projId)===String(projId)).sort((a,b)=>a.week-b.week);
+  if(!data.length){$('scMgTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:20px">Belum ada data S-Curve untuk project ini</div>';return;}
+  $('scMgTable').innerHTML=`<table class="tbl"><thead><tr><th>Minggu</th><th>W.Plan%</th><th>W.Actual%</th><th>Cum.Plan%</th><th>Cum.Actual%</th><th></th></tr></thead><tbody>
+    ${data.map(d=>`<tr>
+      <td style="font-family:var(--fm)">W${String(d.week).padStart(2,'0')}</td>
+      <td>${(+d.wPlan||0).toFixed(1)}%</td><td>${(+d.wAct||0).toFixed(1)}%</td>
+      <td>${d.cPlan!=null?(+d.cPlan).toFixed(1)+'%':'auto'}</td>
+      <td>${d.cAct!=null?(+d.cAct).toFixed(1)+'%':'auto'}</td>
+      <td><button class="btn btn-sm brd" style="padding:1px 6px;font-size:10px" onclick="delScWeek('${d.projId}',${d.week});renderScManageTable()">🗑</button></td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+
 (function(){
   const DASH_VER='2.9';
   try{
