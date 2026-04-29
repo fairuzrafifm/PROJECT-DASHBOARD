@@ -1134,7 +1134,14 @@ function loadLocal(){
     const raw=localStorage.getItem('atw_data');
     if(!raw)return false;
     const d=JSON.parse(raw);
-    P=d.P||[];ISS=d.I||[];PROC=d.PR||[];MPLOGS=d.M||[];ACCLOGS=d.A||[];
+    // Sanitasi semua data saat load dari localStorage
+    P=sanitizeProjects(d.P||[]);
+    ISS=sanitizeIssues(d.I||[]);
+    PROC=sanitizeProc(d.PR||[]);
+    MPLOGS=sanitizeMpLogs(d.M||[]);
+    ACCLOGS=sanitizeAccLogs(d.A||[]);
+    // Restore history yang mungkin tersimpan di P
+    (d.P||[]).forEach(lp=>{const p=P.find(x=>x.id==lp.id);if(p&&Array.isArray(lp.history))p.history=lp.history;});
     return P.length>0;
   }catch(e){return false;}
 }
