@@ -1707,16 +1707,28 @@ function renderProc(){
   const sc={Overdue:'var(--rd)','Due Today':'var(--yw)','In Transit':'var(--bl)','On Site':'var(--gn)','Waiting Approval':'var(--pu)','PO Issued':'var(--or)'};
   if(!filtered.length){$('procTable').innerHTML=`<div style="text-align:center;color:var(--mt);font-size:12px;padding:22px">${PROC.length?'Tidak ada item yang cocok dengan filter':'Belum ada item procurement'}</div>`;return;}
   $('procTable').innerHTML=`<table class="tbl"><thead><tr><th>Project</th><th>Item</th><th>Kat.</th><th>Qty</th><th>Supplier</th><th>Due</th><th>Status</th><th>Catatan</th><th></th></tr></thead><tbody>
-    ${filtered.map(i=>{const pr=P.find(p=>p.id===i.projId);const od=i.status!=='On Site'&&i.due&&new Date(i.due)<new Date();return`<tr>
+    ${filtered.map(i=>{
+      const pr=P.find(p=>p.id===i.projId);
+      const od=i.status!=='On Site'&&i.due&&new Date(i.due)<new Date();
+      // Sanitasi ulang semua field sebelum render
+      const item=safeStr(i.item)||'—';
+      const kat=safeStr(i.kategori)||'—';
+      const qty=safeStr(i.qty)||'—';
+      const sat=safeStr(i.satuan)||'';
+      const sup=safeStr(i.supplier)||'—';
+      const due=safeStr(i.due)||'—';
+      const stat=safeStr(i.status)||'—';
+      const notes=safeStr(i.notes)||'—';
+      return`<tr>
       <td style="font-family:var(--fm);font-size:10px;color:var(--bl)">${pr?.kode||'—'}</td>
-      <td style="font-weight:500">${i.item}</td><td style="color:var(--mt)">${i.kategori}</td>
-      <td style="font-family:var(--fm)">${i.qty||'—'} ${i.satuan||''}</td>
-      <td style="color:var(--mt)">${i.supplier||'—'}</td>
-      <td style="font-family:var(--fm);font-size:10px;color:${od?'var(--rd)':'var(--mt)'}">${i.due||'—'}</td>
-      <td><span style="color:${sc[i.status]||'var(--mt)'};font-weight:600;font-size:10px">${i.status}</span></td>
-      <td style="color:var(--mt);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.notes||'—'}</td>
+      <td style="font-weight:500">${item}</td><td style="color:var(--mt)">${kat}</td>
+      <td style="font-family:var(--fm)">${qty} ${sat}</td>
+      <td style="color:var(--mt)">${sup}</td>
+      <td style="font-family:var(--fm);font-size:10px;color:${od?'var(--rd)':'var(--mt)'}">${due}</td>
+      <td><span style="color:${sc[stat]||'var(--mt)'};font-weight:600;font-size:10px">${stat}</span></td>
+      <td style="color:var(--mt);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${notes}</td>
       <td><button class="btn btn-sm" style="padding:2px 6px" onclick="openModal('editProc',${i.id})">✏</button></td>
-    </tr>`}).join('')}
+    </tr>`;}).join('')}
   </tbody></table>`;
 }
 
@@ -2191,7 +2203,16 @@ function readSheet(ss, name) {
   const sh = ss.getSheetByName(name);
   if (!sh || sh.getLastRow() < 2) return [];
   const [headers, ...rows] = sh.getDataRange().getValues();
-  return rows.map(r => Object.fromEntries(headers.map((k,i) => [k, r[i]])));
+  return rows.map(r => Object.fromEntries(headers.map((k,i) => {
+    let v = r[i];
+    // Google Sheets mengembalikan Date objects — konversi ke string ISO
+    if (v instanceof Date) {
+      v = v.getTime() > 0 ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd') : '';
+    }
+    // Konversi semua nilai ke tipe primitif
+    if (v === null || v === undefined) v = '';
+    return [k, v];
+  })));
 }
 
 function makeOutput(data) {
@@ -2316,8 +2337,8 @@ async function loadFromGS(){
       });
       ISS=sanitizeIssues(d.issues);
       PROC=sanitizeProc(d.procurement);
-      MPLOGS=(d.manpowerLogs||[]).filter(r=>r.date).map(m=>({...m,total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0}));
-      ACCLOGS=(d.accidentLogs||[]).filter(r=>r.date).map(a=>({...a,fatality:+a.fatality||0,lti:+a.lti||0,minorInjury:+a.minorInjury||0,medTreatment:+a.medTreatment||0,propertyDamage:+a.propertyDamage||0,fire:+a.fire||0,traffic:+a.traffic||0,environment:+a.environment||0,nearMiss:+a.nearMiss||0,timeLost:+a.timeLost||0}));
+      MPLOGS=sanitizeMpLogs(d.manpowerLogs);
+      ACCLOGS=sanitizeAccLogs(d.accidentLogs);
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
       selId=P[0]?.id||null;
       saveLocal();saveLogosCache();
@@ -2518,7 +2539,7 @@ function copyShareUrl(){
 // Helper — sanitize string value dari GSheet (prevent JSON object dari masuk ke innerHTML)
 // ── VERSION CHECK — hapus cache data lama yang mungkin corrupt ──
 (function(){
-  const DASH_VER='2.8';
+  const DASH_VER='2.9';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Simpan config penting
@@ -2534,8 +2555,17 @@ function copyShareUrl(){
 
 function safeStr(v){
   if(v===null||v===undefined)return '';
-  if(typeof v==='object')return ''; // jangan masukkan object ke string field
-  return String(v);
+  if(v instanceof Date)return v.toLocaleDateString('id-ID');
+  if(typeof v==='object'){
+    // Google Sheets Date serial number object
+    if(v.constructor&&v.constructor.name==='Date')return v.toLocaleDateString('id-ID');
+    return ''; // semua object lain → string kosong
+  }
+  if(typeof v==='boolean')return '';
+  const s=String(v);
+  // Jika string terlihat seperti JSON array/object → kosongkan
+  if((s.startsWith('[')&&s.endsWith(']'))||(s.startsWith('{')&&s.endsWith('}')))return '';
+  return s;
 }
 
 // Sanitize seluruh data array yang datang dari GSheet/localStorage
@@ -2555,44 +2585,58 @@ function sanitizeProjects(arr){
   }));
 }
 function sanitizeIssues(arr){
-  return (arr||[]).filter(r=>r.uraian).map(i=>({
-    ...i,id:i.id||Date.now(),projId:i.projId,
-    tgl:safeStr(i.tgl),uraian:safeStr(i.uraian),
+  return (arr||[]).filter(r=>r.uraian&&typeof r.uraian==='string'&&r.uraian.trim()!='').map(i=>({
+    id:i.id||Date.now(),
+    projId:i.projId,
+    tgl:safeStr(i.tgl).slice(0,30),
+    uraian:safeStr(i.uraian).slice(0,500),
     prioritas:safeStr(i.prioritas)||'Medium',
     kategori:safeStr(i.kategori)||'Other',
-    pj:safeStr(i.pj),due:safeStr(i.due),
+    pj:safeStr(i.pj).slice(0,100),
+    due:safeStr(i.due).slice(0,30),
     status:safeStr(i.status)||'Open',
-    done:safeStr(i.done),action:safeStr(i.action)
+    done:safeStr(i.done).slice(0,30),
+    action:safeStr(i.action).slice(0,500)
   }));
 }
 function sanitizeProc(arr){
-  return (arr||[]).filter(r=>r.item).map(pr=>({
-    ...pr,id:pr.id||Date.now(),projId:pr.projId,
-    item:safeStr(pr.item),kategori:safeStr(pr.kategori)||'Material',
-    qty:safeStr(pr.qty),satuan:safeStr(pr.satuan),
-    supplier:safeStr(pr.supplier),due:safeStr(pr.due),
+  return (arr||[]).filter(r=>r.item&&typeof r.item==='string'&&r.item.trim()!='').map(pr=>({
+    id:pr.id||Date.now(),
+    projId:pr.projId,
+    item:safeStr(pr.item).slice(0,200),
+    kategori:safeStr(pr.kategori)||'Material',
+    qty:safeStr(pr.qty).slice(0,50),
+    satuan:safeStr(pr.satuan).slice(0,50),
+    supplier:safeStr(pr.supplier).slice(0,200),
+    due:safeStr(pr.due).slice(0,30),
     status:safeStr(pr.status)||'Waiting Approval',
-    notes:safeStr(pr.notes)
+    notes:safeStr(pr.notes).slice(0,500)
   }));
 }
 function sanitizeMpLogs(arr){
   return (arr||[]).filter(r=>r.date).map(m=>({
-    ...m,
-    date:safeStr(m.date),notes:safeStr(m.notes),
-    timeLostReason:safeStr(m.timeLostReason),
-    total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,
+    id:m.id||Date.now(),
+    projId:m.projId,
+    date:safeStr(m.date).slice(0,30),
     spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,
-    tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0
+    tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0,
+    total:+m.total||0,mhActual:+m.mhActual||0,
+    timeLost:+m.timeLost||0,
+    timeLostReason:safeStr(m.timeLostReason).slice(0,200),
+    notes:safeStr(m.notes).slice(0,500)
   }));
 }
 function sanitizeAccLogs(arr){
   return (arr||[]).filter(r=>r.date).map(a=>({
-    ...a,
-    date:safeStr(a.date),notes:safeStr(a.notes),
-    fatality:+a.fatality||0,lti:+a.lti||0,minorInjury:+a.minorInjury||0,
-    medTreatment:+a.medTreatment||0,propertyDamage:+a.propertyDamage||0,
-    fire:+a.fire||0,traffic:+a.traffic||0,environment:+a.environment||0,
-    nearMiss:+a.nearMiss||0,timeLost:+a.timeLost||0
+    id:a.id||Date.now(),
+    projId:a.projId,
+    date:safeStr(a.date).slice(0,30),
+    fatality:+a.fatality||0,lti:+a.lti||0,
+    minorInjury:+a.minorInjury||0,medTreatment:+a.medTreatment||0,
+    propertyDamage:+a.propertyDamage||0,fire:+a.fire||0,
+    traffic:+a.traffic||0,environment:+a.environment||0,
+    nearMiss:+a.nearMiss||0,timeLost:+a.timeLost||0,
+    notes:safeStr(a.notes).slice(0,500)
   }));
 }
 function exportPDF(){
