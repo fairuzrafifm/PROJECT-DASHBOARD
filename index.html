@@ -1134,16 +1134,26 @@ function loadLocal(){
     const raw=localStorage.getItem('atw_data');
     if(!raw)return false;
     const d=JSON.parse(raw);
-    // Sanitasi semua data saat load dari localStorage
+    // Deteksi data corrupt — jika ada object di field string, bersihkan
+    const rawProc=d.PR||[];
+    const isCorrupt=rawProc.some(p=>typeof p.due==='object'||typeof p.supplier==='object'||typeof p.notes==='object'||typeof p.item==='object');
+    if(isCorrupt){
+      console.warn('Data corrupt terdeteksi di localStorage — membersihkan...');
+      localStorage.removeItem('atw_data');
+      return false; // paksa load dari GSheet
+    }
+    // Sanitasi semua data
     P=sanitizeProjects(d.P||[]);
     ISS=sanitizeIssues(d.I||[]);
     PROC=sanitizeProc(d.PR||[]);
     MPLOGS=sanitizeMpLogs(d.M||[]);
     ACCLOGS=sanitizeAccLogs(d.A||[]);
-    // Restore history yang mungkin tersimpan di P
     (d.P||[]).forEach(lp=>{const p=P.find(x=>x.id==lp.id);if(p&&Array.isArray(lp.history))p.history=lp.history;});
     return P.length>0;
-  }catch(e){return false;}
+  }catch(e){
+    localStorage.removeItem('atw_data'); // hapus data rusak
+    return false;
+  }
 }
 function dirty(){
   isDirty=true;
@@ -2506,6 +2516,22 @@ function copyShareUrl(){
   });
 }
 // Helper — sanitize string value dari GSheet (prevent JSON object dari masuk ke innerHTML)
+// ── VERSION CHECK — hapus cache data lama yang mungkin corrupt ──
+(function(){
+  const DASH_VER='2.8';
+  try{
+    if(localStorage.getItem('atw_ver')!==DASH_VER){
+      // Simpan config penting
+      const keep=['atw_gs','atw_pw','atw_dash_logo','atw_logos','atw_theme','atw_session'];
+      const saved={};keep.forEach(k=>{const v=localStorage.getItem(k);if(v)saved[k]=v;});
+      localStorage.clear();
+      Object.entries(saved).forEach(([k,v])=>localStorage.setItem(k,v));
+      localStorage.setItem('atw_ver',DASH_VER);
+      console.log('[ATW] Cache data lama dihapus — versi baru terdeteksi');
+    }
+  }catch(e){}
+})();
+
 function safeStr(v){
   if(v===null||v===undefined)return '';
   if(typeof v==='object')return ''; // jangan masukkan object ke string field
