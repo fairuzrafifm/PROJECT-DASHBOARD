@@ -2291,32 +2291,13 @@ async function loadFromGS(){
       // Coba ambil logo dari localStorage cache terpisah
       try{const lc=JSON.parse(localStorage.getItem('atw_logos')||'{}');Object.assign(localLogos,lc);}catch(e){}
 
-      P=d.projects.map(p=>({
-        ...p,
-        id:p.id||Date.now(),
-        kode:safeStr(p.kode),nama:safeStr(p.nama),lokasi:safeStr(p.lokasi),
-        client:safeStr(p.client),status:safeStr(p.status)||'Planning',
-        mulai:safeStr(p.mulai),selesai:safeStr(p.selesai),
-        weather:safeStr(p.weather),notes:safeStr(p.notes),
-        plan:+p.plan||0,actual:+p.actual||0,
-        mpPlan:+p.mpPlan||0,mpActual:+p.mpActual||0,
-        mhPlan:+p.mhPlan||0,mdPlan:+p.mdPlan||+p.mpPlan||0,
-        history:[],
-        logo:(p.logo&&String(p.logo).startsWith('data:'))?String(p.logo):(localLogos[p.id]||localLogos[String(p.id)]||'')
-      }));
-      ISS=(d.issues||[]).filter(r=>r.uraian).map(i=>({
-        ...i,id:i.id||Date.now(),
-        projId:i.projId,tgl:safeStr(i.tgl),uraian:safeStr(i.uraian),
-        prioritas:safeStr(i.prioritas)||'Medium',kategori:safeStr(i.kategori)||'Other',
-        pj:safeStr(i.pj),due:safeStr(i.due),status:safeStr(i.status)||'Open',
-        done:safeStr(i.done),action:safeStr(i.action)
-      }));
-      PROC=(d.procurement||[]).filter(r=>r.item).map(pr=>({
-        ...pr,id:pr.id||Date.now(),
-        projId:pr.projId,item:safeStr(pr.item),kategori:safeStr(pr.kategori)||'Material',
-        qty:safeStr(pr.qty),satuan:safeStr(pr.satuan),supplier:safeStr(pr.supplier),
-        due:safeStr(pr.due),status:safeStr(pr.status)||'Waiting Approval',notes:safeStr(pr.notes)
-      }));
+      P=sanitizeProjects(d.projects);
+      P.forEach(p=>{
+        const lv=localLogos[p.id]||localLogos[String(p.id)]||'';
+        if(!p.logo&&lv)p.logo=lv;
+      });
+      ISS=sanitizeIssues(d.issues);
+      PROC=sanitizeProc(d.procurement);
       MPLOGS=(d.manpowerLogs||[]).filter(r=>r.date).map(m=>({...m,total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0}));
       ACCLOGS=(d.accidentLogs||[]).filter(r=>r.date).map(a=>({...a,fatality:+a.fatality||0,lti:+a.lti||0,minorInjury:+a.minorInjury||0,medTreatment:+a.medTreatment||0,propertyDamage:+a.propertyDamage||0,fire:+a.fire||0,traffic:+a.traffic||0,environment:+a.environment||0,nearMiss:+a.nearMiss||0,timeLost:+a.timeLost||0}));
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
@@ -2448,11 +2429,12 @@ async function autoLoadOnStart(){
         const gTs=d.lastSaved||0;
         const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||0;
         if(gTs>=lTs||!hasLocal){
-          P=d.projects.map(p=>({...p,plan:+p.plan||0,actual:+p.actual||0,mpPlan:+p.mpPlan||0,mpActual:+p.mpActual||0,mhPlan:+p.mhPlan||0,history:[]}));
-          ISS=(d.issues||[]).filter(r=>r.uraian);
-          PROC=(d.procurement||[]).filter(r=>r.item);
-          MPLOGS=(d.manpowerLogs||[]).filter(r=>r.date).map(m=>({...m,total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0}));
-          ACCLOGS=(d.accidentLogs||[]).filter(r=>r.date).map(a=>({...a,fatality:+a.fatality||0,lti:+a.lti||0,minorInjury:+a.minorInjury||0,medTreatment:+a.medTreatment||0,propertyDamage:+a.propertyDamage||0,fire:+a.fire||0,traffic:+a.traffic||0,environment:+a.environment||0,nearMiss:+a.nearMiss||0,timeLost:+a.timeLost||0}));
+          P=sanitizeProjects(d.projects);
+          try{const lc=JSON.parse(localStorage.getItem('atw_logos')||'{}');P.forEach(p=>{if(!p.logo&&(lc[p.id]||lc[String(p.id)]))p.logo=lc[p.id]||lc[String(p.id)];});}catch(ex){}
+          ISS=sanitizeIssues(d.issues);
+          PROC=sanitizeProc(d.procurement);
+          MPLOGS=sanitizeMpLogs(d.manpowerLogs);
+          ACCLOGS=sanitizeAccLogs(d.accidentLogs);
           if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
           selId=P[0]?.id||null;
           saveLocal();
@@ -2515,6 +2497,64 @@ function safeStr(v){
   if(v===null||v===undefined)return '';
   if(typeof v==='object')return ''; // jangan masukkan object ke string field
   return String(v);
+}
+
+// Sanitize seluruh data array yang datang dari GSheet/localStorage
+function sanitizeProjects(arr){
+  return (arr||[]).map(p=>({
+    ...p,
+    id:p.id||Date.now(),
+    kode:safeStr(p.kode),nama:safeStr(p.nama),lokasi:safeStr(p.lokasi),
+    client:safeStr(p.client),status:safeStr(p.status)||'Planning',
+    mulai:safeStr(p.mulai),selesai:safeStr(p.selesai),
+    weather:safeStr(p.weather),notes:safeStr(p.notes),
+    plan:+p.plan||0,actual:+p.actual||0,
+    mpPlan:+p.mpPlan||0,mpActual:+p.mpActual||0,
+    mhPlan:+p.mhPlan||0,mdPlan:+p.mdPlan||+p.mpPlan||0,
+    logo:p.logo&&String(p.logo).startsWith('data:')?String(p.logo):'',
+    history:Array.isArray(p.history)?p.history:[]
+  }));
+}
+function sanitizeIssues(arr){
+  return (arr||[]).filter(r=>r.uraian).map(i=>({
+    ...i,id:i.id||Date.now(),projId:i.projId,
+    tgl:safeStr(i.tgl),uraian:safeStr(i.uraian),
+    prioritas:safeStr(i.prioritas)||'Medium',
+    kategori:safeStr(i.kategori)||'Other',
+    pj:safeStr(i.pj),due:safeStr(i.due),
+    status:safeStr(i.status)||'Open',
+    done:safeStr(i.done),action:safeStr(i.action)
+  }));
+}
+function sanitizeProc(arr){
+  return (arr||[]).filter(r=>r.item).map(pr=>({
+    ...pr,id:pr.id||Date.now(),projId:pr.projId,
+    item:safeStr(pr.item),kategori:safeStr(pr.kategori)||'Material',
+    qty:safeStr(pr.qty),satuan:safeStr(pr.satuan),
+    supplier:safeStr(pr.supplier),due:safeStr(pr.due),
+    status:safeStr(pr.status)||'Waiting Approval',
+    notes:safeStr(pr.notes)
+  }));
+}
+function sanitizeMpLogs(arr){
+  return (arr||[]).filter(r=>r.date).map(m=>({
+    ...m,
+    date:safeStr(m.date),notes:safeStr(m.notes),
+    timeLostReason:safeStr(m.timeLostReason),
+    total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,
+    spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,
+    tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0
+  }));
+}
+function sanitizeAccLogs(arr){
+  return (arr||[]).filter(r=>r.date).map(a=>({
+    ...a,
+    date:safeStr(a.date),notes:safeStr(a.notes),
+    fatality:+a.fatality||0,lti:+a.lti||0,minorInjury:+a.minorInjury||0,
+    medTreatment:+a.medTreatment||0,propertyDamage:+a.propertyDamage||0,
+    fire:+a.fire||0,traffic:+a.traffic||0,environment:+a.environment||0,
+    nearMiss:+a.nearMiss||0,timeLost:+a.timeLost||0
+  }));
 }
 function exportPDF(){
   // Siapkan PDF header
@@ -2818,19 +2858,10 @@ setInterval(async()=>{
     const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||0;
     if(gTs>lTs){
       // Ada data baru di GSheet — update silently
-      P=d.projects.map(p=>({...p,
-        kode:safeStr(p.kode),nama:safeStr(p.nama),lokasi:safeStr(p.lokasi),
-        client:safeStr(p.client),status:safeStr(p.status)||'Planning',
-        plan:+p.plan||0,actual:+p.actual||0,mpPlan:+p.mpPlan||0,mpActual:+p.mpActual||0,
-        mhPlan:+p.mhPlan||0,mdPlan:+p.mdPlan||+p.mpPlan||0,history:[]}));
-      ISS=(d.issues||[]).filter(r=>r.uraian).map(i=>({...i,
-        uraian:safeStr(i.uraian),prioritas:safeStr(i.prioritas)||'Medium',
-        kategori:safeStr(i.kategori)||'Other',pj:safeStr(i.pj),
-        due:safeStr(i.due),status:safeStr(i.status)||'Open',action:safeStr(i.action)}));
-      PROC=(d.procurement||[]).filter(r=>r.item).map(pr=>({...pr,
-        item:safeStr(pr.item),kategori:safeStr(pr.kategori)||'Material',
-        qty:safeStr(pr.qty),satuan:safeStr(pr.satuan),supplier:safeStr(pr.supplier),
-        due:safeStr(pr.due),status:safeStr(pr.status)||'Waiting Approval',notes:safeStr(pr.notes)}));
+      P=sanitizeProjects(d.projects);
+      try{const lc=JSON.parse(localStorage.getItem('atw_logos')||'{}');P.forEach(p=>{if(!p.logo&&(lc[p.id]||lc[String(p.id)]))p.logo=lc[p.id]||lc[String(p.id)];});}catch(ex){}
+      ISS=sanitizeIssues(d.issues);
+      PROC=sanitizeProc(d.procurement);
       MPLOGS=(d.manpowerLogs||[]).filter(r=>r.date).map(m=>({...m,total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0}));
       ACCLOGS=(d.accidentLogs||[]).filter(r=>r.date);
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
