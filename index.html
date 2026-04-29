@@ -2282,6 +2282,7 @@ async function loadFromGS(){
     const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-cache'});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const txt=await r.text();
+    if(!txt||!txt.trim().startsWith('{'))throw new Error('Response bukan JSON valid');
     const d=JSON.parse(txt);
     if(d.status==='error')throw new Error(d.msg);
     if(d.projects&&d.projects.length>0){
@@ -2422,8 +2423,13 @@ async function autoLoadOnStart(){
   if(gsOk && gsUrl){
     $('smsg').textContent=(hasLocal?'Data lokal dimuat · ':'')+'Sinkronisasi GSheet...';
     try{
-      const res=await fetch(gsUrl+'?t='+Date.now());
-      const d=await res.json();
+      const res=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-cache'});
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const txt=await res.text();
+      // Guard: pastikan response adalah JSON valid sebelum parse
+      if(!txt||!txt.trim().startsWith('{'))throw new Error('Response bukan JSON: '+txt.slice(0,50));
+      const d=JSON.parse(txt);
+      if(d.status==='error')throw new Error(d.msg||'GSheet error');
       if(d.projects&&d.projects.length>0){
         // Cek apakah data GSheet lebih baru dari lokal
         const gTs=d.lastSaved||0;
@@ -2847,30 +2853,30 @@ initAuth();
 // AUTO-POLLING
 setInterval(async()=>{
   if(!gsOk||!gsUrl)return;
-  if(isDirty)return; // jangan overwrite kalau ada perubahan belum disimpan
+  if(isDirty)return;
   try{
     const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-cache'});
     if(!r.ok)return;
-    const d=await r.json();
+    const txt=await r.text();
+    if(!txt||!txt.trim().startsWith('{'))return; // bukan JSON valid
+    const d=JSON.parse(txt);
     if(!d.projects||!d.projects.length)return;
-    // Cek apakah GSheet lebih baru dari data lokal
     const gTs=+d.lastSaved||0;
     const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||0;
     if(gTs>lTs){
-      // Ada data baru di GSheet — update silently
       P=sanitizeProjects(d.projects);
       try{const lc=JSON.parse(localStorage.getItem('atw_logos')||'{}');P.forEach(p=>{if(!p.logo&&(lc[p.id]||lc[String(p.id)]))p.logo=lc[p.id]||lc[String(p.id)];});}catch(ex){}
       ISS=sanitizeIssues(d.issues);
       PROC=sanitizeProc(d.procurement);
-      MPLOGS=(d.manpowerLogs||[]).filter(r=>r.date).map(m=>({...m,total:+m.total||0,mhActual:+m.mhActual||0,timeLost:+m.timeLost||0,spv:+m.spv||0,mandor:+m.mandor||0,installer:+m.installer||0,tukang:+m.tukang||0,helper:+m.helper||0,safety:+m.safety||0}));
-      ACCLOGS=(d.accidentLogs||[]).filter(r=>r.date);
+      MPLOGS=sanitizeMpLogs(d.manpowerLogs);
+      ACCLOGS=sanitizeAccLogs(d.accidentLogs);
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
       selId=selId||(P[0]?.id||null);
       saveLocal();render();
       $('smsg').textContent='Auto-update dari GSheet · '+new Date().toLocaleTimeString('id-ID');
       $('sdot').style.background='var(--gn)';$('sdot').classList.remove('unsaved');
     }
-  }catch(e){/* silent fail — no toast for polling errors */}
+  }catch(e){/* silent fail */}
 },120000); // 2 menit
 </script>
 </body>
