@@ -421,6 +421,7 @@ select.fi{color-scheme:dark}
   <div class="tab" onclick="sw('manpower',this)">👷 Manpower</div>
   <div class="tab" onclick="sw('issues',this)">⚠️ Issues<span id="ibadge" style="background:var(--rd);color:#fff;border-radius:10px;padding:0 5px;font-size:9px;font-weight:700;margin-left:3px"></span></div>
   <div class="tab" onclick="sw('procurement',this)">📦 Procurement</div>
+  <div class="tab" onclick="sw('wbs',this)">🏗 WBS</div>
 </div>
 
 <!-- MAIN LAYOUT -->
@@ -666,6 +667,48 @@ select.fi{color-scheme:dark}
       <div class="card">
         <div class="ct">DATA PROGRESS MINGGUAN</div>
         <div id="scTable" style="overflow-x:auto"></div>
+      </div>
+    </div>
+
+    <!-- ══ WBS ══ -->
+    <div id="tp-wbs" class="tp">
+      <!-- Controls -->
+      <div class="card" style="padding:10px 14px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="font-size:12px;color:var(--mt)">Project:</div>
+          <select class="fi" style="width:auto;min-width:220px" id="wbsProjSel" onchange="renderWBS()"></select>
+          <div style="display:flex;border:1px solid var(--bd);border-radius:6px;overflow:hidden" class="edit-only">
+            <button class="btn btn-sm" style="border:none;border-radius:0;border-right:1px solid var(--bd);color:var(--bl)" onclick="openModal('wbsAddCat')">＋ Kategori</button>
+            <button class="btn btn-sm" style="border:none;border-radius:0;border-right:1px solid var(--bd);color:var(--gn)" onclick="openModal('wbsAddSub')">＋ Sub-Kategori</button>
+            <button class="btn btn-sm bp" style="border:none;border-radius:0" onclick="openModal('wbsAddItem')">＋ Item</button>
+          </div>
+          <div style="display:flex;border:1px solid var(--bd);border-radius:6px;overflow:hidden" class="edit-only">
+            <button class="btn btn-sm" style="border:none;border-radius:0;border-right:1px solid var(--bd);color:var(--bl)" onclick="openModal('wbsPlan')">📋 Input Plan</button>
+            <button class="btn btn-sm bp" style="border:none;border-radius:0" onclick="openModal('wbsActual')">✏ Update Actual</button>
+          </div>
+          <div id="wbsTotalBobot" style="margin-left:auto;font-size:11px;font-family:var(--fm);color:var(--mt)">Total bobot: 0%</div>
+        </div>
+      </div>
+
+      <!-- WBS Table -->
+      <div class="card">
+        <div class="ct">WORK BREAKDOWN STRUCTURE
+          <span id="wbsChartTitle" style="color:var(--mt);font-size:11px;font-weight:400"></span>
+        </div>
+        <div id="wbsTable" style="overflow-x:auto"></div>
+      </div>
+
+      <!-- S-Curve from WBS -->
+      <div class="card">
+        <div class="ct">📈 S-CURVE — DARI WBS</div>
+        <div id="wbsScKpi" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"></div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:var(--mt)">
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;background:#3b82f6;opacity:.8;border-radius:2px;display:inline-block"></span>Weekly Plan</span>
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;background:#f97316;border-radius:2px;display:inline-block"></span>Weekly Actual</span>
+          <span style="display:flex;align-items:center;gap:5px"><svg width="20" height="12" style="vertical-align:middle"><line x1="0" y1="6" x2="20" y2="6" stroke="#10b981" stroke-width="2.5"/><circle cx="10" cy="6" r="3" fill="#10b981"/></svg>Cum. Plan</span>
+          <span style="display:flex;align-items:center;gap:5px"><svg width="20" height="12" style="vertical-align:middle"><line x1="0" y1="6" x2="20" y2="6" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3"/><circle cx="10" cy="6" r="3" fill="#f59e0b"/></svg>Cum. Actual</span>
+        </div>
+        <div style="position:relative;width:100%;height:280px"><canvas id="wbsScCanvas" role="img" aria-label="WBS S-Curve"></canvas></div>
       </div>
     </div>
 
@@ -1051,7 +1094,142 @@ select.fi{color-scheme:dark}
   </div>
 </div></div>
 
-<!-- S-CURVE MANAGE -->
+<!-- WBS ADD CATEGORY -->
+<div class="ov" id="ov-wbsAddCat" onclick="if(event.target===this)cm('wbsAddCat')">
+<div class="modal" style="width:420px">
+  <div class="mtitle">＋ TAMBAH KATEGORI<button class="mclose" onclick="cm('wbsAddCat')">✕</button></div>
+  <div class="fg"><label class="fl">Project</label><select class="fi" id="wbsCatProj"></select></div>
+  <div class="fg"><label class="fl">Nama Kategori *</label><input class="fi" id="wbsCatName" placeholder="misal: A. PROCUREMENT"></div>
+  <div class="fg"><label class="fl">Bobot Kategori (%) <span style="color:var(--mt);font-size:9px">— opsional, bisa diisi otomatis dari sub-item</span></label>
+    <input class="fi" type="number" id="wbsCatBobot" placeholder="misal: 43" min="0" max="100" step="0.1"></div>
+  <div class="mfoot"><button class="btn" onclick="cm('wbsAddCat')">Batal</button><button class="btn bp" onclick="saveWbsCat()">Simpan</button></div>
+</div></div>
+
+<!-- WBS ADD SUB-CATEGORY -->
+<div class="ov" id="ov-wbsAddSub" onclick="if(event.target===this)cm('wbsAddSub')">
+<div class="modal" style="width:420px">
+  <div class="mtitle">＋ TAMBAH SUB-KATEGORI<button class="mclose" onclick="cm('wbsAddSub')">✕</button></div>
+  <div class="fg"><label class="fl">Project</label><select class="fi" id="wbsSubProj" onchange="populateWbsParents('wbsSubParent','wbsSubProj','cat')"></select></div>
+  <div class="fg"><label class="fl">Kategori Induk *</label><select class="fi" id="wbsSubParent"></select></div>
+  <div class="fg"><label class="fl">Nama Sub-Kategori *</label><input class="fi" id="wbsSubName" placeholder="misal: 1. PV Module"></div>
+  <div class="fg"><label class="fl">Bobot (%)</label><input class="fi" type="number" id="wbsSubBobot" placeholder="misal: 15" min="0" max="100" step="0.1"></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Start Date</label><input class="fi" type="date" id="wbsSubStart"></div>
+    <div class="fg"><label class="fl">Finish Date</label><input class="fi" type="date" id="wbsSubFinish"></div>
+  </div>
+  <div class="mfoot"><button class="btn" onclick="cm('wbsAddSub')">Batal</button><button class="btn bp" onclick="saveWbsSub()">Simpan</button></div>
+</div></div>
+
+<!-- WBS ADD ITEM -->
+<div class="ov" id="ov-wbsAddItem" onclick="if(event.target===this)cm('wbsAddItem')">
+<div class="modal" style="width:420px">
+  <div class="mtitle">＋ TAMBAH ITEM PEKERJAAN<button class="mclose" onclick="cm('wbsAddItem')">✕</button></div>
+  <div class="fg"><label class="fl">Project</label><select class="fi" id="wbsItemProj" onchange="populateWbsParents('wbsItemParent','wbsItemProj','subcat')"></select></div>
+  <div class="fg"><label class="fl">Sub-Kategori Induk *</label><select class="fi" id="wbsItemParent"></select></div>
+  <div class="fg"><label class="fl">Nama Item *</label><input class="fi" id="wbsItemName" placeholder="misal: PV Module Installation"></div>
+  <div class="fg"><label class="fl">Bobot Item (%) *</label><input class="fi" type="number" id="wbsItemBobot" placeholder="misal: 5.5" min="0" max="100" step="0.01" oninput="checkWbsBobot()"></div>
+  <div id="wbsBobotWarn" style="font-size:11px;color:var(--yw);margin-top:-6px;display:none">⚠ Total bobot item akan melebihi 100%</div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Start Date</label><input class="fi" type="date" id="wbsItemStart"></div>
+    <div class="fg"><label class="fl">Finish Date</label><input class="fi" type="date" id="wbsItemFinish"></div>
+  </div>
+  <div class="mfoot"><button class="btn" onclick="cm('wbsAddItem')">Batal</button><button class="btn bp" onclick="saveWbsItem()">Simpan</button></div>
+</div></div>
+
+<!-- WBS INPUT PLAN -->
+<div class="ov" id="ov-wbsPlan" onclick="if(event.target===this)cm('wbsPlan')">
+<div class="modal wide" style="max-height:92vh;overflow-y:auto">
+  <div class="mtitle" style="color:var(--bl)">📋 INPUT PLAN WBS<button class="mclose" onclick="cm('wbsPlan')">✕</button></div>
+  <div class="f2" style="margin-bottom:10px">
+    <div class="fg"><label class="fl">Project</label>
+      <select class="fi" id="wbsPlanProj" onchange="renderWbsPlanForm()"></select>
+    </div>
+    <div class="fg"><label class="fl">Minggu</label>
+      <select class="fi" id="wbsPlanWeek" onchange="renderWbsPlanForm()">
+        <option value="1">W01</option><option value="2">W02</option><option value="3">W03</option>
+        <option value="4">W04</option><option value="5">W05</option><option value="6">W06</option>
+        <option value="7">W07</option><option value="8">W08</option><option value="9">W09</option>
+        <option value="10">W10</option><option value="11">W11</option><option value="12">W12</option>
+        <option value="13">W13</option><option value="14">W14</option><option value="15">W15</option>
+        <option value="16">W16</option><option value="17">W17</option><option value="18">W18</option>
+        <option value="19">W19</option><option value="20">W20</option><option value="21">W21</option>
+        <option value="22">W22</option><option value="23">W23</option><option value="24">W24</option>
+      </select>
+    </div>
+  </div>
+  <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--mt)">
+    Isi <b style="color:var(--bl)">% plan</b> tiap item untuk minggu yang dipilih. Biasanya diisi di awal project berdasarkan schedule.
+  </div>
+  <div id="wbsPlanForm"></div>
+  <div style="background:var(--sf2);border-radius:7px;padding:8px 12px;font-size:11px;margin-bottom:4px">
+    Cum. Plan s/d minggu ini: <b id="wbsPlanCumPlan" style="color:var(--bl);font-family:var(--fm)">0.00%</b>
+  </div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('wbsPlan')">Batal</button>
+    <button class="btn bg" onclick="saveWbsPlanOnly()">💾 Simpan Plan</button>
+  </div>
+</div></div>
+
+<!-- WBS UPDATE ACTUAL -->
+<div class="ov" id="ov-wbsActual" onclick="if(event.target===this)cm('wbsActual')">
+<div class="modal wide" style="max-height:92vh;overflow-y:auto">
+  <div class="mtitle">✏ UPDATE ACTUAL WBS<button class="mclose" onclick="cm('wbsActual')">✕</button></div>
+  <div class="f2" style="margin-bottom:10px">
+    <div class="fg"><label class="fl">Project</label>
+      <select class="fi" id="wbsProgProj" onchange="renderWbsProgressForm()"></select>
+    </div>
+    <div class="fg"><label class="fl">Minggu</label>
+      <select class="fi" id="wbsProgWeek" onchange="renderWbsProgressForm()">
+        <option value="1">W01</option><option value="2">W02</option><option value="3">W03</option>
+        <option value="4">W04</option><option value="5">W05</option><option value="6">W06</option>
+        <option value="7">W07</option><option value="8">W08</option><option value="9">W09</option>
+        <option value="10">W10</option><option value="11">W11</option><option value="12">W12</option>
+        <option value="13">W13</option><option value="14">W14</option><option value="15">W15</option>
+        <option value="16">W16</option><option value="17">W17</option><option value="18">W18</option>
+        <option value="19">W19</option><option value="20">W20</option><option value="21">W21</option>
+        <option value="22">W22</option><option value="23">W23</option><option value="24">W24</option>
+      </select>
+    </div>
+  </div>
+  <div style="background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--mt)">
+    Isi <b style="color:var(--or)">% actual</b> tiap item untuk minggu yang dipilih. Data minggu sebelumnya otomatis dimuat.
+  </div>
+  <div id="wbsProgressForm"></div>
+  <div style="background:var(--sf2);border-radius:7px;padding:8px 12px;font-size:11px;margin-bottom:4px">
+    Weighted Actual: <b id="wbsProgWeighted" style="color:var(--or);font-family:var(--fm)">0.00%</b>
+    &nbsp;|&nbsp; <span id="wbsProgCumAct" style="color:var(--yw);font-family:var(--fm)">—</span>
+  </div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('wbsActual')">Batal</button>
+    <button class="btn bp" onclick="saveWbsProgress()">💾 Simpan Actual</button>
+  </div>
+</div></div>
+
+<!-- WBS PROGRESS (kept for backward compat, hidden) -->
+<div class="ov" id="ov-wbsProgress" onclick="if(event.target===this)cm('wbsProgress')">
+<div class="modal" style="width:300px;padding:20px;text-align:center">
+  <div style="color:var(--mt);font-size:12px;margin-bottom:12px">Gunakan tombol 📋 Input Plan atau ✏ Update Actual</div>
+  <button class="btn" onclick="cm('wbsProgress')">Tutup</button>
+</div></div>
+
+<!-- WBS EDIT -->
+<div class="ov" id="ov-wbsEdit" onclick="if(event.target===this)cm('wbsEdit')">
+<div class="modal" style="width:420px">
+  <div class="mtitle">✏ EDIT WBS<button class="mclose" onclick="cm('wbsEdit')">✕</button></div>
+  <input type="hidden" id="wbsEditId">
+  <div class="fg"><label class="fl">Nama *</label><input class="fi" id="wbsEditName" placeholder="Nama item"></div>
+  <div class="fg"><label class="fl" id="wbsEditBobotLbl">Bobot (%)</label>
+    <input class="fi" type="number" id="wbsEditBobot" placeholder="misal: 15" min="0" max="100" step="0.01"></div>
+  <div class="f2" id="wbsEditDates">
+    <div class="fg"><label class="fl">Start Date</label><input class="fi" type="date" id="wbsEditStart"></div>
+    <div class="fg"><label class="fl">Finish Date</label><input class="fi" type="date" id="wbsEditFinish"></div>
+  </div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('wbsEdit')">Batal</button>
+    <button class="btn bp" onclick="saveEditWbs()">💾 Simpan</button>
+  </div>
+</div></div>
+
 <div class="ov" id="ov-scManage" onclick="if(event.target===this)cm('scManage')">
 <div class="modal wide">
   <div class="mtitle">KELOLA DATA S-CURVE<button class="mclose" onclick="cm('scManage')">✕</button></div>
@@ -1188,7 +1366,11 @@ select.fi{color-scheme:dark}
 // ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
-let P=[],ISS=[],PROC=[],MPLOGS=[],ACCLOGS=[],SCURVE=[];
+let P=[],ISS=[],PROC=[],MPLOGS=[],ACCLOGS=[],SCURVE=[],WBS=[];
+// WBS structure:
+// {id, projId, type:'cat'|'subcat'|'item', parentId, name, bobot, order}
+// WBS_PROGRESS:
+// {id, wbsId, projId, week, wPlan, wAct, cPlan, cAct, dateStart}
 let selId=null,editProjId=null,editIssId=null,editProcId=null;
 let isDirty=false,pendImp=null,curFile=null,activeTab='overview';
 let gsUrl='',gsSheet='',gsOk=false;
@@ -1221,7 +1403,9 @@ function cm(t){
     addAccident:'ov-addAccident',editWeather:'ov-editWeather',addIssue:'ov-addIssue',
     addProc:'ov-addProc',gsConfig:'ov-gsConfig',import:'ov-import',
     editMpLog:'ov-editMpLog',editHist:'ov-editHist',editAcc:'ov-editAcc',
-    changePw:'ov-changePw',scPlan:'ov-scPlan',scActual:'ov-scActual',scManage:'ov-scManage'};
+    changePw:'ov-changePw',scPlan:'ov-scPlan',scActual:'ov-scActual',scManage:'ov-scManage',
+    wbsAddCat:'ov-wbsAddCat',wbsAddSub:'ov-wbsAddSub',wbsAddItem:'ov-wbsAddItem',
+    wbsProgress:'ov-wbsProgress',wbsPlan:'ov-wbsPlan',wbsActual:'ov-wbsActual',wbsEdit:'ov-wbsEdit'};
   $(m[t]||'ov-'+t)?.classList.remove('open');
 }
 function rv(inp,dv,bv){
@@ -1230,7 +1414,7 @@ function rv(inp,dv,bv){
   if(bv)$(bv).style.width=v+'%';
 }
 function saveLocal(ts){
-  try{localStorage.setItem('atw_data',JSON.stringify({P,I:ISS,PR:PROC,M:MPLOGS,A:ACCLOGS,SC:SCURVE,ts:ts||Date.now()}));}catch(e){}
+  try{localStorage.setItem('atw_data',JSON.stringify({P,I:ISS,PR:PROC,M:MPLOGS,A:ACCLOGS,SC:SCURVE,WB:WBS,ts:ts||Date.now()}));}catch(e){}
 }
 function loadLocal(){
   try{
@@ -1252,13 +1436,46 @@ function loadLocal(){
     MPLOGS=sanitizeMpLogs(d.M||[]);
     ACCLOGS=sanitizeAccLogs(d.A||[]);
     SCURVE=d.SC||[];
+    WBS=d.WB||[];
     (d.P||[]).forEach(lp=>{const p=P.find(x=>x.id==lp.id);if(p&&Array.isArray(lp.history))p.history=lp.history;});
+    // Re-sync WBS → project plan/actual
+    syncAllWbsToProjects();
     return P.length>0;
   }catch(e){
     localStorage.removeItem('atw_data'); // hapus data rusak
     return false;
   }
 }
+// Recalculate plan/actual for ALL projects from WBS data
+function syncAllWbsToProjects(){
+  if(!WBS||!WBS.length)return;
+  P.forEach(proj=>{
+    const projId=proj.id;
+    const all=WBS.filter(w=>String(w.projId)===String(projId));
+    if(!all.length)return;
+    const leaves=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
+    if(!leaves.length)return;
+    // Calc actual
+    const cAct=leaves.reduce((s,n)=>{
+      const wd=n.weeklyData||{};
+      const cum=Math.min(100,Object.keys(wd).reduce((ss,k)=>ss+(+(wd[k].wAct||0)),0));
+      return s+(+n.bobot||0)*cum/100;
+    },0);
+    // Calc plan
+    const cPlan=leaves.reduce((s,n)=>{
+      const wp=n.weeklyPlan||{};
+      const cum=Math.min(100,Object.keys(wp).reduce((ss,k)=>ss+(+(wp[k].wPlan||0)),0));
+      return s+(+n.bobot||0)*cum/100;
+    },0);
+    if(cAct>0||cPlan>0){
+      proj.actual=Math.round(cAct*10)/10;
+      if(cPlan>0)proj.plan=Math.round(cPlan*10)/10;
+      // Also sync SCURVE
+      syncWbsToSCurve(projId);
+    }
+  });
+}
+
 function dirty(){
   isDirty=true;
   $('sdot').classList.add('unsaved');
@@ -1294,6 +1511,17 @@ function sw(t,el){
   if(t==='manpower')renderMP();
   if(t==='issues')renderIssues();
   if(t==='procurement')renderProc();
+  if(t==='wbs'){
+    renderWBS();
+    // Draw pending chart if any
+    setTimeout(()=>{
+      if(window._wbsPendingChart){
+        const {projId}=window._wbsPendingChart;
+        window._wbsPendingChart=null;
+        renderWbsSCurve(projId);
+      }
+    },100);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1592,147 +1820,9 @@ function renderDetail(id){
         </div>`;
       }).join('')}
     </div>`:''}
-
-    <!-- S-CURVE INLINE -->
-    <div class="card" style="margin-top:9px">
-      <div class="ct" style="display:flex;align-items:center;gap:0;flex-wrap:wrap">
-        <span style="flex:1">📈 S-CURVE — PLAN VS ACTUAL</span>
-        <div style="display:flex;border:1px solid var(--bd);border-radius:6px;overflow:hidden">
-          <button class="btn btn-sm edit-only" style="border:none;border-radius:0;border-right:1px solid var(--bd);color:var(--bl)" onclick="openModal('scPlan')">📋 Input Plan</button>
-          <button class="btn btn-sm bp edit-only" style="border:none;border-radius:0" onclick="openModal('scActual')">✏ Update Actual</button>
-        </div>
-      </div>
-      <div id="inlineScChart_${id}" style="min-height:60px"></div>
-    </div>
   </div>`;
-
-  // Render S-Curve after DOM update
-  setTimeout(()=>renderInlineSCurve(id), 60);
 }
 
-// ── S-CURVE INLINE IN PROJECT DETAIL ────────────────────────
-function renderInlineSCurve(projId){
-  const el=$('inlineScChart_'+projId);
-  if(!el)return;
-  const data=SCURVE.filter(d=>String(d.projId)===String(projId)).sort((a,b)=>a.week-b.week);
-  if(!data.length){
-    el.innerHTML='<div style="text-align:center;color:var(--mt);font-size:11px;padding:28px">Belum ada data S-Curve — klik 📋 Input Plan untuk mulai</div>';
-    return;
-  }
-  const displayData=data.filter(d=>(+d.wPlan||0)>0||(+d.wAct||0)>0);
-  if(!displayData.length){
-    el.innerHTML='<div style="text-align:center;color:var(--mt);font-size:11px;padding:28px">Belum ada data bermakna</div>';
-    return;
-  }
-  let cumPl=0,cumAct=0;
-  const weeks=displayData.map(d=>{
-    cumPl+=+d.wPlan||0;cumAct+=+d.wAct||0;
-    return{...d,
-      cPlanCalc:d.cPlan!=null?+d.cPlan:Math.round(cumPl*10)/10,
-      cActCalc:(+d.wAct>0||d.cAct!=null)?(d.cAct!=null?+d.cAct:Math.round(cumAct*10)/10):null
-    };
-  });
-  const n=weeks.length;
-  const labels=weeks.map(w=>'W'+String(w.week).padStart(2,'0'));
-  const light=document.documentElement.classList.contains('light');
-  const lastW=weeks.filter(w=>w.cActCalc!=null).slice(-1)[0]||weeks.slice(-1)[0];
-  const cumActLast=lastW?.cActCalc??0;
-  const cumPlanLast=lastW?.cPlanCalc??0;
-  const varr=(cumActLast-cumPlanLast).toFixed(1);
-  const vClr=+varr>=0?'var(--gn)':+varr>=-5?'var(--yw)':'var(--rd)';
-  const canvasId='sc_'+projId+'_'+Date.now();
-
-  el.innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
-      <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center">
-        <div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Cum. Plan</div>
-        <div style="font-family:var(--fd);font-size:20px;color:var(--gn);letter-spacing:1px">${cumPlanLast.toFixed(1)}%</div>
-      </div>
-      <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center">
-        <div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Cum. Actual</div>
-        <div style="font-family:var(--fd);font-size:20px;color:var(--or);letter-spacing:1px">${cumActLast.toFixed(1)}%</div>
-      </div>
-      <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center">
-        <div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Variance</div>
-        <div style="font-family:var(--fd);font-size:20px;color:${vClr};letter-spacing:1px">${+varr>=0?'+':''}${varr}%</div>
-      </div>
-      <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center">
-        <div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Progress</div>
-        <div style="font-family:var(--fd);font-size:20px;color:var(--bl);letter-spacing:1px">${cumActLast.toFixed(0)}%</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:var(--mt);padding:0 2px">
-      <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;background:#3b82f6;opacity:.8;border-radius:2px;display:inline-block"></span>Weekly Plan</span>
-      <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;background:#f97316;border-radius:2px;display:inline-block"></span>Weekly Actual</span>
-      <span style="display:flex;align-items:center;gap:5px"><svg width="20" height="12" style="vertical-align:middle"><line x1="0" y1="6" x2="20" y2="6" stroke="#10b981" stroke-width="2.5"/><circle cx="10" cy="6" r="3" fill="#10b981"/></svg>Cum. Plan</span>
-      <span style="display:flex;align-items:center;gap:5px"><svg width="20" height="12" style="vertical-align:middle"><line x1="0" y1="6" x2="20" y2="6" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="5,3"/><circle cx="10" cy="6" r="3" fill="#f59e0b"/></svg>Cum. Actual</span>
-    </div>
-    <div style="position:relative;width:100%;height:280px">
-      <canvas id="${canvasId}" role="img" aria-label="S-Curve chart"></canvas>
-    </div>`;
-
-  setTimeout(()=>{
-    const ctx=document.getElementById(canvasId);
-    if(!ctx||!window.Chart)return;
-    const GRID=light?'rgba(0,0,0,.06)':'rgba(255,255,255,.06)';
-    const TICK=light?'#94a3b8':'#64748b';
-    const BG=light?'#1e293b':'#0f172a';
-    const maxBar=Math.max(...weeks.map(w=>Math.max(+w.wPlan||0,+w.wAct||0)),1)*1.4;
-    if(window['_sc_'+projId])window['_sc_'+projId].destroy();
-    window['_sc_'+projId]=new Chart(ctx,{
-      data:{
-        labels,
-        datasets:[
-          {type:'bar',label:'Weekly Plan',data:weeks.map(w=>+(+w.wPlan||0).toFixed(2)),
-            backgroundColor:'rgba(59,130,246,.5)',borderColor:'#3b82f6',borderWidth:1.5,
-            borderRadius:{topLeft:3,topRight:3},yAxisID:'yB',order:3},
-          {type:'bar',label:'Weekly Actual',data:weeks.map(w=>+(+w.wAct||0).toFixed(2)),
-            backgroundColor:'rgba(249,115,22,.75)',borderColor:'#f97316',borderWidth:1.5,
-            borderRadius:{topLeft:3,topRight:3},yAxisID:'yB',order:2},
-          {type:'line',label:'Cum. Plan',data:weeks.map(w=>+w.cPlanCalc.toFixed(2)),
-            borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.12)',
-            borderWidth:2.5,pointBackgroundColor:'#10b981',pointRadius:4,pointHoverRadius:7,
-            fill:true,tension:0.4,yAxisID:'yC',order:1},
-          {type:'line',label:'Cum. Actual',data:weeks.map(w=>w.cActCalc!=null?+w.cActCalc.toFixed(2):null),
-            borderColor:'#f59e0b',backgroundColor:'transparent',borderDash:[6,3],
-            borderWidth:2.5,pointBackgroundColor:'#f59e0b',pointStyle:'circle',
-            pointRadius:4,pointHoverRadius:7,fill:false,tension:0.4,spanGaps:false,yAxisID:'yC',order:0}
-        ]
-      },
-      options:{
-        responsive:true,maintainAspectRatio:false,
-        layout:{padding:{top:8,right:8,bottom:4,left:4}},
-        interaction:{mode:'index',intersect:false},
-        plugins:{
-          legend:{display:false},
-          tooltip:{
-            backgroundColor:BG+'EE',titleColor:'#f1f5f9',bodyColor:'#94a3b8',
-            borderColor:'rgba(255,255,255,.1)',borderWidth:1,
-            padding:12,cornerRadius:8,
-            callbacks:{
-              title:i=>'Minggu '+i[0].label,
-              label:i=>{
-                if(i.raw===null||i.raw===undefined)return null;
-                const n=['W.Plan','W.Actual','Cum.Plan','Cum.Actual'][i.datasetIndex];
-                return ` ${n}: ${(+i.raw).toFixed(1)}%`;
-              },
-              afterBody:items=>{
-                const cp=items[2]?.raw,ca=items[3]?.raw;
-                if(cp!=null&&ca!=null){const v=(ca-cp).toFixed(1);const sym=+v>=0?String.fromCharCode(9650)+' Ahead':String.fromCharCode(9660)+' Behind';return['  '+sym+': '+(+v>=0?'+':'')+v+'%'];}
-                return[];
-              }
-            }
-          }
-        },
-        scales:{
-          x:{grid:{color:GRID,drawBorder:false},ticks:{color:TICK,font:{size:10},maxRotation:0,autoSkip:n>10,maxTicksLimit:14},border:{display:false}},
-          yB:{type:'linear',position:'left',grid:{display:false},ticks:{color:TICK,font:{size:10},callback:v=>v+'%'},border:{display:false},min:0,suggestedMax:maxBar,title:{display:true,text:'Weekly %',color:TICK,font:{size:10}}},
-          yC:{type:'linear',position:'right',grid:{color:GRID,drawBorder:false},ticks:{color:TICK,font:{size:10},callback:v=>v+'%',stepSize:25},border:{display:false},min:0,max:100,title:{display:true,text:'Cumulative %',color:TICK,font:{size:10}}}
-        }
-      }
-    });
-  },80);
-}
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -1849,6 +1939,56 @@ function renderProc(){
 // ═══════════════════════════════════════════════════════════════
 function openModal(type,id=null){
   // Auth: change password
+  if(type==='wbsAddCat'){
+    $('wbsCatProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    const cur=selId;if(cur)$('wbsCatProj').value=cur;
+    sv('wbsCatName','');sv('wbsCatBobot','');
+    show('ov-wbsAddCat');return;
+  }
+  if(type==='wbsAddSub'){
+    $('wbsSubProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    const cur=selId||$('wbsProjSel')?.value;if(cur)$('wbsSubProj').value=cur;
+    populateWbsParents('wbsSubParent','wbsSubProj','cat');
+    sv('wbsSubName','');sv('wbsSubBobot','');
+    show('ov-wbsAddSub');return;
+  }
+  if(type==='wbsAddItem'){
+    $('wbsItemProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    const cur=selId||$('wbsProjSel')?.value;if(cur)$('wbsItemProj').value=cur;
+    populateWbsParents('wbsItemParent','wbsItemProj','subcat');
+    sv('wbsItemName','');sv('wbsItemBobot','');
+    show('ov-wbsAddItem');return;
+  }
+  if(type==='wbsPlan'){
+    $('wbsPlanProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    const cur=id||selId||$('wbsProjSel')?.value;if(cur)$('wbsPlanProj').value=cur;
+    if($('wbsPlanWeek'))$('wbsPlanWeek').value=1;
+    renderWbsPlanForm();show('ov-wbsPlan');return;
+  }
+  if(type==='wbsActual'){
+    $('wbsProgProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    const cur=id||selId||$('wbsProjSel')?.value;if(cur)$('wbsProgProj').value=cur;
+    const projId=$('wbsProgProj').value;
+    const allLeaf=WBS.filter(w=>String(w.projId)===String(projId));
+    const weekNums=new Set();allLeaf.forEach(w=>Object.keys(w.weeklyData||{}).forEach(k=>weekNums.add(+k)));
+    const lastW=weekNums.size?Math.max(...weekNums):0;
+    if($('wbsProgWeek'))$('wbsProgWeek').value=Math.min(lastW+1,24);
+    renderWbsProgressForm();show('ov-wbsActual');return;
+  }
+  if(type==='wbsProgress'){
+    $('wbsProgProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    const cur=id||selId||$('wbsProjSel')?.value;if(cur)$('wbsProgProj').value=cur;
+    // Auto-detect: minggu terakhir yang ada data + 1 (untuk input baru), default ke 1
+    const projId=$('wbsProgProj').value;
+    const allLeaf=WBS.filter(w=>String(w.projId)===String(projId));
+    const weekNums=new Set();
+    allLeaf.forEach(w=>Object.keys(w.weeklyData||{}).forEach(k=>weekNums.add(+k)));
+    const lastW=weekNums.size?Math.max(...weekNums):0;
+    const nextW=Math.min(lastW+1,24);
+    if($('wbsProgWeek'))$('wbsProgWeek').value=nextW;
+    renderWbsProgressForm();
+    show('ov-wbsProgress');return;
+  }
   if(type==='scPlan'){
     $('scPlanProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
     const cur=id||selId||$('scProjSel')?.value;if(cur)$('scPlanProj').value=cur;
@@ -1969,7 +2109,8 @@ function saveProj(){
   dirty();cm('addProj');render();gsSync();
 }
 function delProj(){
-  if(!confirm('Hapus project ini?'))return;
+  showConfirm('Hapus project ini?',()=>{_doDelProj();});return;}
+function _doDelProj(){
   P=P.filter(p=>p.id!==editProjId);ISS=ISS.filter(i=>i.projId!==editProjId);PROC=PROC.filter(p=>p.projId!==editProjId);
   if(selId===editProjId)selId=P[0]?.id||null;
   dirty();cm('addProj');render();toast('Project dihapus','warn');
@@ -2165,7 +2306,8 @@ function renderMpLog(){
 }
 
 function delMpLog(id){
-  if(!confirm('Hapus log ini?'))return;
+  showConfirm('Hapus log ini?',()=>{_doDelMpLog(id);});return;}
+function _doDelMpLog(id){
   MPLOGS=MPLOGS.filter(m=>m.id!==id);
   dirty();renderMP();updateTimeLostKPI();toast('Log dihapus','warn');gsSync();
 }
@@ -2230,7 +2372,8 @@ function editHistEntry(projId,idx){
   show('ov-editHist');
 }
 function delHistEntry(projId,idx){
-  if(!confirm('Hapus entri riwayat ini?'))return;
+  showConfirm('Hapus entri riwayat ini?',()=>{_doDelHist(projId,idx);});return;}
+function _doDelHist(projId,idx){
   const p=P.find(x=>x.id===projId);if(!p)return;
   p.history.splice(idx,1);
   dirty();renderDetail(projId);toast('Entri dihapus','warn');gsSync();
@@ -2305,7 +2448,7 @@ function saveIss(){
   else{d.id=Date.now();ISS.push(d);toast('Issue ditambahkan ✓');}
   dirty();cm('addIssue');renderIssues();$('pk5').textContent=ISS.filter(i=>i.status!=='Closed').length;gsSync();
 }
-function delIss(){if(!confirm('Hapus?'))return;ISS=ISS.filter(i=>i.id!==editIssId);dirty();cm('addIssue');renderIssues();toast('Issue dihapus','warn');}
+function delIss(){showConfirm('Hapus issue ini?',()=>{ISS=ISS.filter(i=>i.id!==editIssId);dirty();cm('addIssue');renderIssues();toast('Issue dihapus','warn');});}
 function saveProc(){
   const item=gv('pItem').trim();if(!item){toast('Nama item wajib diisi','error');return;}
   const d={projId:+gv('pProj')||gv('pProj'),item,kategori:gv('pKat'),qty:gv('pQty'),satuan:gv('pSat'),
@@ -2314,7 +2457,7 @@ function saveProc(){
   else{d.id=Date.now();PROC.push(d);toast('Item ditambahkan ✓');}
   dirty();cm('addProc');renderProc();if(activeTab==='overview')renderOV();gsSync();
 }
-function delProc(){if(!confirm('Hapus?'))return;PROC=PROC.filter(p=>p.id!==editProcId);dirty();cm('addProc');renderProc();toast('Item dihapus','warn');}
+function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>p.id!==editProcId);dirty();cm('addProc');renderProc();toast('Item dihapus','warn');});}
 
 // ═══════════════════════════════════════════════════════════════
 // GOOGLE SHEET
@@ -2354,6 +2497,7 @@ function doPost(e) {
       writeSheet(ss,'PROCUREMENT',d.procurement||[], ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes']);
       writeSheet(ss,'MANPOWER_LOG',d.manpowerLogs||[],['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
       writeSheet(ss,'ACCIDENT_LOG',d.accidentLogs||[],['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
+      writeSheet(ss,'WBS',d.wbs||[],['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan']);
       let ms = ss.getSheetByName('_META') || ss.insertSheet('_META');
       ms.clearContents();
       ms.appendRow(['lastSaved','version']);
@@ -2388,6 +2532,7 @@ function doGet(e) {
       procurement:  readSheet(ss,'PROCUREMENT') ||[],
       manpowerLogs: readSheet(ss,'MANPOWER_LOG')||[],
       accidentLogs: readSheet(ss,'ACCIDENT_LOG')||[],
+      wbs: readSheet(ss,'WBS')||[],
     });
   } catch(err) {
     return makeOutput({status:'error', msg: err.message});
@@ -2470,7 +2615,7 @@ async function syncAllGS(){
     const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
     // Gunakan timestamp dari localStorage sebagai lastSaved
     const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
-    const body=JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE});
+    const body=JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS});
     const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
     if(r.ok){
       const txt=await r.text();
@@ -2538,7 +2683,8 @@ async function loadFromGS(){
       PROC=sanitizeProc(d.procurement);
       MPLOGS=sanitizeMpLogs(d.manpowerLogs);
       ACCLOGS=sanitizeAccLogs(d.accidentLogs);
-      SCURVE=Array.isArray(d.scurve)?d.scurve.map(s=>({projId:s.projId,week:+s.week||0,wPlan:+s.wPlan||0,wAct:+s.wAct||0,cPlan:s.cPlan!=null&&s.cPlan!==''?+s.cPlan:null,cAct:s.cAct!=null&&s.cAct!==''?+s.cAct:null,dateStart:safeStr(s.dateStart)})):[];
+      SCURVE=Array.isArray(d.scurve)?d.scurve.map(s=>({projId:s.projId,week:+s.week||0,wPlan:+s.wPlan||0,wAct:+s.wAct||0,cPlan:s.cPlan!=null&&s.cPlan!==''?+s.cPlan:null,cAct:s.cAct!=null&&s.cAct!==''?+s.cAct:null,dateStart:safeStr(s.dateStart),fromWbs:!!s.fromWbs})):[];
+      WBS=Array.isArray(d.wbs)?d.wbs.map(w=>({...w,bobot:+w.bobot||0,cumActual:+w.cumActual||0,cumPlan:+w.cumPlan||0,weeklyData:w.weeklyData||{},weeklyPlan:w.weeklyPlan||{}})):[];
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
       selId=P[0]?.id||null;
       saveLocal();saveLogosCache();
@@ -3006,7 +3152,6 @@ function saveSCurvePlan(){
 
   dirty();cm('scPlan');
   render(); // full render
-  renderInlineSCurve(projId);
   toast(`✓ Plan ${dur} minggu disimpan`);gsSync();
 }
 
@@ -3103,7 +3248,6 @@ function _doSaveSCurveActual(projId,week,wAct,cAct){
   dirty();cm('scActual');
   render();
   if(selId)renderDetail(selId);
-  renderInlineSCurve(projId);
   gsSync();
 }
 
@@ -3162,7 +3306,8 @@ function saveSCurveActual2(){
 }
 
 function delScWeek(projId,week){
-  if(!confirm(`Hapus data W${String(week).padStart(2,'0')}?`))return;
+  showConfirm('Hapus data minggu ini?',()=>{_doDelScWeek(projId,week);});return;}
+function _doDelScWeek(projId,week){
   SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.week===week));
   dirty();renderSCurve();renderScManageTable();toast('Data dihapus','warn');gsSync();
 }
@@ -3198,6 +3343,490 @@ function renderScManageTable(){
     }
   }catch(e){}
 })();
+
+// ═══════════════════════════════════════════════════════════════
+// WBS — WORK BREAKDOWN STRUCTURE
+// ═══════════════════════════════════════════════════════════════
+
+function renderWBS(){
+  const sel=$('wbsProjSel');
+  if(sel){const cur=sel.value;sel.innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');if(cur)sel.value=cur;}
+  const projId=sel?.value||P[0]?.id;
+  if(!projId){$('wbsTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:30px">Belum ada project</div>';return;}
+  const proj=P.find(p=>String(p.id)===String(projId));
+  if($('wbsChartTitle'))$('wbsChartTitle').textContent=proj?.nama||'';
+  const all=WBS.filter(w=>String(w.projId)===String(projId));
+  const cats=all.filter(w=>w.type==='cat').sort((a,b)=>a.order-b.order);
+  // Auto-sum bobot ke atas
+  all.forEach(w=>{if(w.type==='subcat'){const cb=all.filter(x=>x.type==='item'&&x.parentId===w.id).reduce((s,x)=>s+(+x.bobot||0),0);if(cb>0)w._ab=cb;}});
+  cats.forEach(cat=>{const sb=all.filter(w=>w.type==='subcat'&&w.parentId===cat.id).reduce((s,sub)=>s+all.filter(x=>x.type==='item'&&x.parentId===sub.id).reduce((ss,x)=>ss+(+x.bobot||0),0),0);if(sb>0)cat._ab=sb;});
+  // Leaf nodes (items or subcats without children) for total
+  const leafItems=all.filter(w=>w.type==='item');
+  const subcatLeaf=all.filter(w=>w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)&&+w.bobot>0);
+  const totalBobot=[...leafItems,...subcatLeaf].reduce((s,w)=>s+(+w.bobot||0),0);
+  const totalKontrib=[...leafItems,...subcatLeaf].reduce((s,w)=>s+(+w.bobot||0)*(+w.cumActual||0)/100,0);
+  const bobotOk=Math.abs(totalBobot-100)<0.1;
+  if($('wbsTotalBobot'))$('wbsTotalBobot').innerHTML='Total bobot: <span style="font-family:var(--fm);font-weight:700;color:'+( bobotOk?'var(--gn)':totalBobot>100?'var(--rd)':'var(--yw)')+'">'+totalBobot.toFixed(2)+'%</span>'+( bobotOk?' ✓':' (harus 100%)');
+  let html='';
+  if(!cats.length){html='<div style="text-align:center;color:var(--mt);padding:30px;font-size:12px">Belum ada WBS — klik ＋ Kategori untuk mulai</div>';}
+  else{
+    const fmtD=d=>d?new Date(d+'T12:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'2-digit'}):'—';
+    html=`<table class="tbl"><thead><tr><th style="width:50px">#</th><th>Item Pekerjaan</th><th style="width:70px;text-align:right">Bobot</th><th style="width:88px">Start</th><th style="width:88px">Finish</th><th style="width:80px;text-align:right">% Selesai</th><th style="width:80px;text-align:right">Kontribusi</th><th style="width:75px;text-align:center">Aksi</th></tr></thead><tbody>`;
+    cats.forEach((cat,ci)=>{
+      const db=cat._ab||+cat.bobot||0;
+      // Auto-summarize dates from all children
+      const catChildren=all.filter(w=>w.parentId===cat.id||all.filter(x=>x.parentId===cat.id).some(s=>s.id===w.parentId));
+      const catStarts=catChildren.map(w=>w.startDate).filter(Boolean).sort();
+      const catFinishes=catChildren.map(w=>w.finishDate).filter(Boolean).sort();
+      const catStart=catStarts[0]||'';const catFinish=catFinishes.slice(-1)[0]||'';
+      html+=`<tr style="background:rgba(59,130,246,.08)"><td style="font-family:var(--fd);font-weight:700;color:var(--bl);font-size:13px">${String.fromCharCode(65+ci)}</td><td style="font-weight:700;color:var(--bl);font-size:12px">${safeStr(cat.name)}</td><td style="text-align:right;font-family:var(--fm);font-weight:700;color:var(--bl)">${db?db.toFixed(1)+'%':'—'}</td><td style="font-size:10px;color:var(--mt)">${fmtD(catStart)}</td><td style="font-size:10px;color:var(--mt)">${fmtD(catFinish)}</td><td colspan="2"></td><td style="text-align:center"><button class="btn btn-sm edit-only" style="padding:1px 6px;font-size:10px;border-color:var(--bl);color:var(--bl)" onclick="openEditWbs(${cat.id})">✏</button> <button class="btn btn-sm brd edit-only" style="padding:1px 6px;font-size:10px" onclick="delWbs(${cat.id})">🗑</button></td></tr>`;
+      all.filter(w=>w.type==='subcat'&&w.parentId===cat.id).sort((a,b)=>a.order-b.order).forEach((sub,si)=>{
+        const sb=sub._ab||+sub.bobot||0;
+        const subItems=all.filter(w=>w.type==='item'&&w.parentId===sub.id).sort((a,b)=>a.order-b.order);
+        const isLeaf=subItems.length===0;
+        const subPct=isLeaf?+(sub.cumActual||0):0;
+        const subK=isLeaf?(+sub.bobot||0)*subPct/100:subItems.reduce((s,x)=>s+(+x.bobot||0)*(+x.cumActual||0)/100,0);
+        html+=`<tr style="background:rgba(16,185,129,.05)"><td style="padding-left:16px;font-family:var(--fm);color:var(--gn);font-weight:600">${ci+1}.${si+1}</td><td style="padding-left:22px;color:var(--gn);font-size:12px;font-weight:600">${safeStr(sub.name)}</td><td style="text-align:right;font-family:var(--fm);font-weight:600;color:var(--gn)">${sb?sb.toFixed(1)+'%':'—'}</td><td style="font-size:10px;color:var(--mt)">${fmtD(sub.startDate)}</td><td style="font-size:10px;color:var(--mt)">${fmtD(sub.finishDate)}</td><td style="text-align:right;font-family:var(--fm);font-size:11px;color:var(--or)">${isLeaf?subPct.toFixed(1)+'%':'—'}</td><td style="text-align:right;font-family:var(--fm);font-size:11px;color:var(--gn)">${isLeaf?subK.toFixed(2)+'%':'—'}</td><td style="text-align:center"><button class="btn btn-sm edit-only" style="padding:1px 6px;font-size:10px;border-color:var(--gn);color:var(--gn)" onclick="openEditWbs(${sub.id})">✏</button> <button class="btn btn-sm brd edit-only" style="padding:1px 6px;font-size:10px" onclick="delWbs(${sub.id})">🗑</button></td></tr>`;
+        subItems.forEach((item,ii)=>{
+          const b=+item.bobot||0;const pct=+item.cumActual||0;
+          html+=`<tr><td style="padding-left:30px;font-size:10px;color:var(--mt)">${ci+1}.${si+1}.${ii+1}</td><td style="padding-left:38px;font-size:11px">${safeStr(item.name)}<div style="margin-top:3px;height:3px;background:var(--bd);border-radius:2px;overflow:hidden"><div style="width:${Math.min(100,pct)}%;height:100%;background:linear-gradient(90deg,var(--or),#fbbf24)"></div></div></td><td style="text-align:right;font-family:var(--fm);font-size:11px">${b.toFixed(2)}%</td><td style="font-size:10px;color:var(--mt)">${fmtD(item.startDate)}</td><td style="font-size:10px;color:var(--mt)">${fmtD(item.finishDate)}</td><td style="text-align:right;font-family:var(--fm);font-size:11px;color:var(--or);font-weight:600">${pct.toFixed(1)}%</td><td style="text-align:right;font-family:var(--fm);font-size:11px;color:var(--gn)">${(b*pct/100).toFixed(2)}%</td><td style="text-align:center"><button class="btn btn-sm edit-only" style="padding:1px 6px;font-size:10px;border-color:var(--mt);color:var(--mt)" onclick="openEditWbs(${item.id})">✏</button> <button class="btn btn-sm brd edit-only" style="padding:1px 6px;font-size:10px" onclick="delWbs(${item.id})">🗑</button></td></tr>`;
+        });
+      });
+    });
+    html+=`<tr style="background:var(--sf2);font-weight:700"><td colspan="2" style="text-align:right;font-size:11px;color:var(--mt);padding-right:8px">TOTAL</td><td style="text-align:right;font-family:var(--fm);color:${bobotOk?'var(--gn)':totalBobot>100?'var(--rd)':'var(--yw)'}">${totalBobot.toFixed(2)}%</td><td colspan="2"></td><td></td><td style="text-align:right;font-family:var(--fm);color:var(--gn)">${totalKontrib.toFixed(2)}%</td><td></td></tr>`;
+    html+='</tbody></table>';
+  }
+  $('wbsTable').innerHTML=html;
+  renderWbsSCurve(projId);
+}
+
+
+function calcWbsWeightedActual(projId){return WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='item').reduce((s,w)=>s+((+w.bobot||0)*(+w.cumActual||0)/100),0);}
+function calcWbsWeightedPlan(projId){return WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='item').reduce((s,w)=>s+((+w.bobot||0)*(+w.cumPlan||0)/100),0);}
+
+function populateWbsParents(targetId,projSelId,type){
+  const projId=$(projSelId)?.value;const sel=$(targetId);if(!sel)return;
+  sel.innerHTML=WBS.filter(w=>String(w.projId)===String(projId)&&w.type===type).sort((a,b)=>a.order-b.order).map(w=>`<option value="${w.id}">${safeStr(w.name)}</option>`).join('');
+}
+function checkWbsBobot(){
+  const projId=$('wbsItemProj')?.value;const cur=parseFloat($('wbsItemBobot')?.value)||0;
+  const total=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='item').reduce((s,w)=>s+(+w.bobot||0),0);
+  const warn=$('wbsBobotWarn');if(warn)warn.style.display=(total+cur)>100.05?'block':'none';
+}
+function saveWbsCat(){
+  const projId=$('wbsCatProj').value;const name=gv('wbsCatName').trim();
+  if(!name){toast('Nama kategori wajib diisi','error');return;}
+  const order=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='cat').length;
+  WBS.push({id:Date.now(),projId,type:'cat',parentId:null,name,bobot:parseFloat($('wbsCatBobot')?.value)||0,order,cumPlan:0,cumActual:0});
+  dirty();cm('wbsAddCat');renderWBS();toast('Kategori ditambahkan ✓');gsSync();
+}
+function saveWbsSub(){
+  const projId=$('wbsSubProj').value;const name=gv('wbsSubName').trim();const parentId=+$('wbsSubParent')?.value;
+  if(!name||!parentId){toast('Lengkapi data','error');return;}
+  const order=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='subcat'&&w.parentId===parentId).length;
+  WBS.push({id:Date.now(),projId,type:'subcat',parentId,name,
+    bobot:parseFloat($('wbsSubBobot')?.value)||0,order,cumPlan:0,cumActual:0,
+    startDate:gv('wbsSubStart')||'',finishDate:gv('wbsSubFinish')||''});
+  dirty();cm('wbsAddSub');renderWBS();toast('Sub-kategori ditambahkan ✓');gsSync();
+}
+function saveWbsItem(){
+  const projId=$('wbsItemProj').value;const name=gv('wbsItemName').trim();
+  const parentId=+$('wbsItemParent')?.value;const bobot=parseFloat($('wbsItemBobot')?.value)||0;
+  if(!name||!parentId||!bobot){toast('Lengkapi nama, induk, dan bobot item','error');return;}
+  const total=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='item').reduce((s,w)=>s+(+w.bobot||0),0);
+  if(total+bobot>100.05){toast('Total bobot item melebihi 100%','error');return;}
+  const order=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='item'&&w.parentId===parentId).length;
+  WBS.push({id:Date.now(),projId,type:'item',parentId,name,bobot,order,cumPlan:0,cumActual:0,
+    weeklyData:{},weeklyPlan:{},
+    startDate:gv('wbsItemStart')||'',finishDate:gv('wbsItemFinish')||''});
+  dirty();cm('wbsAddItem');renderWBS();toast('Item ditambahkan ✓');gsSync();
+}
+
+function showConfirm(msg, onYes){
+  const old=$('confirmBox');if(old)old.remove();
+  const box=document.createElement('div');
+  box.id='confirmBox';
+  box.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:9998;background:var(--sf);border:1px solid var(--rd);border-radius:10px;padding:14px 18px;box-shadow:0 8px 32px rgba(0,0,0,.4);max-width:360px;width:90vw;animation:su .2s ease';
+  box.innerHTML=`<div style="font-size:13px;color:var(--tx);margin-bottom:12px">${msg}</div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" onclick="$('confirmBox')?.remove()" style="padding:5px 14px">Batal</button><button class="btn brd" id="confirmYes" style="padding:5px 14px;color:var(--rd)">Hapus</button></div>`;
+  document.body.appendChild(box);
+  $('confirmYes').onclick=()=>{box.remove();onYes();};
+  setTimeout(()=>{if($('confirmBox'))$('confirmBox').remove();},8000);
+}
+
+function openEditWbs(id){
+  const node=WBS.find(w=>w.id===id);if(!node)return;
+  sv('wbsEditId',id);sv('wbsEditName',safeStr(node.name));
+  sv('wbsEditBobot',+node.bobot||0);
+  sv('wbsEditStart',node.startDate||'');
+  sv('wbsEditFinish',node.finishDate||'');
+  const lbl=$('wbsEditBobotLbl');
+  if(lbl)lbl.textContent=node.type==='item'?'Bobot Item (%)':node.type==='subcat'?'Bobot Sub-Kategori (%)':'Bobot Kategori (%)';
+  const hasCh=WBS.some(w=>w.parentId===id);
+  const bobotFg=$('wbsEditBobot')?.closest('.fg');
+  if(bobotFg)bobotFg.style.display=(node.type==='cat'&&hasCh)?'none':'block';
+  // Hide dates for category (summarized automatically)
+  const datesDiv=$('wbsEditDates');
+  if(datesDiv)datesDiv.style.display=node.type==='cat'?'none':'grid';
+  show('ov-wbsEdit');
+}
+function saveEditWbs(){
+  const id=+$('wbsEditId')?.value;
+  const node=WBS.find(w=>w.id===id);if(!node)return;
+  const name=gv('wbsEditName').trim();if(!name){toast('Nama wajib diisi','error');return;}
+  node.name=name;
+  const b=parseFloat($('wbsEditBobot')?.value);
+  if(!isNaN(b))node.bobot=b;
+  node.startDate=gv('wbsEditStart')||'';
+  node.finishDate=gv('wbsEditFinish')||'';
+  dirty();cm('wbsEdit');renderWBS();toast('✓ Diupdate');gsSync();
+}
+
+function delWbs(id){
+  const node=WBS.find(w=>w.id===id);if(!node)return;
+  const childIds=WBS.filter(w=>w.parentId===id).map(w=>w.id);
+  const grandIds=WBS.filter(w=>childIds.includes(w.parentId)).map(w=>w.id);
+  const toRm=new Set([id,...childIds,...grandIds]);
+  // Tampilkan konfirmasi inline tanpa confirm()
+  const msg=`Hapus "${safeStr(node.name)}"${toRm.size>1?' dan '+(toRm.size-1)+' child-nya':''}?`;
+  showConfirm(msg,()=>{
+    WBS=WBS.filter(w=>!toRm.has(w.id));
+    dirty();renderWBS();toast('Dihapus','warn');gsSync();
+  });
+}
+// ── WBS PLAN ONLY ────────────────────────────────────────────
+function renderWbsPlanForm(){
+  const projId=$('wbsPlanProj')?.value;const week=+($('wbsPlanWeek')?.value||1);
+  if(!projId){$('wbsPlanForm').innerHTML='';return;}
+  const all=WBS.filter(w=>String(w.projId)===String(projId));
+  const cats=all.filter(w=>w.type==='cat').sort((a,b)=>a.order-b.order);
+  const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
+  if(!leafNodes.length){$('wbsPlanForm').innerHTML='<div style="text-align:center;color:var(--mt);padding:20px">Belum ada item WBS.</div>';return;}
+  let html='';
+  cats.forEach((cat,ci)=>{
+    html+=`<div style="font-family:var(--fd);font-size:12px;letter-spacing:1px;color:var(--bl);margin:10px 0 4px;padding:6px 10px;background:rgba(59,130,246,.07);border-radius:6px">${String.fromCharCode(65+ci)}. ${safeStr(cat.name)}</div>`;
+    all.filter(w=>w.type==='subcat'&&w.parentId===cat.id).sort((a,b)=>a.order-b.order).forEach((sub,si)=>{
+      const isLeaf=!all.some(x=>x.type==='item'&&x.parentId===sub.id);
+      if(isLeaf){
+        const wp=sub.weeklyPlan||{};const wkp=wp[week]||{};
+        const histRows=Object.keys(wp).sort((a,b)=>+a-+b).map(w=>+w!==week?`<span style="font-size:9px;font-family:var(--fm);padding:1px 5px;border-radius:3px;background:var(--sf);border:1px solid rgba(59,130,246,.3);color:var(--bl)">W${String(+w).padStart(2,'0')}: ${(+(wp[w].wPlan||0)).toFixed(1)}%</span>`:'').filter(Boolean).join(' ');
+        html+=`<div style="display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--bd)">
+          <div><span style="font-size:12px;color:var(--gn);font-weight:600">${ci+1}.${si+1} ${safeStr(sub.name)}</span>
+            <span style="font-size:9px;color:var(--mt);font-family:var(--fm);margin-left:6px">bobot:${(+sub.bobot||0).toFixed(1)}%</span>
+            ${histRows?`<div style="margin-top:3px;display:flex;gap:3px;flex-wrap:wrap">${histRows}</div>`:''}
+          </div>
+          <div><label style="font-size:9px;color:var(--bl);display:block;font-weight:600">W.Plan %</label>
+            <input type="number" min="0" max="100" step="0.1" placeholder="0" value="${wkp.wPlan!=null?wkp.wPlan:''}" id="wbpl_${sub.id}_wplan"
+              oninput="updateWbsPlanPreview()"
+              style="width:100%;padding:5px 8px;font-size:14px;font-weight:700;text-align:center;border-radius:4px;border:1.5px solid ${wkp.wPlan!=null?'var(--bl)':'var(--bd)'};background:${wkp.wPlan!=null?'rgba(59,130,246,.08)':'var(--sf2)'}" class="fi">
+          </div>
+        </div>`;
+      }else{
+        html+=`<div style="font-size:11px;color:var(--gn);padding:4px 10px;font-weight:600">${ci+1}.${si+1} ${safeStr(sub.name)}</div>`;
+        all.filter(w=>w.type==='item'&&w.parentId===sub.id).sort((a,b)=>a.order-b.order).forEach((item,ii)=>{
+          const wp=item.weeklyPlan||{};const wkp=wp[week]||{};
+          const histRows=Object.keys(wp).sort((a,b)=>+a-+b).map(w=>+w!==week?`<span style="font-size:9px;font-family:var(--fm);padding:1px 5px;border-radius:3px;background:var(--sf);border:1px solid rgba(59,130,246,.3);color:var(--bl)">W${String(+w).padStart(2,'0')}: ${(+(wp[w].wPlan||0)).toFixed(1)}%</span>`:'').filter(Boolean).join(' ');
+          html+=`<div style="display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center;padding:4px 12px;border-bottom:1px solid var(--bd)">
+            <div><span style="font-size:11px">${safeStr(item.name)}</span>
+              <span style="font-size:9px;color:var(--mt);font-family:var(--fm);margin-left:6px">bobot:${(+item.bobot||0).toFixed(2)}%</span>
+              ${histRows?`<div style="margin-top:3px;display:flex;gap:3px;flex-wrap:wrap">${histRows}</div>`:''}
+            </div>
+            <div><label style="font-size:9px;color:var(--bl);display:block;font-weight:600">W.Plan %</label>
+              <input type="number" min="0" max="100" step="0.1" placeholder="0" value="${wkp.wPlan!=null?wkp.wPlan:''}" id="wbpl_${item.id}_wplan"
+                oninput="updateWbsPlanPreview()"
+                style="width:100%;padding:5px 8px;font-size:14px;font-weight:700;text-align:center;border-radius:4px;border:1.5px solid ${wkp.wPlan!=null?'var(--bl)':'var(--bd)'};background:${wkp.wPlan!=null?'rgba(59,130,246,.08)':'var(--sf2)'}" class="fi">
+            </div>
+          </div>`;
+        });
+      }
+    });
+  });
+  $('wbsPlanForm').innerHTML=html;updateWbsPlanPreview();
+}
+function updateWbsPlanPreview(){
+  const projId=$('wbsPlanProj')?.value;const week=+($('wbsPlanWeek')?.value||1);
+  const all=WBS.filter(w=>String(w.projId)===String(projId));
+  const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
+  let cumTot=0;
+  leafNodes.forEach(node=>{
+    const el=$('wbpl_'+node.id+'_wplan');const wPlan=parseFloat(el?.value)||0;
+    const wp=node.weeklyPlan||{};
+    const prevSum=Object.keys(wp).filter(k=>+k<week).reduce((s,k)=>s+(+(wp[k].wPlan||0)),0);
+    cumTot+=(+node.bobot||0)*Math.min(100,prevSum+wPlan)/100;
+  });
+  if($('wbsPlanCumPlan'))$('wbsPlanCumPlan').textContent=cumTot.toFixed(2)+'%';
+}
+function saveWbsPlanOnly(){
+  const projId=$('wbsPlanProj').value;const week=+$('wbsPlanWeek').value;
+  const all=WBS.filter(w=>String(w.projId)===String(projId));
+  const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
+  const proj=P.find(p=>String(p.id)===String(projId));
+  leafNodes.forEach(node=>{
+    const el=$('wbpl_'+node.id+'_wplan');if(!el)return;
+    const wPlan=parseFloat(el.value)||0;
+    if(!node.weeklyPlan)node.weeklyPlan={};
+    node.weeklyPlan[week]={wPlan};
+    const cumPlan=Math.min(100,Object.keys(node.weeklyPlan).filter(k=>+k<=week).reduce((s,k)=>s+(+(node.weeklyPlan[k].wPlan||0)),0));
+    node.weeklyPlan[week].cPlan=Math.round(cumPlan*100)/100;
+    node.cumPlan=node.weeklyPlan[week].cPlan;
+  });
+  if(proj){
+    const cPlan=leafNodes.reduce((s,n)=>{const wp=n.weeklyPlan||{};return s+(+n.bobot||0)*Math.min(100,Object.keys(wp).reduce((ss,k)=>ss+(+(wp[k].wPlan||0)),0))/100;},0);
+    proj.plan=Math.round(cPlan*10)/10;
+  }
+  syncWbsToSCurve(projId);
+  dirty();cm('wbsPlan');render();renderWBS();
+  toast(`✓ Plan W${String(week).padStart(2,'0')} disimpan`);gsSync();
+}
+
+// ── WBS ACTUAL ───────────────────────────────────────────────
+function renderWbsProgressForm(){
+  const projId=$('wbsProgProj')?.value;const week=+($('wbsProgWeek')?.value||1);
+  if(!projId){$('wbsProgressForm').innerHTML='';return;}
+  const all=WBS.filter(w=>String(w.projId)===String(projId));
+  const cats=all.filter(w=>w.type==='cat').sort((a,b)=>a.order-b.order);
+
+  // Leaf nodes = item level 3, atau subcat yang tidak punya item di bawahnya
+  const leafNodes=all.filter(w=>{
+    if(w.type==='item')return true;
+    if(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id))return true;
+    return false;
+  });
+
+  if(!leafNodes.length){
+    $('wbsProgressForm').innerHTML='<div style="text-align:center;color:var(--mt);padding:20px">Belum ada item WBS. Tambahkan Sub-Kategori atau Item terlebih dahulu.</div>';
+    return;
+  }
+
+  let html='';
+  cats.forEach((cat,ci)=>{
+    html+=`<div style="font-family:var(--fd);font-size:12px;letter-spacing:1px;color:var(--bl);margin:10px 0 4px;padding:6px 10px;background:rgba(59,130,246,.07);border-radius:6px">${String.fromCharCode(65+ci)}. ${safeStr(cat.name)}</div>`;
+    all.filter(w=>w.type==='subcat'&&w.parentId===cat.id).sort((a,b)=>a.order-b.order).forEach((sub,si)=>{
+      const subItems=all.filter(w=>w.type==='item'&&w.parentId===sub.id).sort((a,b)=>a.order-b.order);
+      const isLeafSub=subItems.length===0;
+
+      if(isLeafSub){
+        const wd=sub.weeklyData||{};const wkd=wd[week]||{};
+        const wp=sub.weeklyPlan||{};const wkp=wp[week]||{};
+        const histRows=Object.keys(wd).sort((a,b)=>+a-+b)
+          .map(w=>+w!==week?`<span style="font-size:9px;font-family:var(--fm);padding:1px 5px;border-radius:3px;background:var(--sf);border:1px solid var(--bd);color:var(--mt)">W${String(+w).padStart(2,'0')}: ${(+wd[w].wAct||0).toFixed(1)}%</span>`:'').filter(Boolean).join(' ');
+        html+=`<div style="display:grid;grid-template-columns:1fr 105px 105px;gap:8px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--bd);background:rgba(16,185,129,.03)">
+          <div>
+            <span style="font-size:12px;color:var(--gn);font-weight:600">${ci+1}.${si+1} ${safeStr(sub.name)}</span>
+            <span style="font-size:9px;color:var(--mt);font-family:var(--fm);margin-left:6px">bobot:${(+sub.bobot||0).toFixed(1)}%</span>
+            <span style="font-size:9px;color:var(--or);font-family:var(--fm);margin-left:4px">cum:${(+sub.cumActual||0).toFixed(1)}%</span>
+            ${histRows?`<div style="margin-top:3px;display:flex;gap:3px;flex-wrap:wrap">${histRows}</div>`:''}
+          </div>
+          <div>
+            <label style="font-size:9px;color:var(--bl);display:block;font-weight:600">W.Plan %</label>
+            <input type="number" min="0" max="100" step="0.1" placeholder="0"
+              value="${wkp.wPlan!=null?wkp.wPlan:''}"
+              id="wpp_${sub.id}_wplan"
+              style="width:100%;padding:5px 8px;font-size:13px;text-align:center;border-radius:4px;border:1.5px solid ${wkp.wPlan!=null?'var(--bl)':'var(--bd)'};background:${wkp.wPlan!=null?'rgba(59,130,246,.08)':'var(--sf2)'}" class="fi">
+          </div>
+          <div>
+            <label style="font-size:9px;color:var(--or);display:block;font-weight:600">W.Actual %</label>
+            <input type="number" min="0" max="100" step="0.1" placeholder="0"
+              value="${wkd.wAct!=null?wkd.wAct:''}"
+              id="wpi_${sub.id}_wact"
+              oninput="updateWbsProgPreview()"
+              style="width:100%;padding:5px 8px;font-size:13px;font-weight:700;text-align:center;border-radius:4px;border:1.5px solid ${wkd.wAct!=null?'var(--or)':'var(--bd)'};background:${wkd.wAct!=null?'rgba(249,115,22,.08)':'var(--sf2)'}" class="fi">
+          </div>
+        </div>`;
+      }else{
+        html+=`<div style="font-size:11px;color:var(--gn);padding:4px 10px;font-weight:600">${ci+1}.${si+1} ${safeStr(sub.name)}</div>`;
+        subItems.forEach((item,ii)=>{
+          const wd=item.weeklyData||{};const wkd=wd[week]||{};
+          const wp=item.weeklyPlan||{};const wkp=wp[week]||{};
+          const histRows=Object.keys(wd).sort((a,b)=>+a-+b)
+            .map(w=>+w!==week?`<span style="font-size:9px;font-family:var(--fm);padding:1px 5px;border-radius:3px;background:var(--sf);border:1px solid var(--bd);color:var(--mt)">W${String(+w).padStart(2,'0')}: ${(+wd[w].wAct||0).toFixed(1)}%</span>`:'').filter(Boolean).join(' ');
+          html+=`<div style="display:grid;grid-template-columns:1fr 105px 105px;gap:8px;align-items:center;padding:4px 12px;border-bottom:1px solid var(--bd)">
+            <div>
+              <span style="font-size:11px">${safeStr(item.name)}</span>
+              <span style="font-size:9px;color:var(--mt);font-family:var(--fm);margin-left:6px">bobot:${(+item.bobot||0).toFixed(2)}%</span>
+              <span style="font-size:9px;color:var(--or);font-family:var(--fm);margin-left:4px">cum:${(+item.cumActual||0).toFixed(1)}%</span>
+              ${histRows?`<div style="margin-top:3px;display:flex;gap:3px;flex-wrap:wrap">${histRows}</div>`:''}
+            </div>
+            <div>
+              <label style="font-size:9px;color:var(--bl);display:block;font-weight:600">W.Plan %</label>
+              <input type="number" min="0" max="100" step="0.1" placeholder="0"
+                value="${wkp.wPlan!=null?wkp.wPlan:''}"
+                id="wpp_${item.id}_wplan"
+                style="width:100%;padding:5px 8px;font-size:13px;text-align:center;border-radius:4px;border:1.5px solid ${wkp.wPlan!=null?'var(--bl)':'var(--bd)'};background:${wkp.wPlan!=null?'rgba(59,130,246,.08)':'var(--sf2)'}" class="fi">
+            </div>
+            <div>
+              <label style="font-size:9px;color:var(--or);display:block;font-weight:600">W.Actual %</label>
+              <input type="number" min="0" max="100" step="0.1" placeholder="0"
+                value="${wkd.wAct!=null?wkd.wAct:''}"
+                id="wpi_${item.id}_wact"
+                oninput="updateWbsProgPreview()"
+                style="width:100%;padding:5px 8px;font-size:13px;font-weight:700;text-align:center;border-radius:4px;border:1.5px solid ${wkd.wAct!=null?'var(--or)':'var(--bd)'};background:${wkd.wAct!=null?'rgba(249,115,22,.08)':'var(--sf2)'}" class="fi">
+            </div>
+          </div>`;
+        });
+      }
+    });
+  });
+  $('wbsProgressForm').innerHTML=html;
+  updateWbsProgPreview();
+}
+function updateWbsProgPreview(){
+  const projId=$('wbsProgProj')?.value;const week=+($('wbsProgWeek')?.value||1);
+  const all=WBS.filter(w=>String(w.projId)===String(projId));
+  const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
+  let weighted=0,cumTot=0,planTot=0;
+  leafNodes.forEach(node=>{
+    const wActEl=$('wpi_'+node.id+'_wact');
+    const wAct=parseFloat(wActEl?.value)||0;
+    const wd=node.weeklyData||{};
+    const prevWeeksSum=Object.keys(wd).filter(k=>+k<week).reduce((s,k)=>s+(+(wd[k].wAct||0)),0);
+    const cumAct=Math.min(100,prevWeeksSum+wAct);
+    const bobot=+node.bobot||0;
+    weighted+=bobot*wAct/100;
+    cumTot+=bobot*cumAct/100;
+    // Plan
+    const wPlanEl=$('wpp_'+node.id+'_wplan');
+    if(wPlanEl&&wPlanEl.value!==''){
+      const wPlan=parseFloat(wPlanEl.value)||0;
+      const wp=node.weeklyPlan||{};
+      const prevPlanSum=Object.keys(wp).filter(k=>+k<week).reduce((s,k)=>s+(+(wp[k].wPlan||0)),0);
+      planTot+=bobot*Math.min(100,prevPlanSum+wPlan)/100;
+    }else{
+      // Use existing plan
+      const wp=node.weeklyPlan||{};
+      const cumPlan=Object.keys(wp).filter(k=>+k<=week).reduce((s,k)=>s+(+(wp[k].wPlan||0)),0);
+      planTot+=bobot*Math.min(100,cumPlan)/100;
+    }
+  });
+  if($('wbsProgWeighted'))$('wbsProgWeighted').textContent=weighted.toFixed(2)+'%';
+  if($('wbsProgCumAct'))$('wbsProgCumAct').textContent=`Cum.Act: ${cumTot.toFixed(2)}%  |  Cum.Plan: ${planTot.toFixed(2)}%  |  Var: ${(cumTot-planTot>=0?'+':'')}${(cumTot-planTot).toFixed(2)}%`;
+}
+
+function saveWbsProgress(){
+  const projId=$('wbsProgProj').value;const week=+$('wbsProgWeek').value;
+  const all=WBS.filter(w=>String(w.projId)===String(projId));
+  const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
+  const proj=P.find(p=>String(p.id)===String(projId));
+  let cWeighted=0;
+  leafNodes.forEach(node=>{
+    const wActEl=$('wpi_'+node.id+'_wact');
+    const wPlanEl=$('wpp_'+node.id+'_wplan');
+    if(!wActEl)return;
+    const wAct=parseFloat(wActEl.value)||0;
+    const wPlan=wPlanEl&&wPlanEl.value!==''?parseFloat(wPlanEl.value)||0:null;
+    if(!node.weeklyData)node.weeklyData={};
+    if(!node.weeklyPlan)node.weeklyPlan={};
+    // Save weekly actual
+    const wd=node.weeklyData;
+    wd[week]={wAct};
+    const cumAct=Math.min(100,Object.keys(wd).filter(k=>+k<=week).reduce((s,k)=>s+(+(wd[k].wAct||0)),0));
+    wd[week].cAct=Math.round(cumAct*100)/100;
+    node.cumActual=wd[week].cAct;
+    cWeighted+=(+node.bobot||0)*wd[week].cAct/100;
+    // Save weekly plan if provided
+    if(wPlan!==null){
+      node.weeklyPlan[week]={wPlan};
+      const cumPlan=Math.min(100,Object.keys(node.weeklyPlan).filter(k=>+k<=week).reduce((s,k)=>s+(+(node.weeklyPlan[k].wPlan||0)),0));
+      node.weeklyPlan[week].cPlan=Math.round(cumPlan*100)/100;
+      node.cumPlan=node.weeklyPlan[week].cPlan;
+    }
+  });
+  syncWbsToSCurve(projId);
+  if(proj){
+    proj.actual=Math.round(cWeighted*10)/10;
+    // Hitung cum plan dari semua leaf nodes
+    const all2=WBS.filter(w=>String(w.projId)===String(projId));
+    const leaves=all2.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all2.some(x=>x.type==='item'&&x.parentId===w.id)));
+    const cPlanWeighted=leaves.reduce((s,node)=>{
+      const wp=node.weeklyPlan||{};
+      const cumPlan=Math.min(100,Object.keys(wp).reduce((ss,k)=>ss+(+(wp[k].wPlan||0)),0));
+      return s+(+node.bobot||0)*cumPlan/100;
+    },0);
+    proj.plan=Math.round(cPlanWeighted*10)/10;
+    const variance=proj.actual-(proj.plan||0);
+    if(proj.actual>=100)proj.status='Done';
+    else if(variance>=-3)proj.status='On Track';
+    else if(variance>=-10)proj.status='Delayed';
+    else proj.status='Critical';
+    if(!proj.history)proj.history=[];
+    proj.history.push({date:new Date().toLocaleDateString('id-ID'),actual:proj.actual,plan:proj.plan||0,notes:`Update WBS W${String(week).padStart(2,'0')}`});
+    toast(`✓ W${String(week).padStart(2,'0')} disimpan · Cum.Actual ${proj.actual.toFixed(1)}% (${proj.status})`);
+  }
+  dirty();cm('wbsProgress');render();if(selId)renderDetail(selId);renderWBS();gsSync();
+}
+function syncWbsToSCurve(projId){
+  const all=WBS.filter(w=>String(w.projId)===String(projId));
+  const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)&&+w.bobot>0));
+  if(!leafNodes.length)return;
+  const proj=P.find(p=>String(p.id)===String(projId));
+  const weekSet=new Set();
+  leafNodes.forEach(node=>{
+    Object.keys(node.weeklyData||{}).forEach(k=>weekSet.add(+k));
+    Object.keys(node.weeklyPlan||{}).forEach(k=>weekSet.add(+k));
+  });
+  SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.fromWbs));
+  let cumPlan=0,cumAct=0;
+  [...weekSet].sort((a,b)=>a-b).forEach(week=>{
+    let wPlan=0,wAct=0;
+    leafNodes.forEach(node=>{
+      const bobot=+node.bobot||0;
+      wAct+=bobot*(+(node.weeklyData||{})[week]?.wAct||0)/100;
+      wPlan+=bobot*(+(node.weeklyPlan||{})[week]?.wPlan||0)/100;
+    });
+    cumPlan+=wPlan;cumAct+=wAct;
+    let dateStart='';
+    if(proj?.mulai){const d=new Date(proj.mulai);d.setDate(d.getDate()+(week-1)*7);dateStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});}
+    SCURVE.push({projId,week,wPlan:Math.round(wPlan*100)/100,wAct:Math.round(wAct*100)/100,
+      cPlan:Math.round(cumPlan*100)/100,cAct:Math.min(100,Math.round(cumAct*100)/100),
+      dateStart,fromWbs:true});
+  });
+}
+function renderWbsSCurve(projId){
+  const data=SCURVE.filter(d=>String(d.projId)===String(projId)&&d.fromWbs&&((+d.wPlan||0)>0||(+d.wAct||0)>0)).sort((a,b)=>a.week-b.week);
+  const lastW=data.filter(d=>+d.cAct>0).slice(-1)[0]||data.slice(-1)[0];
+  const cAct=+(lastW?.cAct||0);const cPlan=+(lastW?.cPlan||0);const varr=(cAct-cPlan).toFixed(1);
+  const vClr=+varr>=0?'var(--gn)':+varr>=-5?'var(--yw)':'var(--rd)';
+  if($('wbsScKpi'))$('wbsScKpi').innerHTML=`
+    <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Cum. Plan</div><div style="font-family:var(--fd);font-size:20px;color:var(--gn)">${cPlan.toFixed(1)}%</div></div>
+    <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Cum. Actual</div><div style="font-family:var(--fd);font-size:20px;color:var(--or)">${cAct.toFixed(1)}%</div></div>
+    <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Variance</div><div style="font-family:var(--fd);font-size:20px;color:${vClr}">${+varr>=0?'+':''}${varr}%</div></div>
+    <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Progress</div><div style="font-family:var(--fd);font-size:20px;color:var(--bl)">${cAct.toFixed(0)}%</div></div>`;
+
+  // Canvas hanya bisa dirender jika tab WBS aktif (element visible di DOM)
+  const tryDraw=()=>{
+    const ctx=$('wbsScCanvas');
+    if(!ctx||!window.Chart)return;
+    if(ctx.offsetParent===null){
+      // Canvas tidak visible — simpan data untuk dirender saat tab aktif
+      window._wbsPendingChart={projId,data};return;
+    }
+    if(!data.length){
+      if(ctx.parentElement)ctx.parentElement.innerHTML='<div style="text-align:center;color:var(--mt);padding:30px;font-size:12px">Belum ada data — klik ✏ Update Progress untuk mulai</div>';
+      return;
+    }
+    if(window._wbsChart)window._wbsChart.destroy();
+    const light=document.documentElement.classList.contains('light');
+    const GRID=light?'rgba(0,0,0,.06)':'rgba(255,255,255,.06)';const TICK=light?'#94a3b8':'#64748b';
+    const maxBar=Math.max(...data.map(d=>Math.max(+d.wPlan||0,+d.wAct||0)),1)*1.4;
+    window._wbsChart=new Chart(ctx,{
+      data:{labels:data.map(d=>'W'+String(d.week).padStart(2,'0')),datasets:[
+        {type:'bar',data:data.map(d=>+(+d.wPlan||0).toFixed(2)),backgroundColor:'rgba(59,130,246,.5)',borderColor:'#3b82f6',borderWidth:1.5,borderRadius:{topLeft:3,topRight:3},yAxisID:'yB',order:3},
+        {type:'bar',data:data.map(d=>+(+d.wAct||0).toFixed(2)),backgroundColor:'rgba(249,115,22,.75)',borderColor:'#f97316',borderWidth:1.5,borderRadius:{topLeft:3,topRight:3},yAxisID:'yB',order:2},
+        {type:'line',data:data.map(d=>+(+d.cPlan||0).toFixed(2)),borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.12)',borderWidth:2.5,pointBackgroundColor:'#10b981',pointRadius:4,fill:true,tension:0.4,yAxisID:'yC',order:1},
+        {type:'line',data:data.map(d=>(+d.cAct>0||+d.wAct>0)?+(+d.cAct||0).toFixed(2):null),borderColor:'#f59e0b',borderDash:[6,3],borderWidth:2.5,pointBackgroundColor:'#f59e0b',pointRadius:4,fill:false,tension:0.4,spanGaps:false,yAxisID:'yC',order:0}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:false},tooltip:{backgroundColor:light?'#1e293b':'#0f172a',titleColor:'#f1f5f9',bodyColor:'#94a3b8',borderColor:'rgba(255,255,255,.1)',borderWidth:1,padding:10,cornerRadius:8,
+          callbacks:{title:i=>'Minggu '+i[0].label,label:i=>{if(i.raw===null)return null;return ' '+['W.Plan','W.Actual','Cum.Plan','Cum.Actual'][i.datasetIndex]+': '+(+i.raw).toFixed(2)+'%';}}}},
+        scales:{
+          x:{grid:{color:GRID},ticks:{color:TICK,font:{size:10},maxRotation:0},border:{display:false}},
+          yB:{type:'linear',position:'left',grid:{display:false},ticks:{color:TICK,font:{size:10},callback:v=>v+'%'},border:{display:false},min:0,suggestedMax:maxBar,title:{display:true,text:'Weekly %',color:TICK,font:{size:10}}},
+          yC:{type:'linear',position:'right',grid:{color:GRID},ticks:{color:TICK,font:{size:10},callback:v=>v+'%',stepSize:25},border:{display:false},min:0,max:100,title:{display:true,text:'Cumulative %',color:TICK,font:{size:10}}}
+        }
+      }
+    });
+  };
+  setTimeout(tryDraw, 80);
+}
 
 function safeStr(v){
   if(v===null||v===undefined)return '';
