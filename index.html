@@ -708,15 +708,6 @@ select.fi{color-scheme:dark}
     </div>
     <input type="hidden" id="fLogo">
   </div>
-  <div class="fsec">PROGRESS & RESOURCE</div>
-  <div class="fg"><label class="fl">Progress Plan (%)</label>
-    <div class="rr"><input type="range" min="0" max="100" id="fPlan" oninput="rv('fPlan','fPlanV','fPlanB')"><span class="rv" id="fPlanV" style="color:var(--bl)">0%</span></div>
-    <div class="mb"><div class="mf" id="fPlanB" style="width:0%;background:linear-gradient(90deg,var(--bl),#60a5fa)"></div></div>
-  </div>
-  <div class="fg"><label class="fl">Progress Actual (%)</label>
-    <div class="rr"><input type="range" min="0" max="100" id="fActual" oninput="rv('fActual','fActualV','fActualB')"><span class="rv" id="fActualV" style="color:var(--gn)">0%</span></div>
-    <div class="mb"><div class="mf" id="fActualB" style="width:0%;background:linear-gradient(90deg,var(--gn),#34d399)"></div></div>
-  </div>
   <div class="f2">
     <div class="fg"><label class="fl">Mandays Plan (total orang-hari)</label><input class="fi" type="number" id="fMpP" placeholder="mis: 1000 MD" min="0"></div>
     <div class="fg"><label class="fl">Manhours Plan/hari</label><input class="fi" type="number" id="fMhP" placeholder="480" min="0"></div>
@@ -800,25 +791,9 @@ select.fi{color-scheme:dark}
     </select>
   </div>
 
-  <div class="fsec">UPDATE PROGRESS (OPSIONAL)</div>
-  <div style="background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.2);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:11px;color:var(--mt)">
-    Isi bagian ini jika ada update progress hari ini. Kosongkan jika tidak ada perubahan.
-  </div>
-  <div class="f2">
-    <div class="fg"><label class="fl">Progress Actual saat ini (%)</label>
-      <div class="rr"><input type="range" min="0" max="100" id="mpActualProg" oninput="rv('mpActualProg','mpActualProgV','mpActualProgB')"><span class="rv" id="mpActualProgV" style="color:var(--gn)">—</span></div>
-      <div class="mb"><div class="mf" id="mpActualProgB" style="width:0%;background:linear-gradient(90deg,var(--gn),#34d399)"></div></div>
-    </div>
-    <div class="fg"><label class="fl">Progress Plan saat ini (%)</label>
-      <div class="rr"><input type="range" min="0" max="100" id="mpPlanProg" oninput="rv('mpPlanProg','mpPlanProgV','mpPlanProgB')"><span class="rv" id="mpPlanProgV" style="color:var(--bl)">—</span></div>
-      <div class="mb"><div class="mf" id="mpPlanProgB" style="width:0%;background:linear-gradient(90deg,var(--bl),#60a5fa)"></div></div>
-    </div>
-  </div>
-  <div class="f2">
-    <div class="fg"><label class="fl">Status Project</label>
-      <select class="fi" id="mpStatus"><option value="">— Tidak diubah —</option><option>Planning</option><option>On Track</option><option>Delayed</option><option>Critical</option><option>Done</option></select>
-    </div>
-    <div class="fg"><label class="fl">Catatan Harian</label><input class="fi" id="mpNotes" placeholder="Aktivitas hari ini, kendala, dll..."></div>
+  <div class="fg">
+    <label class="fl">Catatan Harian</label>
+    <input class="fi" id="mpNotes" placeholder="Aktivitas hari ini, kendala, dll...">
   </div>
 
   <div class="mfoot">
@@ -1913,8 +1888,7 @@ function openModal(type,id=null){
     // Load logo
     sv('fLogo',p?.logo||'');
     setLogoPreview(p?.logo||'');
-    $('fPlan').value=p?.plan||0;$('fActual').value=p?.actual||0;
-    rv('fPlan','fPlanV','fPlanB');rv('fActual','fActualV','fActualB');
+    // plan & actual dikelola oleh S-Curve — tidak perlu set manual
     show('ov-addProj');
   }
   if(type==='updProgress'){
@@ -1931,18 +1905,7 @@ function openModal(type,id=null){
     sv('mpDate',new Date().toISOString().slice(0,10));
     sv('mpSpv','');sv('mpMandor','');sv('mpInstaller','');sv('mpTukang','');sv('mpHelper','');sv('mpSafety','');sv('mpTot','');
     sv('mpMhAct','');sv('mpTL','0');sv('mpTLReason','');sv('mpNotes','');
-    sv('mpStatus','');
     fillMpPlan();
-    // Reset progress sliders
-    const p=selId?P.find(x=>x.id==selId):P[0];
-    if(p){
-      $('mpActualProg').value=p.actual||0;$('mpPlanProg').value=p.plan||0;
-      rv('mpActualProg','mpActualProgV','mpActualProgB');rv('mpPlanProg','mpPlanProgV','mpPlanProgB');
-    } else {
-      $('mpActualProg').value=0;$('mpPlanProg').value=0;
-      $('mpActualProgV').textContent='—';$('mpPlanProgV').textContent='—';
-      $('mpActualProgB').style.width='0%';$('mpPlanProgB').style.width='0%';
-    }
     show('ov-inputMp');
   }
   if(type==='addAccident'){
@@ -1992,8 +1955,11 @@ function openModal(type,id=null){
 function saveProj(){
   const kode=gv('fKode').trim(),nama=gv('fNama').trim();
   if(!kode||!nama){toast('Kode & Nama wajib diisi','error');return;}
-  const d={kode,nama,lokasi:gv('fLok').trim(),client:gv('fClient').trim(),mulai:gv('fMulai'),selesai:gv('fSelesai'),
-    status:gv('fStat'),plan:+$('fPlan').value,actual:+$('fActual').value,
+  // plan & actual dikelola S-Curve — preserve dari data existing
+  const existing=editProjId?P.find(p=>p.id===editProjId):null;
+  const d={kode,nama,lokasi:gv('fLok').trim(),client:gv('fClient').trim(),
+    mulai:gv('fMulai'),selesai:gv('fSelesai'),status:gv('fStat'),
+    plan:existing?.plan||0, actual:existing?.actual||0,
     mdPlan:+gv('fMpP')||0,mpPlan:+gv('fMpP')||0,mhPlan:+gv('fMhP')||0,
     weather:gv('fWeather'),notes:gv('fNotes').trim(),
     logo:gv('fLogo')||''};
@@ -2096,6 +2062,117 @@ function logoTag(p,h=36){
   return `<img src="${p.logo}" style="height:${h}px;max-width:${h*3.5}px;object-fit:contain;border-radius:4px;vertical-align:middle" title="${p.client||''}" onerror="this.style.display='none'">`;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// MANPOWER TAB
+// ═══════════════════════════════════════════════════════════════
+function renderMP(){
+  const today=new Date().toISOString().slice(0,10);
+  const weekOffset=+(gv('mpTrendWeek')||0);
+
+  // KPIs
+  const todayLogs=MPLOGS.filter(m=>m.date===today);
+  const totalToday=todayLogs.reduce((s,m)=>s+(+m.total||0),0);
+  const totalMD=MPLOGS.reduce((s,m)=>s+(+m.total||0),0);
+  const mdPlan=P.reduce((s,p)=>s+(+p.mdPlan||+p.mpPlan||0),0);
+  const mdVar=totalMD-mdPlan;
+  const timeLost=MPLOGS.reduce((s,m)=>s+(+m.timeLost||0),0)+ACCLOGS.reduce((s,a)=>s+(+a.timeLost||0),0);
+  if($('mp1'))$('mp1').textContent=totalToday;
+  if($('mp1s'))$('mp1s').textContent=P.map(p=>{const l=todayLogs.find(m=>m.projId==p.id);return l?p.kode+': '+(+l.total||0):''}).filter(Boolean).join(' | ')||'—';
+  if($('mp2'))$('mp2').textContent=totalMD;
+  if($('mp2s'))$('mp2s').textContent='Plan: '+(mdPlan||0)+' MD';
+  if($('mp3'))$('mp3').textContent=(mdVar>=0?'+':'')+mdVar;
+  if($('mp3s'))$('mp3s').textContent=mdPlan>0?(mdVar>=0?'Ahead':'Behind'):'—';
+  if($('mp4'))$('mp4').textContent=timeLost+' hr';
+
+  // Manpower table (hari ini per project)
+  if($('mpTable')){
+    $('mpTable').innerHTML=P.length?P.map(p=>{
+      const log=todayLogs.find(m=>m.projId==p.id)||{};
+      const mdAct=MPLOGS.filter(m=>m.projId==p.id).reduce((s,m)=>s+(+m.total||0),0);
+      const mdPl=+p.mdPlan||+p.mpPlan||0;
+      const pct=mdPl>0?Math.min(100,Math.round(mdAct/mdPl*100)):0;
+      const tl=+(log.timeLost||0);
+      return`<div class="mp-row">
+        <div style="font-family:var(--fm);font-size:11px;color:var(--bl)">${p.kode}<div style="color:var(--mt);font-size:9px">${p.nama.slice(0,30)}</div></div>
+        <div><div class="mp-bar-wrap"><div class="mp-bar-ac" style="width:${pct}%"></div></div><div style="font-size:9px;color:var(--mt)">${mdAct}/${mdPl} MD (${pct}%)</div></div>
+        <div style="font-family:var(--fm)">${log.spv||0}</div>
+        <div style="font-family:var(--fm)">${log.mandor||0}</div>
+        <div style="font-family:var(--fm)">${log.installer||0}</div>
+        <div style="font-family:var(--fm)">${log.tukang||0}</div>
+        <div style="font-family:var(--fm)">${log.helper||0}</div>
+        <div style="font-family:var(--fm)">${log.safety||0}</div>
+        <div style="font-family:var(--fm);font-weight:600;color:${(+log.total||0)>0?'var(--or)':'var(--mt)'}">${log.total||0}</div>
+        <div style="font-family:var(--fm);color:${tl>0?'var(--rd)':'var(--mt)'}">${tl>0?tl+'h':'—'}</div>
+      </div>`;
+    }).join(''):'<div style="text-align:center;color:var(--mt);padding:20px;font-size:12px">Belum ada log manpower</div>';
+  }
+
+  // Weekly trend chart
+  if($('mpTrend')){
+    const days=[];
+    const base=new Date();base.setDate(base.getDate()-weekOffset*7);
+    for(let i=6;i>=0;i--){const d=new Date(base);d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
+    const light=document.documentElement.classList.contains('light');
+    const TICK=light?'#94a3b8':'#64748b';
+    const vals=days.map(d=>MPLOGS.filter(m=>m.date===d).reduce((s,m)=>s+(+m.total||0),0));
+    const maxV=Math.max(...vals,1);
+    const dayName=d=>new Date(d+'T12:00').toLocaleDateString('id-ID',{weekday:'short'});
+    const bars=days.map((d,i)=>{
+      const h=Math.round((vals[i]/maxV)*70);
+      const isToday=d===today;
+      return`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
+        <div style="font-size:9px;font-family:var(--fm);color:${vals[i]>0?'var(--or)':'var(--mt)'}">${vals[i]||''}</div>
+        <div style="width:28px;height:${h||2}px;background:${isToday?'var(--or)':'var(--bl)'};opacity:${isToday?1:.7};border-radius:3px 3px 0 0;min-height:2px;transition:height .3s"></div>
+        <div style="font-size:9px;color:${isToday?'var(--or)':TICK};font-weight:${isToday?700:400}">${dayName(d)}</div>
+        <div style="font-size:8px;color:var(--mt)">${d.slice(5)}</div>
+      </div>`;
+    }).join('');
+    $('mpTrend').innerHTML=`<div style="display:flex;align-items:flex-end;gap:4px;padding:8px 0 0;height:110px">${bars}</div>`;
+  }
+
+  renderMpLog();
+}
+
+function renderMpLog(){
+  const fp=$('mpLogFiltProj');
+  if(fp){
+    const cur=fp.value;
+    fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode}</option>`).join('');
+    if(cur)fp.value=cur;
+  }
+  const fP=fp?.value||'';
+  const logs=[...MPLOGS].filter(m=>!fP||m.projId==fP).sort((a,b)=>b.date.localeCompare(a.date));
+  if(!$('mpLogTable'))return;
+  if(!logs.length){$('mpLogTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:16px;font-size:12px">Belum ada data</div>';return;}
+  $('mpLogTable').innerHTML=`<table class="tbl"><thead><tr><th>Tgl</th><th>Project</th><th>SPV</th><th>Mdr</th><th>Inst</th><th>Tukang</th><th>Helper</th><th>Safety</th><th>Total</th><th>MH</th><th>TL</th><th>Catatan</th><th></th></tr></thead><tbody>
+    ${logs.map(m=>{
+      const pr=P.find(p=>p.id==m.projId);
+      const tl=+m.timeLost||0;
+      return`<tr>
+        <td style="font-family:var(--fm);font-size:10px;white-space:nowrap">${fmtDate(m.date)}</td>
+        <td style="color:var(--bl);font-size:10px">${pr?.kode||'—'}</td>
+        <td>${m.spv||0}</td><td>${m.mandor||0}</td><td>${m.installer||0}</td>
+        <td>${m.tukang||0}</td><td>${m.helper||0}</td><td>${m.safety||0}</td>
+        <td style="font-weight:600;color:var(--or)">${m.total||0}</td>
+        <td style="color:var(--mt)">${m.mhActual||0}</td>
+        <td style="color:${tl>0?'var(--rd)':'var(--mt)'}">${tl>0?tl+'h':'—'}</td>
+        <td style="color:var(--mt);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.notes||'—'}</td>
+        <td><button class="btn btn-sm" style="padding:1px 5px;font-size:10px" onclick="openModal('editMpLog',${m.id})">✏</button>
+            <button class="btn btn-sm brd" style="padding:1px 5px;font-size:10px" onclick="delMpLog(${m.id})">🗑</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table>`;
+}
+
+function delMpLog(id){
+  if(!confirm('Hapus log ini?'))return;
+  MPLOGS=MPLOGS.filter(m=>m.id!==id);
+  dirty();renderMP();updateTimeLostKPI();toast('Log dihapus','warn');gsSync();
+}
+
+function calcMpTot(){sv('mpTot',(+gv('mpSpv')||0)+(+gv('mpMandor')||0)+(+gv('mpInstaller')||0)+(+gv('mpTukang')||0)+(+gv('mpHelper')||0)+(+gv('mpSafety')||0));}
+function calcEmlTot(){sv('emlTot',(+gv('emlSpv')||0)+(+gv('emlMandor')||0)+(+gv('emlInstaller')||0)+(+gv('emlTukang')||0)+(+gv('emlHelper')||0)+(+gv('emlSafety')||0));}
+
 function fillMpPlan(){
   const projId=gv('mpProj');
   const p=P.find(x=>x.id==projId);
@@ -2113,10 +2190,6 @@ function fillMpPlan(){
       dispVar.textContent=(mdPlan>0?(mdVar>=0?'+':'')+mdVar+' MD':'—');
       dispVar.style.color=mdPlan>0?(mdVar>=0?'var(--gn)':'var(--rd)'):'var(--mt)';
     }
-    // Set slider progress
-    $('mpActualProg').value=p.actual||0;$('mpPlanProg').value=p.plan||0;
-    rv('mpActualProg','mpActualProgV','mpActualProgB');
-    rv('mpPlanProg','mpPlanProgV','mpPlanProgB');
   }
 }
 function saveMp(){
@@ -2127,30 +2200,10 @@ function saveMp(){
     tukang:+gv('mpTukang')||0,helper:+gv('mpHelper')||0,safety:+gv('mpSafety')||0,total:tot,
     mhActual:+gv('mpMhAct')||0,timeLost:+gv('mpTL')||0,timeLostReason:gv('mpTLReason'),notes:gv('mpNotes')};
   const pi=P.findIndex(p=>p.id==projId);
-  if(pi>=0){
-    P[pi].mpActual=tot;
-    // Update manpower plan jika diubah
-    // mpActual = total pekerja hari ini
-    P[pi].mpActual=tot;
-    // Update progress jika ada input
-    const newActual=+$('mpActualProg').value;
-    const newPlan=+$('mpPlanProg').value;
-    const newStatus=gv('mpStatus');
-    const notes=gv('mpNotes').trim();
-    if(newActual>0||newPlan>0){
-      if(newActual>0)P[pi].actual=newActual;
-      if(newPlan>0)P[pi].plan=newPlan;
-      if(newStatus)P[pi].status=newStatus;
-      if(notes)P[pi].notes=notes;
-      if(!P[pi].history)P[pi].history=[];
-      P[pi].history.push({date:new Date().toLocaleDateString('id-ID'),actual:P[pi].actual,plan:P[pi].plan,mp:tot,notes:notes||'Update harian'});
-      toast('Manpower + Progress disimpan ✓');
-    } else {
-      toast('Manpower disimpan ✓');
-    }
-  }
+  if(pi>=0){P[pi].mpActual=tot;}
   MPLOGS.push(entry);
-  dirty();cm('inputMp');render();updateTimeLostKPI();gsSync();
+  dirty();cm('inputMp');render();updateTimeLostKPI();
+  toast('Manpower disimpan ✓');gsSync();
 }
 function saveAcc(){
   const projId=gv('accProj');if(!projId){toast('Pilih project','error');return;}
