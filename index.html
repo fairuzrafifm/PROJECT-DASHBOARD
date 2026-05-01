@@ -1668,7 +1668,10 @@ function loadLocal(){
     const _pf=v=>{if(!v||v==='[object Object]')return{};if(typeof v==='object')return v;try{return JSON.parse(v);}catch(e){return{};}};
     const _pa=v=>{if(!v||v==='[object Object]')return[];if(Array.isArray(v))return v;try{const p=JSON.parse(v);return Array.isArray(p)?p:[];}catch(e){return[];}};
     const _pd=v=>{if(!v)return'';const s=String(v);return s.includes('T')?s.slice(0,10):s.trim();};
-    WBS=(d.WB||[]).map(w=>({...w,bobot:+w.bobot||0,cumActual:+w.cumActual||0,cumPlan:+w.cumPlan||0,weeklyData:_pf(w.weeklyData),weeklyPlan:_pf(w.weeklyPlan),dailyLogs:_pa(w.dailyLogs),qtyPlan:w.qtyPlan!=null&&w.qtyPlan!==''?+w.qtyPlan:null,qtySatuan:w.qtySatuan||'',startDate:_pd(w.startDate),finishDate:_pd(w.finishDate)}));
+    const _rawWbs=(d.WB||[]).map(w=>({...w,bobot:+w.bobot||0,cumActual:+w.cumActual||0,cumPlan:+w.cumPlan||0,weeklyData:_pf(w.weeklyData),weeklyPlan:_pf(w.weeklyPlan),dailyLogs:_pa(w.dailyLogs),qtyPlan:w.qtyPlan!=null&&w.qtyPlan!==''?+w.qtyPlan:null,qtySatuan:w.qtySatuan||'',startDate:_pd(w.startDate),finishDate:_pd(w.finishDate)}));
+    // Deduplicate by id
+    const _wbsMap=new Map();_rawWbs.forEach(w=>_wbsMap.set(String(w.id),w));
+    WBS=[..._wbsMap.values()].map(w=>({...w,id:String(w.id),projId:String(w.projId),parentId:w.parentId!=null&&w.parentId!==''?String(w.parentId):null}));
     (d.P||[]).forEach(lp=>{const p=P.find(x=>x.id==lp.id);if(p&&Array.isArray(lp.history))p.history=lp.history;});
     // Re-sync WBS → project plan/actual
     syncAllWbsToProjects();
@@ -2985,20 +2988,27 @@ async function loadFromGS(){
         finishDate:parseDate(w.finishDate)
       })):[];
 
-      // Normalize WBS IDs — GSheet may return them as numbers or strings
-      // Match projId to actual project IDs
+      // Deduplicate WBS by id — keep last occurrence (most recent sync)
+      const wbsMap=new Map();
+      WBS.forEach(w=>wbsMap.set(String(w.id),w));
+      WBS=[...wbsMap.values()];
+
+      // Normalize all IDs to strings for consistent comparison
+      WBS=WBS.map(w=>({...w,
+        id:String(w.id),
+        projId:String(w.projId),
+        parentId:w.parentId!=null&&w.parentId!==''?String(w.parentId):null
+      }));
+
+      // Match WBS projId to actual project IDs (handle numeric vs string mismatch)
       if(WBS.length&&P.length){
+        const validProjIds=new Set(P.map(p=>p.id));
         WBS=WBS.map(w=>{
-          // Find matching project — try string match first, then numeric
-          const matchProj=P.find(p=>String(p.id)===String(w.projId))||P.find(p=>+p.id===+w.projId);
-          return {...w,
-            id:w.id, // keep as-is, comparison uses String()
-            projId:matchProj?matchProj.id:w.projId,
-            parentId:w.parentId!==''&&w.parentId!==null&&w.parentId!==undefined?w.parentId:null
-          };
+          if(validProjIds.has(w.projId))return w;
+          const match=P.find(p=>+p.id===+w.projId);
+          if(match){console.log(`[WBS] remapped projId ${w.projId} → ${match.id}`);return{...w,projId:match.id};}
+          return w;
         });
-        console.log(`WBS loaded: ${WBS.length} nodes for ${P.length} projects`);
-        WBS.forEach(w=>console.log(`  WBS: ${w.type} "${w.name}" projId=${w.projId} → match=${P.some(p=>String(p.id)===String(w.projId))}`));
       }
       syncAllWbsToProjects();
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
@@ -3905,14 +3915,14 @@ function saveEditWbs(){
 }
 
 function delWbs(id){
-  const node=WBS.find(w=>w.id===id);if(!node)return;
-  const childIds=WBS.filter(w=>w.parentId===id).map(w=>w.id);
-  const grandIds=WBS.filter(w=>childIds.includes(w.parentId)).map(w=>w.id);
-  const toRm=new Set([id,...childIds,...grandIds]);
-  // Tampilkan konfirmasi inline tanpa confirm()
+  const sid=String(id);
+  const node=WBS.find(w=>String(w.id)===sid);if(!node)return;
+  const childIds=WBS.filter(w=>String(w.parentId)===sid).map(w=>String(w.id));
+  const grandIds=WBS.filter(w=>childIds.includes(String(w.parentId))).map(w=>String(w.id));
+  const toRm=new Set([sid,...childIds,...grandIds]);
   const msg=`Hapus "${safeStr(node.name)}"${toRm.size>1?' dan '+(toRm.size-1)+' child-nya':''}?`;
   showConfirm(msg,()=>{
-    WBS=WBS.filter(w=>!toRm.has(w.id));
+    WBS=WBS.filter(w=>!toRm.has(String(w.id)));
     dirty();renderWBS();toast('Dihapus','warn');gsSync();
   });
 }
@@ -5433,7 +5443,7 @@ function safeStr(v){
 function sanitizeProjects(arr){
   return (arr||[]).map(p=>({
     ...p,
-    id:p.id||Date.now(),
+    id:String(p.id||Date.now()),
     kode:safeStr(p.kode),nama:safeStr(p.nama),lokasi:safeStr(p.lokasi),
     client:safeStr(p.client),status:safeStr(p.status)||'Planning',
     mulai:safeStr(p.mulai),selesai:safeStr(p.selesai),
