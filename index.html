@@ -3683,23 +3683,19 @@ function renderScManageTable(){
 // WBS — WORK BREAKDOWN STRUCTURE
 // ═══════════════════════════════════════════════════════════════
 
-function fixWbsProjId(correctProjId){
-  // Find WBS entries that don't match any project and reassign to correctProjId
-  const validIds=new Set(P.map(p=>String(p.id)));
+function fixWbsProjId(fromProjId, toProjId){
   let fixed=0;
   WBS.forEach(w=>{
-    if(!validIds.has(String(w.projId))){
-      console.log(`[FIX] Reassigning WBS "${w.name}" projId: ${w.projId} → ${correctProjId}`);
-      w.projId=correctProjId;
+    if(String(w.projId)===String(fromProjId)){
+      w.projId=toProjId;
       fixed++;
     }
   });
   if(fixed){
-    toast(`✓ Fixed ${fixed} WBS entries → projId ${correctProjId}`);
+    toast(`✓ Fixed ${fixed} WBS entries → project ini`);
     dirty();syncAllWbsToProjects();renderWBS();gsSync();
   } else {
-    // If all already have valid IDs, maybe just wrong project selected
-    toast('Semua projId sudah valid — coba pilih project yang sesuai','warn');
+    toast('Tidak ada WBS dengan projId tersebut','warn');
   }
 }
 
@@ -3741,13 +3737,19 @@ function renderWBS(){
   const bobotOk=Math.abs(totalBobot-100)<0.1;  if($('wbsTotalBobot'))$('wbsTotalBobot').innerHTML='Total bobot: <span style="font-family:var(--fm);font-weight:700;color:'+( bobotOk?'var(--gn)':totalBobot>100?'var(--rd)':'var(--yw)')+'">'+totalBobot.toFixed(2)+'%</span>'+( bobotOk?' ✓':' (harus 100%)');
   let html='';
   if(!cats.length){
+    const projIdsInWBS=[...new Set(WBS.map(w=>String(w.projId)))];
+    const projIdsInP=P.map(p=>String(p.id));
     html=WBS.length?
       `<div style="padding:16px">
-        <div style="text-align:center;color:var(--mt);padding:10px;font-size:12px;margin-bottom:8px">Belum ada WBS untuk project ini</div>
-        <div style="padding:8px 12px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.3);border-radius:6px;font-size:11px;color:var(--or)">
-          ⚠ Terdeteksi ${WBS.length} data WBS tapi projId tidak cocok.<br>
-          <span style="font-family:monospace;font-size:10px">Project ID: <b>${projId}</b> | WBS projId: <b>${WBS[0]?.projId}</b></span><br>
-          <button onclick="fixWbsProjId('${projId}')" style="margin-top:6px;padding:4px 10px;background:var(--or);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600">🔧 Fix & Tampilkan WBS</button>
+        <div style="padding:10px 14px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.3);border-radius:8px;font-size:11px">
+          <b style="color:var(--or)">⚠ WBS ada ${WBS.length} data tapi projId tidak cocok</b><br><br>
+          <span style="font-family:monospace;font-size:10px">
+            Project ID di dashboard: <b style="color:var(--gn)">${projIdsInP.join(', ')}</b><br>
+            projId di WBS: <b style="color:var(--rd)">${projIdsInWBS.join(', ')}</b><br>
+          </span>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            ${projIdsInWBS.map(wid=>`<button onclick="fixWbsProjId('${wid}','${projId}')" style="padding:4px 10px;background:var(--or);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600">🔧 Assign WBS(${wid.slice(-6)}) → Project ini</button>`).join('')}
+          </div>
         </div>
       </div>`
       :'<div style="text-align:center;color:var(--mt);padding:30px;font-size:12px">Belum ada WBS — klik ＋ Kategori untuk mulai</div>';
