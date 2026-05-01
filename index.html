@@ -54,7 +54,7 @@
 :root.light ::-webkit-scrollbar-thumb{background:#cbd5e1}
 
 /* THEME TOGGLE BUTTON */
-.theme-toggle{background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--tx);display:flex;align-items:center;gap:5px;transition:all .2s;user-select:none;white-space:nowrap}
+.theme-toggle{background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--tx);display:flex;align-items:center;gap:5px;transition:background .15s,color .15s;user-select:none;white-space:nowrap}
 .theme-toggle:hover{border-color:var(--or);color:var(--or)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;height:100vh;overflow:hidden;display:flex;flex-direction:column}
@@ -71,10 +71,10 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .dash-ttl{font-family:var(--fd);font-size:14px;letter-spacing:2px;color:var(--tx);line-height:1.1;white-space:nowrap}
 .dash-sub{font-size:8px;color:var(--atb);letter-spacing:2px;text-transform:uppercase;font-family:var(--fm);white-space:nowrap}
 .hdr-mid{display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0}
-.live-badge{background:var(--gn);color:#fff;font-size:8px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:1px;animation:pulse 2s infinite}
+.live-badge{background:var(--gn);color:#fff;font-size:8px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:1px;animation:pulse 3s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
 .hdr-right{display:flex;gap:5px;align-items:center;flex-shrink:0}
-.gs-badge{border-radius:6px;padding:2px 8px;font-size:10px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.gs-badge{border-radius:6px;padding:2px 8px;font-size:10px;font-weight:600;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap}
 .gs-on{background:rgba(16,185,129,.12);border:1px solid var(--gn);color:var(--gn)}
 .gs-off{background:rgba(100,116,139,.1);border:1px solid var(--mt);color:var(--mt)}
 .gs-on:hover,.gs-off:hover{border-color:var(--atb);color:var(--atb)}
@@ -95,7 +95,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 
 /* BUTTONS */
-.btn{background:var(--sf2);border:1px solid var(--bd);color:var(--tx);padding:5px 12px;border-radius:6px;cursor:pointer;font-family:var(--fb);font-size:12px;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.btn{background:var(--sf2);border:1px solid var(--bd);color:var(--tx);padding:5px 12px;border-radius:6px;cursor:pointer;font-family:var(--fb);font-size:12px;transition:background .1s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
 .btn:hover{border-color:var(--or);color:var(--or)}
 .btn:active{transform:scale(.97)}
 .btn-sm{padding:3px 9px;font-size:11px}
@@ -107,7 +107,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 
 /* TABS */
 .tabs{display:flex;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0;overflow-x:auto}
-.tab{padding:8px 15px;cursor:pointer;font-size:12px;font-weight:500;color:var(--mt);border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;flex-shrink:0;user-select:none}
+.tab{padding:8px 15px;cursor:pointer;font-size:12px;font-weight:500;color:var(--mt);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0;user-select:none}
 .tab:hover{color:var(--tx)}
 .tab.active{color:var(--or);border-bottom-color:var(--or)}
 
@@ -119,13 +119,13 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .sb-head{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
 .sb-title{font-family:var(--fd);font-size:12px;letter-spacing:2px;color:var(--mt)}
 .proj-list{flex:1;overflow-y:auto;padding:6px}
-.pi{padding:9px 10px;border-radius:8px;border:1px solid transparent;cursor:pointer;margin-bottom:4px;transition:all .15s}
+.pi{padding:9px 10px;border-radius:8px;border:1px solid transparent;cursor:pointer;margin-bottom:4px}
 .pi:hover{border-color:var(--bd);background:var(--sf2)}
 .pi.active{border-color:var(--or);background:rgba(249,115,22,.07)}
 .pi-name{font-weight:600;font-size:12px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pi-loc{font-size:10px;color:var(--mt);margin-bottom:4px}
 .pi-bar{height:3px;background:var(--sf2);border-radius:2px;overflow:hidden;margin-bottom:3px}
-.pi-fill{height:100%;border-radius:2px;transition:width .6s}
+.pi-fill{height:100%;border-radius:2px;transition:none}
 .pi-meta{display:flex;justify-content:space-between;font-size:10px}
 .pill{font-size:9px;font-weight:600;padding:2px 6px;border-radius:10px;letter-spacing:.3px;white-space:nowrap}
 .p-on{background:rgba(16,185,129,.15);color:var(--gn);border:1px solid rgba(16,185,129,.25)}
@@ -135,12 +135,12 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .p-done{background:rgba(139,92,246,.15);color:var(--pu);border:1px solid rgba(139,92,246,.25)}
 
 /* CONTENT */
-.content{overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.content{overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;touch-action:pan-y}
 .tp{display:none}.tp.active{display:contents}
 
 /* KPI */
 .krow{display:grid;gap:9px}
-.kpi{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px 13px;position:relative;overflow:hidden;transition:transform .15s}
+.kpi{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px 13px;position:relative;overflow:hidden}
 .kpi:hover{transform:translateY(-1px)}
 .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
 .ko::before{background:var(--or)}.kg::before{background:var(--gn)}.kb::before{background:var(--bl)}
@@ -163,12 +163,12 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .pr{display:flex;align-items:center;gap:8px;margin-bottom:7px}
 .pl{font-size:11px;width:58px;color:var(--mt);flex-shrink:0}
 .pb{flex:1;height:9px;background:var(--sf2);border-radius:5px;overflow:hidden}
-.pf{height:100%;border-radius:5px;transition:width .7s}
+.pf{height:100%;border-radius:5px;transition:none}
 .pn{font-family:var(--fm);font-size:11px;width:34px;text-align:right;flex-shrink:0}
 
 /* TABLE */
 .tbl{width:100%;border-collapse:collapse;font-size:11px}
-.tbl th{font-size:9px;text-transform:uppercase;letter-spacing:.7px;color:var(--mt);padding:5px 7px;text-align:left;border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:2;background:var(--sf)}
+.tbl th{font-size:9px;text-transform:uppercase;letter-spacing:.7px;color:var(--mt);padding:5px 7px;text-align:left;border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:2;background:var(--sf);transform:translate3d(0,0,0)}
 .tbl td{padding:6px 7px;border-bottom:1px solid rgba(30,45,69,.4)}
 .tbl tr:hover td{background:rgba(255,255,255,.02)}
 .tbl tr:last-child td{border-bottom:none}
@@ -198,7 +198,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .mp-row:last-child{border-bottom:none}
 .mp-bar{position:relative;height:13px;background:var(--sf2);border-radius:4px;overflow:hidden}
 .mp-bar-pl{position:absolute;top:0;left:0;height:100%;background:rgba(59,130,246,.25);border-radius:4px}
-.mp-bar-ac{position:absolute;top:0;left:0;height:100%;border-radius:4px;transition:width .7s}
+.mp-bar-ac{position:absolute;top:0;left:0;height:100%;border-radius:4px;transition:none}
 
 /* HISTORY */
 .hr{display:flex;gap:7px;align-items:center;padding:4px 0;border-bottom:1px solid rgba(30,45,69,.4);font-size:11px}
@@ -250,7 +250,52 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .pdf-header-title{font-size:18px;font-weight:700;letter-spacing:2px;color:#0f172a}
 .pdf-header-sub{font-size:10px;color:#64748b;letter-spacing:2px;text-transform:uppercase}
 .pdf-header-date{margin-left:auto;font-size:11px;color:#64748b;text-align:right}
-/* ── WEEKLY REPORT STYLES ── */
+/* ── PERFORMANCE OPTIMIZATIONS ── */
+/* GPU compositing layers only where beneficial */
+.hdr,.sbar,.tabs{transform:translateZ(0)}
+.tbl thead th{transform:translateZ(0)}
+/* Faster hover transitions */
+.pi,.btn,.tab,.kpi,.psc{transition:background .08s}
+/* Contain scroll bounce */
+.content,.sidebar,#wbsTable,#procTable,#drTable,#mpLogTable{overscroll-behavior:contain}
+/* Touch scrolling */
+.content,.sidebar{-webkit-overflow-scrolling:touch}
+/* No layout on decorative */
+.live-badge,.sdot{pointer-events:none}
+/* Fix table scroll stutter */
+#wbsTable .tbl,#procTable .tbl,#drTable .tbl{table-layout:auto}
+/* Smooth scroll on containers only */
+.content,.sidebar{scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
+/* Reduce repaints on hover */
+.pi,.kpi,.psc,.tab{transform:translateZ(0)}
+/* GPU-accelerate modals */
+.ov .modal{transform:translateZ(0);will-change:transform}
+
+.gantt-wrap{display:flex;min-width:max-content}
+.gantt-left{flex-shrink:0;width:340px;border-right:2px solid var(--bd)}
+.gantt-right{flex:1;overflow-x:auto;min-width:0}
+.gantt-header{display:flex;height:36px;background:var(--sf2);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:5}
+.gantt-header-left{width:340px;flex-shrink:0;display:flex;align-items:center;padding:0 12px;font-size:9px;font-weight:700;color:var(--mt);letter-spacing:1px;text-transform:uppercase;border-right:2px solid var(--bd);position:sticky;left:0;background:var(--sf2);z-index:6}
+.gantt-col-headers{display:flex;height:36px}
+.gantt-month{font-size:9px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--bd);padding:0 8px;background:var(--sf2)}
+.gantt-day-col{font-size:8px;color:var(--mt);display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(255,255,255,.05);flex-shrink:0}
+.gantt-row:hover .gantt-cell-left{background:var(--sf2)}
+.gantt-row:hover .gantt-bar-row{background:rgba(255,255,255,.02)}
+.gantt-cell-left{width:340px;flex-shrink:0;display:flex;align-items:center;padding:4px 10px;font-size:11px;border-right:2px solid var(--bd);gap:6px;cursor:pointer;position:sticky;left:0;background:var(--sf);z-index:3}
+.gantt-cell-left:hover{background:var(--sf2)!important}
+.gantt-bar-plan{position:absolute;height:14px;border-radius:3px;background:rgba(59,130,246,.65);border:1px solid #3b82f6;top:6px;overflow:visible}
+.gantt-bar-actual{position:absolute;height:14px;border-radius:3px;background:#f97316;border:1px solid #ea580c;top:22px;overflow:visible}
+.gantt-bar-cat{height:16px!important;top:7px!important;border-radius:4px!important;background:rgba(59,130,246,.25)!important;border:1.5px solid #3b82f6!important;overflow:visible!important}
+.gantt-bar-sub{height:14px!important;top:9px!important;background:rgba(16,185,129,.35)!important;border:1px solid #10b981!important;overflow:visible!important}
+.gantt-row{display:flex;border-bottom:1px solid var(--bd);align-items:stretch;min-height:42px}
+.gantt-bar-row{flex:1;position:relative;display:flex;align-items:center;padding:4px 0;min-height:42px}
+.gantt-today-line{position:absolute;top:0;bottom:0;width:2px;background:#f97316;opacity:.8;z-index:4;pointer-events:none}
+.gantt-pct{position:absolute;right:4px;font-size:8px;font-weight:700;color:var(--tx);white-space:nowrap}
+.gantt-today-line::after{content:'TODAY';position:absolute;top:2px;left:3px;font-size:7px;color:#f97316;font-weight:700;white-space:nowrap}
+.gantt-weekend{background:rgba(255,255,255,.02)}
+.gantt-cat-row .gantt-cell-left{background:rgba(59,130,246,.06)!important;font-weight:700;color:var(--bl)}
+.gantt-sub-row .gantt-cell-left{background:rgba(16,185,129,.04)!important;font-weight:600;color:var(--gn)}
+.gantt-col-line{position:absolute;top:0;bottom:0;width:1px;background:var(--bd);pointer-events:none}
 .wr-page{font-family:'Segoe UI',Arial,sans-serif;color:#1e293b;background:#fff;padding:32px 40px;max-width:860px;margin:0 auto}
 .wr-hdr{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:3px solid #f97316;padding-bottom:14px;margin-bottom:20px}
 .wr-hdr-left{display:flex;align-items:center;gap:12px}
@@ -285,7 +330,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .auth-title{font-family:var(--fd);font-size:20px;letter-spacing:3px;color:var(--tx);text-align:center;margin-bottom:4px}
 .auth-sub{font-size:11px;color:var(--mt);text-align:center;letter-spacing:2px;text-transform:uppercase;font-family:var(--fm);margin-bottom:24px}
 .auth-roles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
-.role-btn{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px 6px;cursor:pointer;text-align:center;transition:all .15s;user-select:none}
+.role-btn{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px 6px;cursor:pointer;text-align:center;transition:background .1s;user-select:none}
 .role-btn:hover{border-color:var(--atb)}
 .role-btn.selected{border-color:var(--or);background:rgba(249,115,22,.1)}
 .role-btn .role-ico{font-size:20px;margin-bottom:4px}
@@ -311,7 +356,7 @@ body.viewer-mode input,body.viewer-mode select,body.viewer-mode textarea{pointer
 /* CHANGE PASSWORD MODAL */
 .pw-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
 /* MODAL */
-.ov{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(3px)}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
 .ov.open{opacity:1;pointer-events:all}
 .modal{background:var(--sf);border:1px solid var(--bd);border-radius:14px;width:520px;max-width:96vw;max-height:90vh;overflow-y:auto;padding:20px;animation:su .2s ease}
 .modal.wide{width:620px}
@@ -343,7 +388,7 @@ select.fi{color-scheme:dark}
 .mf{height:100%;border-radius:2px;transition:width .2s}
 
 /* DROP */
-.dz{border:2px dashed var(--bd);border-radius:10px;padding:26px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:11px}
+.dz{border:2px dashed var(--bd);border-radius:10px;padding:26px;text-align:center;cursor:pointer;transition:background .15s,color .15s;margin-bottom:11px}
 .dz:hover,.dz.drag{border-color:var(--or);background:rgba(249,115,22,.04)}
 
 /* GS INFO BOX */
@@ -359,7 +404,7 @@ select.fi{color-scheme:dark}
 .empty{text-align:center;padding:38px 20px;color:var(--mt)}
 
 /* PROJECT STATUS CARDS */
-.psc{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;transition:transform .15s,border-color .15s;cursor:pointer}
+.psc{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;cursor:pointer}
 .psc:hover{transform:translateY(-2px);border-color:rgba(249,115,22,.4)}
 .psc.crit{border-top:3px solid var(--rd);border-left:none}
 .psc.del{border-top:3px solid var(--yw);border-left:none}
@@ -509,7 +554,7 @@ select.fi{color-scheme:dark}
       <div class="g3">
         <!-- WEATHER -->
         <div class="card">
-          <div class="ct">🌤 WEATHER — ALL SITES <span style="color:var(--gn);animation:pulse 2s infinite;font-size:10px">● LIVE</span></div>
+          <div class="ct">🌤 WEATHER — ALL SITES <span style="color:var(--gn);animation:pulse 3s infinite;font-size:10px">● LIVE</span></div>
           <div class="wg" id="weatherGrid"></div>
           <div style="margin-top:9px;text-align:right">
             <button class="btn btn-sm" onclick="openModal('editWeather')">✏ Edit Cuaca</button>
@@ -716,16 +761,39 @@ select.fi{color-scheme:dark}
             <button class="btn btn-sm" style="border:none;border-radius:0;border-right:1px solid var(--bd);color:var(--bl)" onclick="openModal('wbsPlan')">📋 Input Plan</button>
             <button class="btn btn-sm bp" style="border:none;border-radius:0" onclick="openModal('wbsActual')">✏ Update Actual</button>
           </div>
-          <div id="wbsTotalBobot" style="margin-left:auto;font-size:11px;font-family:var(--fm);color:var(--mt)">Total bobot: 0%</div>
+          <!-- View toggle -->
+          <div style="display:flex;border:1px solid var(--bd);border-radius:6px;overflow:hidden;margin-left:auto">
+            <button id="wbsViewTable" class="btn btn-sm" style="border:none;border-radius:0;border-right:1px solid var(--bd);background:var(--bl);color:#fff" onclick="setWbsView('table')">☰ Tabel</button>
+            <button id="wbsViewGantt" class="btn btn-sm" style="border:none;border-radius:0;color:var(--mt)" onclick="setWbsView('gantt')">📊 Gantt</button>
+          </div>
+          <div id="wbsTotalBobot" style="font-size:11px;font-family:var(--fm);color:var(--mt)">Total bobot: 0%</div>
         </div>
       </div>
 
-      <!-- WBS Table -->
-      <div class="card">
+      <!-- WBS Table View -->
+      <div class="card" id="wbsTableCard">
         <div class="ct">WORK BREAKDOWN STRUCTURE
           <span id="wbsChartTitle" style="color:var(--mt);font-size:11px;font-weight:400"></span>
         </div>
         <div id="wbsTable" style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 380px)"></div>
+      </div>
+
+      <!-- Gantt Chart View -->
+      <div class="card" id="wbsGanttCard" style="display:none">
+        <div class="ct" style="display:flex;align-items:center;gap:10px">
+          GANTT CHART
+          <span id="wbsGanttTitle" style="color:var(--mt);font-size:11px;font-weight:400"></span>
+          <div style="margin-left:auto;display:flex;gap:8px;align-items:center;font-size:11px;color:var(--mt)">
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:8px;background:#3b82f6;border-radius:2px;display:inline-block;opacity:.7"></span>Plan</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:8px;background:#f97316;border-radius:2px;display:inline-block"></span>Actual</span>
+            <select class="fi" id="ganttZoom" onchange="renderGantt()" style="width:auto;padding:2px 6px;font-size:10px">
+              <option value="7">Per Hari</option>
+              <option value="30" selected>Per Minggu</option>
+              <option value="90">Per Bulan</option>
+            </select>
+          </div>
+        </div>
+        <div id="wbsGanttChart" style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 340px)"></div>
       </div>
 
       <!-- S-Curve from WBS -->
@@ -2450,7 +2518,7 @@ function renderMP(){
       const isToday=d===today;
       return`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
         <div style="font-size:9px;font-family:var(--fm);color:${vals[i]>0?'var(--or)':'var(--mt)'}">${vals[i]||''}</div>
-        <div style="width:28px;height:${h||2}px;background:${isToday?'var(--or)':'var(--bl)'};opacity:${isToday?1:.7};border-radius:3px 3px 0 0;min-height:2px;transition:height .3s"></div>
+        <div style="width:28px;height:${h||2}px;background:${isToday?'var(--or)':'var(--bl)'};opacity:${isToday?1:.7};border-radius:3px 3px 0 0;min-height:2px;transition:none"></div>
         <div style="font-size:9px;color:${isToday?'var(--or)':TICK};font-weight:${isToday?700:400}">${dayName(d)}</div>
         <div style="font-size:8px;color:var(--mt)">${d.slice(5)}</div>
       </div>`;
@@ -2967,6 +3035,25 @@ const fmtD=()=>new Date().toLocaleString('id-ID',{weekday:'short',day:'2-digit',
 $('liveDate').textContent=fmtD();
 setInterval(()=>$('liveDate').textContent=fmtD(),1000);
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();exportExcel();}});
+
+// ── PERFORMANCE: passive listeners & scroll optimization ──
+(function(){
+  // Make all scroll/touch listeners passive by default
+  const orig=EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener=function(type,fn,opts){
+    if(['scroll','touchstart','touchmove','wheel','mousewheel'].includes(type)){
+      if(typeof opts==='boolean'||opts==null)opts={passive:true,capture:opts||false};
+      else if(typeof opts==='object'&&opts.passive==null)opts={...opts,passive:true};
+    }
+    return orig.call(this,type,fn,opts);
+  };
+  // requestAnimationFrame wrapper for scroll handlers
+  window._raf=null;
+  window._scheduleRender=cb=>{
+    if(window._raf)return;
+    window._raf=requestAnimationFrame(()=>{window._raf=null;cb();});
+  };
+})();
 
 // ═══════════════════════════════════════════════════════════════
 // STARTUP — localStorage sebagai sumber data utama
@@ -3622,6 +3709,7 @@ function renderWBS(){
   }
   $('wbsTable').innerHTML=html;
   renderWbsSCurve(projId);
+  if(_ganttView==='gantt')renderGantt();
 }
 
 
@@ -4621,18 +4709,74 @@ function generateWeeklyReport(){
   if(!projId||!week){toast('Pilih project dan minggu','warn');return;}
   const html=buildWeeklyReportHTML(projId,week);
   cm('weeklyReport');
-  // Open in new window for printing
-  const win=window.open('','_blank','width=960,height=800');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Weekly Report W${String(week).padStart(2,'0')}</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;color:#1e293b;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    @media print{body{padding:0}@page{margin:15mm;size:A4}}
-    ${document.querySelector('style')?.textContent.split('/* ── WEEKLY REPORT STYLES ── */')[1]?.split('.auth-screen')[0]||''}
-  </style></head><body>${html}</body></html>`);
-  win.document.close();
-  setTimeout(()=>win.print(),600);
+
+  // Remove old frame if exists
+  const old=document.getElementById('weeklyPrintFrame');if(old)old.remove();
+
+  // Build full HTML document
+  const styles=Array.from(document.querySelectorAll('style')).map(s=>s.textContent).join('\n');
+  const fullHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Weekly Report W${String(week).padStart(2,'0')}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Segoe UI',Arial,sans-serif;color:#1e293b;background:#fff;
+        -webkit-print-color-adjust:exact;print-color-adjust:exact}
+      @media print{body{padding:0}@page{margin:12mm;size:A4}}
+      .wr-page{font-family:'Segoe UI',Arial,sans-serif;color:#1e293b;background:#fff;padding:24px 32px;max-width:100%}
+      .wr-hdr{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:3px solid #f97316;padding-bottom:12px;margin-bottom:18px}
+      .wr-hdr-left{display:flex;align-items:center;gap:12px}
+      .wr-hdr-left img{height:40px}
+      .wr-company{font-size:15px;font-weight:800;color:#f97316;letter-spacing:1px}
+      .wr-subtitle{font-size:10px;color:#64748b;margin-top:2px}
+      .wr-meta{text-align:right;font-size:10px;color:#64748b;line-height:1.9}
+      .wr-meta b{color:#1e293b}
+      .wr-sec{margin-bottom:18px}
+      .wr-sec-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#f97316;border-bottom:1px solid #fed7aa;padding-bottom:3px;margin-bottom:8px}
+      .wr-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+      .wr-kpi{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:7px 10px;text-align:center}
+      .wr-kpi-lbl{font-size:8px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+      .wr-kpi-val{font-size:19px;font-weight:800;line-height:1.2}
+      .wr-tbl{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6px}
+      .wr-tbl th{background:#f1f5f9;color:#64748b;font-size:8px;text-transform:uppercase;letter-spacing:.7px;padding:4px 7px;text-align:left;border-bottom:2px solid #e2e8f0}
+      .wr-tbl td{padding:4px 7px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+      .wr-cat td{background:#eff6ff!important;font-weight:700;color:#2563eb}
+      .wr-sub td{background:#f0fdf4!important;font-weight:600;color:#16a34a}
+      .wr-badge{display:inline-block;padding:1px 6px;border-radius:20px;font-size:8px;font-weight:600}
+      .wr-gn{background:#dcfce7;color:#16a34a}.wr-or{background:#ffedd5;color:#ea580c}
+      .wr-rd{background:#fee2e2;color:#dc2626}.wr-bl{background:#dbeafe;color:#2563eb}
+      .wr-sign-row{display:flex;gap:16px;justify-content:flex-end;margin-top:20px;padding-top:10px;border-top:1px solid #e2e8f0}
+      .wr-sign{border:1px solid #e2e8f0;border-radius:6px;padding:8px 14px;text-align:center;min-width:120px}
+      .wr-sign-name{margin-top:32px;border-top:1px solid #cbd5e1;padding-top:4px;font-size:9px;color:#64748b}
+      .wr-footer{margin-top:8px;text-align:center;font-size:8px;color:#94a3b8}
+      .wr-pb{page-break-before:always}
+    </style>
+  </head><body>${html}</body></html>`;
+
+  // Create hidden iframe
+  const iframe=document.createElement('iframe');
+  iframe.id='weeklyPrintFrame';
+  iframe.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;border:none;background:#fff;display:block';
+  document.body.appendChild(iframe);
+
+  iframe.srcdoc=fullHtml;
+  iframe.onload=()=>{
+    // Add close button overlay
+    const closeBtn=document.createElement('button');
+    closeBtn.innerHTML='✕ Tutup Preview';
+    closeBtn.style.cssText='position:fixed;top:12px;right:12px;z-index:100000;background:#ef4444;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+    closeBtn.id='wrCloseBtn';
+    closeBtn.onclick=()=>{iframe.remove();closeBtn.remove();printBtn.remove();};
+    document.body.appendChild(closeBtn);
+
+    const printBtn=document.createElement('button');
+    printBtn.innerHTML='🖨 Print / Save PDF';
+    printBtn.style.cssText='position:fixed;top:12px;right:160px;z-index:100000;background:#f97316;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+    printBtn.id='wrPrintBtn';
+    printBtn.onclick=()=>iframe.contentWindow.print();
+    document.body.appendChild(printBtn);
+  };
 }
+
 
 function buildWeeklyReportHTML(projId,week){
   const proj=P.find(p=>String(p.id)===String(projId));if(!proj)return '';
@@ -4641,214 +4785,526 @@ function buildWeeklyReportHTML(projId,week){
   const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
 
   // Week date range
-  const proj_start=proj.mulai;
-  let weekStart='',weekEnd='';
-  if(proj_start){
-    const d=new Date(proj_start+'T00:00:00');d.setDate(d.getDate()+(week-1)*7);
-    weekStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
-    d.setDate(d.getDate()+6);
-    weekEnd=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+  let weekStartDate=null,weekEndDate=null,weekStart='',weekEnd='';
+  if(proj.mulai){
+    weekStartDate=new Date(proj.mulai+'T00:00:00');weekStartDate.setDate(weekStartDate.getDate()+(week-1)*7);
+    weekEndDate=new Date(weekStartDate);weekEndDate.setDate(weekEndDate.getDate()+6);
+    weekStart=weekStartDate.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+    weekEnd=weekEndDate.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
   }
+  const fmtD=d=>d?new Date(d+'T12:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'';
 
-  // S-Curve data for this week
+  // S-Curve
   const sc=SCURVE.find(d=>String(d.projId)===String(projId)&&d.week===week)||{};
-  const scPrev=SCURVE.filter(d=>String(d.projId)===String(projId)&&d.week<week).sort((a,b)=>a.week-b.week).slice(-1)[0]||{};
   const cumPlan=+(sc.cPlan||0);const cumAct=+(sc.cAct||0);
   const wPlan=+(sc.wPlan||0);const wAct=+(sc.wAct||0);
   const variance=cumAct-cumPlan;
-  const statusBadge=variance>=-3?`<span class="wr-badge wr-gn">On Track</span>`
-    :variance>=-10?`<span class="wr-badge wr-or">Delayed</span>`
-    :`<span class="wr-badge wr-rd">Critical</span>`;
+  const statusTxt=variance>=-3?'On Track':variance>=-10?'Delayed':'Critical';
+  const statusClr=variance>=-3?'#16a34a':variance>=-10?'#ea580c':'#dc2626';
 
   // Manpower this week
   const mpLogs=MPLOGS.filter(m=>m.projId==projId&&getWbsWeekNum(projId,m.date)===week);
-  const mpDays=mpLogs.length;
   const totalWorkers=mpLogs.reduce((s,m)=>s+(+m.total||0),0);
   const totalMH=mpLogs.reduce((s,m)=>s+(+m.mhActual||0),0);
   const timeLost=mpLogs.reduce((s,m)=>s+(+m.timeLost||0),0);
+  const timeLostReasons=[...new Set(mpLogs.filter(m=>+m.timeLost>0).map(m=>m.timeLostReason).filter(Boolean))].join(', ');
+  const totalSpv=mpLogs.reduce((s,m)=>s+(+m.spv||0),0);
+  const totalMandor=mpLogs.reduce((s,m)=>s+(+m.mandor||0),0);
+  const totalInstaller=mpLogs.reduce((s,m)=>s+(+m.installer||0),0);
+  const totalTukang=mpLogs.reduce((s,m)=>s+(+m.tukang||0),0);
+  const totalHelper=mpLogs.reduce((s,m)=>s+(+m.helper||0),0);
+  const totalSafety=mpLogs.reduce((s,m)=>s+(+m.safety||0),0);
 
-  // Daily activity this week
+  // Daily activities this week
   const dailyData={};
   leafNodes.forEach(node=>{
     (node.dailyLogs||[]).filter(l=>l.week===week).forEach(l=>{
-      if(!dailyData[l.date])dailyData[l.date]={items:[],manpower:null};
-      if(l.qty!=null||l.pct!=null)dailyData[l.date].items.push({node,log:l});
+      if(!dailyData[l.date])dailyData[l.date]={items:[],mp:null};
+      dailyData[l.date].items.push({node,log:l});
     });
   });
-  mpLogs.forEach(m=>{
-    if(!dailyData[m.date])dailyData[m.date]={items:[],manpower:null};
-    dailyData[m.date].manpower=m;
-  });
+  mpLogs.forEach(m=>{if(!dailyData[m.date])dailyData[m.date]={items:[],mp:null};dailyData[m.date].mp=m;});
+  const sortedDates=Object.keys(dailyData).sort();
 
-  // Issues open this week
+  // Issues
   const issues=ISS.filter(i=>i.projId==projId&&i.status!=='Closed');
+
+  // Accident logs this week
+  const accLogs=ACCLOGS.filter(a=>a.projId==projId&&getWbsWeekNum(projId,a.date)===week);
 
   // Logo
   const logoSrc=proj.logo||'';
-  const logoHtml=logoSrc?`<img src="${logoSrc}" style="height:44px;object-fit:contain">`:'<div style="width:44px;height:44px;background:#f97316;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px">A</div>';
+  const logoHtml=logoSrc?`<img src="${logoSrc}" style="height:50px;object-fit:contain">`:
+    `<div style="font-size:18px;font-weight:900;color:#f97316;letter-spacing:2px">ATW<span style="color:#1e293b">Solar</span></div>`;
 
-  let html=`<div class="wr-page">
-  <!-- HEADER -->
-  <div class="wr-hdr">
-    <div class="wr-hdr-left">
-      ${logoHtml}
-      <div>
-        <div class="wr-company">ATW SOLAR</div>
-        <div style="font-size:13px;font-weight:700;color:#1e293b;margin-top:2px">${proj.kode} — ${proj.nama}</div>
-        <div class="wr-subtitle">WEEKLY PROGRESS REPORT — MINGGU W${String(week).padStart(2,'0')}</div>
-      </div>
+  // Table styles
+  const ts=`border:1px solid #d1d5db;border-collapse:collapse;width:100%;font-size:10px`;
+  const th=`background:#e5e7eb;font-weight:700;padding:4px 6px;border:1px solid #9ca3af;text-align:center;font-size:9px;text-transform:uppercase`;
+  const td=`padding:4px 6px;border:1px solid #d1d5db;vertical-align:top`;
+  const tdc=`padding:4px 6px;border:1px solid #d1d5db;text-align:center;vertical-align:middle`;
+
+  let html=`<div style="font-family:Arial,sans-serif;color:#1e293b;background:#fff;padding:20px 24px;max-width:100%;font-size:10px">
+
+  <!-- HEADER LOGOS -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    ${proj.logo?`<img src="${proj.logo}" style="height:50px;object-fit:contain">`:
+      `<div style="width:120px;height:50px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:9px;color:#6b7280">Client Logo</div>`}
+    ${logoHtml}
+  </div>
+
+  <!-- PROJECT INFO -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+    <div>
+      <table style="${ts}">
+        <tr><td style="${td};font-weight:700;background:#f9fafb;width:120px">Project</td><td style="${td}">${proj.kode} — ${proj.nama}</td></tr>
+        <tr><td style="${td};font-weight:700;background:#f9fafb">Client</td><td style="${td}">${proj.client||'—'}</td></tr>
+        <tr><td style="${td};font-weight:700;background:#f9fafb">Lokasi</td><td style="${td}">${proj.lokasi||'—'}</td></tr>
+        <tr><td style="${td};font-weight:700;background:#f9fafb">Periode</td><td style="${td}">${weekStart} — ${weekEnd}</td></tr>
+        <tr><td style="${td};font-weight:700;background:#f9fafb">Minggu</td><td style="${td};font-weight:700;color:#f97316">W${String(week).padStart(2,'0')}</td></tr>
+      </table>
     </div>
-    <div class="wr-meta">
-      <b>Periode</b><br>${weekStart||'—'} s/d ${weekEnd||'—'}<br>
-      <b>Client</b> ${proj.client||'—'}<br>
-      <b>Lokasi</b> ${proj.lokasi||'—'}<br>
-      <b>Dibuat</b> ${new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}
+    <div>
+      <table style="${ts}">
+        <tr><td style="${th}" colspan="4">PROGRESS REPORT</td></tr>
+        <tr><th style="${th}">Indikator</th><th style="${th}">Weekly</th><th style="${th}">Kumulatif</th><th style="${th}">Status</th></tr>
+        <tr><td style="${td};font-weight:700;color:#3b82f6">Plan</td><td style="${tdc}">${wPlan.toFixed(2)}%</td><td style="${tdc};font-weight:700">${cumPlan.toFixed(2)}%</td><td rowspan="2" style="${tdc};font-weight:700;color:${statusClr};font-size:12px">${statusTxt}</td></tr>
+        <tr><td style="${td};font-weight:700;color:#f97316">Actual</td><td style="${tdc}">${wAct.toFixed(2)}%</td><td style="${tdc};font-weight:700;color:#f97316">${cumAct.toFixed(2)}%</td></tr>
+        <tr><td style="${td};font-weight:700">Variance</td><td colspan="2" style="${tdc};font-weight:700;color:${statusClr}">${variance>=0?'+':''}${variance.toFixed(2)}%</td><td style="${tdc}"></td></tr>
+        <tr><td style="${td};font-weight:700">Progress Bar</td><td colspan="3" style="${td}">
+          <div style="margin-bottom:4px">
+            <div style="font-size:8px;color:#3b82f6;margin-bottom:1px">Plan ${cumPlan.toFixed(1)}%</div>
+            <div style="height:8px;background:#e5e7eb;border-radius:3px"><div style="width:${Math.min(100,cumPlan)}%;height:100%;background:#3b82f6;border-radius:3px"></div></div>
+          </div>
+          <div>
+            <div style="font-size:8px;color:#f97316;margin-bottom:1px">Actual ${cumAct.toFixed(1)}%</div>
+            <div style="height:8px;background:#e5e7eb;border-radius:3px"><div style="width:${Math.min(100,cumAct)}%;height:100%;background:#f97316;border-radius:3px"></div></div>
+          </div>
+        </td></tr>
+      </table>
     </div>
   </div>
 
-  <!-- KPI -->
-  <div class="wr-kpis">
-    <div class="wr-kpi"><div class="wr-kpi-lbl">Cum. Plan</div><div class="wr-kpi-val" style="color:#3b82f6">${cumPlan.toFixed(1)}%</div></div>
-    <div class="wr-kpi"><div class="wr-kpi-lbl">Cum. Actual</div><div class="wr-kpi-val" style="color:#f97316">${cumAct.toFixed(1)}%</div></div>
-    <div class="wr-kpi"><div class="wr-kpi-lbl">Variance</div><div class="wr-kpi-val" style="color:${variance>=0?'#16a34a':variance>=-10?'#ea580c':'#dc2626'}">${variance>=0?'+':''}${variance.toFixed(1)}%</div></div>
-    <div class="wr-kpi"><div class="wr-kpi-lbl">Status</div><div class="wr-kpi-val" style="font-size:13px;padding-top:6px">${statusBadge}</div></div>
-  </div>
+  <!-- SECTION 1: PEKERJAAN MINGGU INI -->
+  <div style="background:#374151;color:#fff;text-align:center;padding:5px;font-weight:700;font-size:11px;margin-bottom:0">PEKERJAAN MINGGU INI (W${String(week).padStart(2,'0')})</div>
+  <table style="${ts};margin-bottom:10px">
+    <tr>
+      <th style="${th};width:40px">#</th>
+      <th style="${th}">Item Pekerjaan</th>
+      <th style="${th};width:55px">Bobot</th>
+      <th style="${th};width:70px">Qty Plan</th>
+      <th style="${th};width:70px">Qty W${String(week).padStart(2,'0')}</th>
+      <th style="${th};width:70px">Qty Cum.</th>
+      <th style="${th};width:60px">% Selesai</th>
+      <th style="${th};width:70px">Kontribusi</th>
+      <th style="${th};width:55px">Satuan</th>
+    </tr>`;
 
-  <!-- PROGRESS S-CURVE BAR -->
-  <div class="wr-sec">
-    <div class="wr-sec-title">Progress S-Curve W${String(week).padStart(2,'0')}</div>
-    <table class="wr-tbl">
-      <tr><th>Indikator</th><th style="text-align:right">Weekly</th><th style="text-align:right">Kumulatif</th><th>Progress Bar</th></tr>
-      <tr>
-        <td><b style="color:#3b82f6">Plan</b></td>
-        <td style="text-align:right;font-weight:700">${wPlan.toFixed(2)}%</td>
-        <td style="text-align:right;font-weight:700">${cumPlan.toFixed(2)}%</td>
-        <td><div style="height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden"><div style="width:${Math.min(100,cumPlan)}%;height:100%;background:#3b82f6"></div></div></td>
-      </tr>
-      <tr>
-        <td><b style="color:#f97316">Actual</b></td>
-        <td style="text-align:right;font-weight:700">${wAct.toFixed(2)}%</td>
-        <td style="text-align:right;font-weight:700">${cumAct.toFixed(2)}%</td>
-        <td><div style="height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden"><div style="width:${Math.min(100,cumAct)}%;height:100%;background:#f97316"></div></div></td>
-      </tr>
-    </table>
-  </div>`;
-
-  // WBS PROGRESS TABLE
-  html+=`<div class="wr-sec">
-    <div class="wr-sec-title">Progress Item Pekerjaan</div>
-    <table class="wr-tbl">
-      <tr><th>#</th><th>Item Pekerjaan</th><th style="text-align:right">Bobot</th><th style="text-align:right">Qty Plan</th><th style="text-align:right">Qty W${String(week).padStart(2,'0')}</th><th style="text-align:right">Cum. Qty</th><th style="text-align:right">% Selesai</th><th style="text-align:right">Kontribusi</th></tr>`;
+  // WBS rows
   cats.forEach((cat,ci)=>{
-    html+=`<tr class="wr-cat"><td>${String.fromCharCode(65+ci)}</td><td colspan="7">${cat.name}</td></tr>`;
+    html+=`<tr style="background:#dbeafe"><td style="${tdc};font-weight:700;color:#1d4ed8">${String.fromCharCode(65+ci)}</td><td style="${td};font-weight:700;color:#1d4ed8" colspan="8">${cat.name}</td></tr>`;
     all.filter(w=>w.type==='subcat'&&w.parentId===cat.id).sort((a,b)=>a.order-b.order).forEach((sub,si)=>{
       const subItems=all.filter(w=>w.type==='item'&&w.parentId===sub.id).sort((a,b)=>a.order-b.order);
       const isLeaf=subItems.length===0;
-      if(isLeaf){html+=_wrItemRow(`${ci+1}.${si+1}`,sub,week,true);}
+      if(isLeaf){html+=_wrItemRowNew(`${ci+1}.${si+1}`,sub,week,th,td,tdc,true);}
       else{
-        html+=`<tr class="wr-sub"><td>${ci+1}.${si+1}</td><td colspan="7">${sub.name}</td></tr>`;
-        subItems.forEach((item,ii)=>{ html+=_wrItemRow(`${ci+1}.${si+1}.${ii+1}`,item,week,false); });
+        html+=`<tr style="background:#dcfce7"><td style="${tdc};color:#15803d">${ci+1}.${si+1}</td><td style="${td};font-weight:600;color:#15803d" colspan="8">${sub.name}</td></tr>`;
+        subItems.forEach((item,ii)=>{html+=_wrItemRowNew(`${ci+1}.${si+1}.${ii+1}`,item,week,th,td,tdc,false);});
       }
     });
   });
-  html+=`</table></div>`;
+  // Totals row
+  const totalKontrib=leafNodes.reduce((s,n)=>s+_drNodeKontrib(n,weekStartDate?weekEndDate.toISOString().slice(0,10):new Date().toISOString().slice(0,10)),0);
+  html+=`<tr style="background:#f1f5f9;font-weight:700">
+    <td style="${tdc}" colspan="7">TOTAL KONTRIBUSI MINGGU INI</td>
+    <td style="${tdc};color:#16a34a">${(totalKontrib*100).toFixed(2)}%</td><td></td>
+  </tr>`;
+  html+=`</table>`;
 
-  // DAILY ACTIVITIES
-  const sortedDates=Object.keys(dailyData).sort();
+  // SECTION 2: AKTIVITAS HARIAN
+  html+=`<div style="background:#374151;color:#fff;text-align:center;padding:5px;font-weight:700;font-size:11px;margin-bottom:0">AKTIVITAS HARIAN</div>
+  <table style="${ts};margin-bottom:10px">
+    <tr>
+      <th style="${th};width:80px">Tanggal</th>
+      <th style="${th};width:40px">Hari</th>
+      <th style="${th}">Item Pekerjaan</th>
+      <th style="${th};width:80px">Qty Dikerjakan</th>
+      <th style="${th};width:60px">Kontribusi</th>
+      <th style="${th}">Catatan / Kendala</th>
+      <th style="${th};width:60px">Pekerja</th>
+      <th style="${th};width:55px">MH (jam)</th>
+      <th style="${th};width:55px">Time Lost</th>
+    </tr>`;
   if(sortedDates.length){
-    html+=`<div class="wr-sec">
-      <div class="wr-sec-title">Aktivitas Harian</div>
-      <table class="wr-tbl">
-        <tr><th>Tanggal</th><th>Item Pekerjaan</th><th style="text-align:right">Qty</th><th style="text-align:right">Kontribusi</th><th>Catatan</th></tr>`;
     sortedDates.forEach(date=>{
-      const dayData=dailyData[date];
-      const mp=dayData.manpower;
+      const dd=dailyData[date];
       const d=new Date(date+'T12:00');
-      const dayName=d.toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'short'});
-      let first=true;
-      dayData.items.forEach(({node,log})=>{
-        const qtyPlan=+node.qtyPlan||0;
-        const qty=log.qty!=null?+log.qty:0;
-        const kontrib=qtyPlan>0?(+node.bobot||0)/100*(qty/qtyPlan)*100:0;
-        html+=`<tr>
-          <td style="white-space:nowrap;color:#64748b;font-size:10px">${first?`<b style="color:#1e293b">${dayName}</b>`:''}</td>
-          <td>${node.name}</td>
-          <td style="text-align:right;font-weight:700;color:#16a34a">${qty>0?'+'+qty+' '+(node.qtySatuan||''):'—'}</td>
-          <td style="text-align:right;color:#16a34a">${kontrib>0?kontrib.toFixed(2)+'%':'—'}</td>
-          <td style="color:#64748b;font-size:10px">${log.notes||'—'}</td>
-        </tr>`;
-        first=false;
-      });
-      if(mp&&first){
-        html+=`<tr><td style="white-space:nowrap"><b style="color:#1e293b">${dayName}</b></td><td colspan="4" style="color:#64748b;font-size:10px">Manpower only: ${mp.total||0} orang — ${mp.notes||'—'}</td></tr>`;
+      const dayName=d.toLocaleDateString('id-ID',{weekday:'short'});
+      const dateLabel=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'2-digit'});
+      const mp=dd.mp||{};
+      const tl=+mp.timeLost||0;
+      const rowspan=Math.max(1,dd.items.length);
+      const mpCell=`<td style="${tdc}" rowspan="${rowspan}">${mp.total||'—'}</td><td style="${tdc}" rowspan="${rowspan}">${mp.mhActual||'—'}</td><td style="${tdc};color:${tl>0?'#dc2626':'#64748b'}" rowspan="${rowspan}">${tl>0?tl+'h':'—'}</td>`;
+      if(!dd.items.length){
+        html+=`<tr><td style="${tdc}">${dateLabel}</td><td style="${tdc}">${dayName}</td><td style="${td}" colspan="4" style="color:#94a3b8;font-style:italic">Manpower only / No activity logged</td>${mpCell}</tr>`;
+      }else{
+        dd.items.forEach(({node,log},idx)=>{
+          const qty=log.qty!=null?+log.qty:0;
+          const qtyPlan=+node.qtyPlan||0;
+          const kontrib=qtyPlan>0?(+node.bobot||0)/100*(qty/qtyPlan)*100:0;
+          html+=`<tr>
+            ${idx===0?`<td style="${tdc}" rowspan="${rowspan}">${dateLabel}</td><td style="${tdc}" rowspan="${rowspan}">${dayName}</td>`:''}
+            <td style="${td}">${node.name}</td>
+            <td style="${tdc};font-weight:700;color:#16a34a">${qty>0?'+'+qty+' '+(node.qtySatuan||''):'—'}</td>
+            <td style="${tdc}">${kontrib>0?kontrib.toFixed(2)+'%':'—'}</td>
+            <td style="${td};color:#64748b;font-size:9px">${log.notes||'—'}</td>
+            ${idx===0?mpCell:''}
+          </tr>`;
+        });
       }
     });
-    html+=`</table></div>`;
+  }else{
+    html+=`<tr><td colspan="9" style="${tdc};color:#94a3b8;padding:12px">Belum ada data aktivitas harian untuk minggu ini</td></tr>`;
   }
+  html+=`</table>`;
 
-  // MANPOWER
-  if(mpDays>0){
-    html+=`<div class="wr-sec">
-      <div class="wr-sec-title">Rekapitulasi Manpower W${String(week).padStart(2,'0')}</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center"><div style="font-size:8px;color:#94a3b8;text-transform:uppercase">Hari Kerja</div><div style="font-size:18px;font-weight:700;color:#1e293b">${mpDays}</div></div>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center"><div style="font-size:8px;color:#94a3b8;text-transform:uppercase">Total Pekerja</div><div style="font-size:18px;font-weight:700;color:#f97316">${totalWorkers} MD</div></div>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center"><div style="font-size:8px;color:#94a3b8;text-transform:uppercase">Total MH</div><div style="font-size:18px;font-weight:700;color:#3b82f6">${totalMH} jam</div></div>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center"><div style="font-size:8px;color:#94a3b8;text-transform:uppercase">Time Lost</div><div style="font-size:18px;font-weight:700;color:${timeLost>0?'#dc2626':'#16a34a'}">${timeLost} jam</div></div>
-      </div>
-      <table class="wr-tbl">
-        <tr><th>Tanggal</th><th style="text-align:right">SPV</th><th style="text-align:right">Mandor</th><th style="text-align:right">Installer</th><th style="text-align:right">Tukang</th><th style="text-align:right">Helper</th><th style="text-align:right">Safety</th><th style="text-align:right">Total</th><th style="text-align:right">Time Lost</th><th>Catatan</th></tr>`;
-    mpLogs.sort((a,b)=>a.date.localeCompare(b.date)).forEach(m=>{
-      const tl=+m.timeLost||0;
-      html+=`<tr><td style="font-size:10px;white-space:nowrap">${m.date}</td><td style="text-align:right">${m.spv||0}</td><td style="text-align:right">${m.mandor||0}</td><td style="text-align:right">${m.installer||0}</td><td style="text-align:right">${m.tukang||0}</td><td style="text-align:right">${m.helper||0}</td><td style="text-align:right">${m.safety||0}</td><td style="text-align:right;font-weight:700">${m.total||0}</td><td style="text-align:right;color:${tl>0?'#dc2626':'#64748b'}">${tl>0?tl+'h':'—'}</td><td style="font-size:10px;color:#64748b">${m.notes||'—'}</td></tr>`;
-    });
-    html+=`</table></div>`;
+  // SECTION 3: MANPOWER & TIME LOST
+  html+=`<div style="background:#374151;color:#fff;text-align:center;padding:5px;font-weight:700;font-size:11px;margin-bottom:0">REKAPITULASI MANPOWER & TIME LOST</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+    <table style="${ts}">
+      <tr><th style="${th}" colspan="8">MANPOWER WEEKLY SUMMARY</th></tr>
+      <tr><th style="${th}">Tgl</th><th style="${th}">SPV</th><th style="${th}">Mdr</th><th style="${th}">Inst</th><th style="${th}">Tkng</th><th style="${th}">Hlpr</th><th style="${th}">Safety</th><th style="${th}">Total</th></tr>`;
+  mpLogs.sort((a,b)=>a.date.localeCompare(b.date)).forEach(m=>{
+    html+=`<tr><td style="${tdc};font-size:9px">${m.date.slice(5)}</td><td style="${tdc}">${m.spv||0}</td><td style="${tdc}">${m.mandor||0}</td><td style="${tdc}">${m.installer||0}</td><td style="${tdc}">${m.tukang||0}</td><td style="${tdc}">${m.helper||0}</td><td style="${tdc}">${m.safety||0}</td><td style="${tdc};font-weight:700">${m.total||0}</td></tr>`;
+  });
+  html+=`<tr style="background:#f1f5f9;font-weight:700"><td style="${tdc}">TOTAL</td><td style="${tdc}">${totalSpv}</td><td style="${tdc}">${totalMandor}</td><td style="${tdc}">${totalInstaller}</td><td style="${tdc}">${totalTukang}</td><td style="${tdc}">${totalHelper}</td><td style="${tdc}">${totalSafety}</td><td style="${tdc};color:#f97316">${totalWorkers}</td></tr>`;
+  html+=`</table>
+    <table style="${ts}">
+      <tr><th style="${th}" colspan="3">TIME LOST RECORD</th></tr>
+      <tr><th style="${th}">Tanggal</th><th style="${th}">Jam Lost</th><th style="${th}">Penyebab</th></tr>`;
+  const tlLogs=mpLogs.filter(m=>+m.timeLost>0);
+  if(tlLogs.length){
+    tlLogs.forEach(m=>{html+=`<tr><td style="${tdc};font-size:9px">${m.date}</td><td style="${tdc};color:#dc2626;font-weight:700">${m.timeLost}h</td><td style="${td};font-size:9px">${m.timeLostReason||'—'}</td></tr>`;});
+  }else{
+    html+=`<tr><td colspan="3" style="${tdc};color:#16a34a">Tidak ada time lost minggu ini ✓</td></tr>`;
   }
+  html+=`<tr style="background:#f1f5f9;font-weight:700"><td style="${tdc}">TOTAL</td><td style="${tdc};color:${timeLost>0?'#dc2626':'#16a34a'}">${timeLost}h</td><td style="${td};font-size:9px">${timeLostReasons||'—'}</td></tr>`;
+  html+=`</table></div>`;
 
-  // OPEN ISSUES
+  // SECTION 4: HSE
+  const hseItems=['Safety Briefing','Toolbox Meeting','Safety Patrol','P3K Check','APD Check','Fire Extinguisher Check'];
+  html+=`<div style="background:#374151;color:#fff;text-align:center;padding:5px;font-weight:700;font-size:11px;margin-bottom:0">HSE PROGRAM</div>
+  <table style="${ts};margin-bottom:10px">
+    <tr><th style="${th}">Program</th><th style="${th};width:50px">Qty</th><th style="${th}">Remarks</th><th style="${th}">Findings</th><th style="${th};width:50px">Qty</th><th style="${th}">Remarks</th></tr>`;
+  hseItems.forEach((item,i)=>{
+    html+=`<tr><td style="${td}">${item}</td><td style="${tdc}"></td><td style="${td}"></td>${i===0?`<td style="${td}" rowspan="${hseItems.length}">Near Miss / Incident / Unsafe Act</td><td style="${tdc}" rowspan="${hseItems.length}"></td><td style="${td}" rowspan="${hseItems.length}"></td>`:''}</tr>`;
+  });
+  html+=`</table>`;
+
+  // SECTION 5: ISSUES
   if(issues.length){
-    html+=`<div class="wr-sec">
-      <div class="wr-sec-title">Open Issues (${issues.length})</div>
-      <table class="wr-tbl">
-        <tr><th>Tgl</th><th>Uraian</th><th>Prioritas</th><th>PIC</th><th>Status</th></tr>`;
+    html+=`<div style="background:#374151;color:#fff;text-align:center;padding:5px;font-weight:700;font-size:11px;margin-bottom:0">OPEN ISSUES & CONSTRAINTS</div>
+    <table style="${ts};margin-bottom:10px">
+      <tr><th style="${th};width:80px">Tanggal</th><th style="${th}">Uraian</th><th style="${th};width:70px">Prioritas</th><th style="${th}">PIC</th><th style="${th};width:70px">Status</th></tr>`;
     issues.forEach(i=>{
-      const pClr=i.prioritas==='Critical'?'wr-rd':i.prioritas==='High'?'wr-or':'wr-bl';
-      html+=`<tr><td style="font-size:10px;white-space:nowrap">${i.tgl||'—'}</td><td>${i.uraian||'—'}</td><td><span class="wr-badge ${pClr}">${i.prioritas||'—'}</span></td><td style="font-size:10px">${i.pj||'—'}</td><td><span class="wr-badge ${i.status==='Open'?'wr-or':'wr-gn'}">${i.status||'—'}</span></td></tr>`;
+      const pClr=i.prioritas==='Critical'?'#dc2626':i.prioritas==='High'?'#ea580c':'#2563eb';
+      html+=`<tr><td style="${tdc};font-size:9px">${i.tgl||'—'}</td><td style="${td}">${i.uraian||'—'}</td><td style="${tdc};color:${pClr};font-weight:700">${i.prioritas||'—'}</td><td style="${td}">${i.pj||'—'}</td><td style="${tdc};color:${i.status==='Open'?'#ea580c':'#16a34a'}">${i.status||'—'}</td></tr>`;
     });
-    html+=`</table></div>`;
+    html+=`</table>`;
   }
+
+  // SECTION 6: WORKPLAN NEXT WEEK
+  html+=`<div style="background:#374151;color:#fff;text-align:center;padding:5px;font-weight:700;font-size:11px;margin-bottom:0">WORKPLAN NEXT WEEK (W${String(week+1).padStart(2,'0')})</div>
+  <table style="${ts};margin-bottom:10px">
+    <tr><th style="${th}">#</th><th style="${th}">Item Pekerjaan</th><th style="${th};width:70px">Target Qty</th><th style="${th};width:55px">Satuan</th><th style="${th};width:60px">Target %</th><th style="${th}">Rencana Aktivitas</th></tr>`;
+  let nwRow=0;
+  leafNodes.forEach((node,idx)=>{
+    const wp=node.weeklyPlan&&node.weeklyPlan[week+1];
+    if(wp||idx<6){
+      nwRow++;
+      html+=`<tr><td style="${tdc}">${nwRow}</td><td style="${td}">${node.name}</td><td style="${tdc}">${+node.qtyPlan?Math.round(+node.qtyPlan*(+(wp?.wPlan||0)/100)):''}</td><td style="${tdc}">${node.qtySatuan||''}</td><td style="${tdc}">${wp?(+(wp.wPlan||0)).toFixed(1)+'%':''}</td><td style="${td}"></td></tr>`;
+    }
+  });
+  for(let i=nwRow;i<6;i++){html+=`<tr><td style="${tdc}">${i+1}</td><td style="${td}"></td><td style="${tdc}"></td><td style="${tdc}"></td><td style="${tdc}"></td><td style="${td}"></td></tr>`;}
+  html+=`</table>`;
 
   // SIGNATURE
-  html+=`<div class="wr-sign-row">
-    <div class="wr-sign"><div style="font-size:9px;color:#64748b">Dibuat oleh</div><div class="wr-sign-name">Project Engineer</div></div>
-    <div class="wr-sign"><div style="font-size:9px;color:#64748b">Diperiksa oleh</div><div class="wr-sign-name">Site Manager</div></div>
-    <div class="wr-sign"><div style="font-size:9px;color:#64748b">Disetujui oleh</div><div class="wr-sign-name">Project Manager</div></div>
+  html+=`<table style="${ts};margin-top:8px">
+    <tr>
+      <td style="${tdc};width:33%;padding:8px"><div style="font-size:9px;color:#64748b;margin-bottom:35px">Dibuat oleh / Prepared by</div><div style="border-top:1px solid #94a3b8;padding-top:4px;font-size:9px;color:#374151">SPV / Project Engineer</div></td>
+      <td style="${tdc};width:33%;padding:8px"><div style="font-size:9px;color:#64748b;margin-bottom:35px">Diperiksa oleh / Checked by</div><div style="border-top:1px solid #94a3b8;padding-top:4px;font-size:9px;color:#374151">HSE Officer / Site Manager</div></td>
+      <td style="${tdc};width:33%;padding:8px"><div style="font-size:9px;color:#64748b;margin-bottom:35px">Disetujui oleh / Approved by</div><div style="border-top:1px solid #94a3b8;padding-top:4px;font-size:9px;color:#374151">Project Manager</div></td>
+    </tr>
+  </table>
+  <div style="text-align:center;font-size:8px;color:#94a3b8;margin-top:8px">
+    Generated by ATW Solar Dashboard — ${new Date().toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}
   </div>
-  <div class="wr-footer">Generated by ATW Solar Dashboard — ${new Date().toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
   </div>`;
 
   return html;
 }
 
-function _wrItemRow(num,node,week,isGn){
+function _wrItemRowNew(num,node,week,th,td,tdc,isGn){
   const qtyPlan=+node.qtyPlan||0;
   const dl=node.dailyLogs||[];
   const weekQty=dl.filter(l=>l.week===week).reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0);
   const cumQty=Math.min(qtyPlan||999999,dl.reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0));
   const pct=qtyPlan>0?Math.min(100,cumQty/qtyPlan*100):(+node.cumActual||0);
   const kontrib=qtyPlan>0?(+node.bobot||0)/100*(cumQty/qtyPlan)*100:(+node.bobot||0)*(pct/100);
-  const indent=isGn?'padding-left:14px':'padding-left:24px';
-  const nameStyle=isGn?'color:#16a34a;font-weight:600':'';
+  const nameStyle=isGn?'font-weight:600;color:#15803d':'';
   return `<tr>
-    <td style="color:#94a3b8;font-size:10px">${num}</td>
-    <td style="${indent};${nameStyle}">${node.name}</td>
-    <td style="text-align:right">${(+node.bobot||0).toFixed(1)}%</td>
-    <td style="text-align:right;color:#64748b">${qtyPlan?qtyPlan+' '+(node.qtySatuan||''):'—'}</td>
-    <td style="text-align:right;font-weight:700;color:${weekQty>0?'#16a34a':'#94a3b8'}">${weekQty>0?'+'+weekQty:'—'}</td>
-    <td style="text-align:right;color:#f97316">${qtyPlan?cumQty+' '+(node.qtySatuan||''):'—'}</td>
-    <td style="text-align:right;font-weight:700;color:#f97316">${pct.toFixed(1)}%</td>
-    <td style="text-align:right;color:#16a34a">${kontrib>0?kontrib.toFixed(2)+'%':'—'}</td>
+    <td style="${tdc};color:#94a3b8;font-size:9px">${num}</td>
+    <td style="${td};${nameStyle};padding-left:${isGn?14:24}px">${node.name}</td>
+    <td style="${tdc}">${(+node.bobot||0).toFixed(1)}%</td>
+    <td style="${tdc};color:#2563eb">${qtyPlan?qtyPlan+' '+(node.qtySatuan||''):'—'}</td>
+    <td style="${tdc};font-weight:700;color:${weekQty>0?'#16a34a':'#94a3b8'}">${weekQty>0?'+'+weekQty:'—'}</td>
+    <td style="${tdc};color:#f97316">${qtyPlan?cumQty:pct.toFixed(1)+'%'}</td>
+    <td style="${tdc};font-weight:700;color:#f97316">${pct.toFixed(1)}%</td>
+    <td style="${tdc};color:#16a34a">${kontrib>0?kontrib.toFixed(2)+'%':'—'}</td>
+    <td style="${tdc}">${node.qtySatuan||'—'}</td>
   </tr>`;
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════
+// GANTT CHART
+// ═══════════════════════════════════════════════════════════════
+
+let _ganttView = 'table'; // 'table' | 'gantt'
+
+function setWbsView(v){
+  _ganttView = v;
+  const tCard=$('wbsTableCard'), gCard=$('wbsGanttCard');
+  const tBtn=$('wbsViewTable'), gBtn=$('wbsViewGantt');
+  if(v==='gantt'){
+    tCard.style.display='none'; gCard.style.display='block';
+    tBtn.style.background=''; tBtn.style.color='var(--mt)';
+    gBtn.style.background='var(--bl)'; gBtn.style.color='#fff';
+    renderGantt();
+  }else{
+    gCard.style.display='none'; tCard.style.display='block';
+    gBtn.style.background=''; gBtn.style.color='var(--mt)';
+    tBtn.style.background='var(--bl)'; tBtn.style.color='#fff';
+  }
+}
+
+function renderGantt(){
+  const projId=$('wbsProjSel')?.value;if(!projId)return;
+  const proj=P.find(p=>String(p.id)===String(projId));
+  const all=WBS.filter(w=>String(w.projId)===String(projId));
+  const cats=all.filter(w=>w.type==='cat').sort((a,b)=>a.order-b.order);
+  const zoom=+($('ganttZoom')?.value||30);
+  if($('wbsGanttTitle'))$('wbsGanttTitle').textContent=proj?.nama||'';
+
+  // Collect all dates to determine range
+  const allDates=[];
+  if(proj?.mulai) allDates.push(new Date(proj.mulai+'T00:00:00'));
+  if(proj?.selesai) allDates.push(new Date(proj.selesai+'T00:00:00'));
+  all.forEach(w=>{
+    if(w.startDate)allDates.push(new Date(w.startDate+'T00:00:00'));
+    if(w.finishDate)allDates.push(new Date(w.finishDate+'T00:00:00'));
+  });
+
+  let minDate, maxDate;
+  if(allDates.length){
+    minDate=new Date(Math.min(...allDates));
+    maxDate=new Date(Math.max(...allDates));
+  }else if(proj?.mulai){
+    minDate=new Date(proj.mulai+'T00:00:00');
+    maxDate=new Date(minDate);maxDate.setMonth(maxDate.getMonth()+3);
+  }else{
+    const now=new Date();
+    minDate=new Date(now.getFullYear(),now.getMonth(),1);
+    maxDate=new Date(now.getFullYear(),now.getMonth()+3,1);
+  }
+  // Add padding
+  minDate=new Date(minDate);minDate.setDate(minDate.getDate()-7);
+  maxDate=new Date(maxDate);maxDate.setDate(maxDate.getDate()+14);
+
+  // Build column units
+  const cols=[];
+  let cur=new Date(minDate);
+  const COL_W=zoom===7?24:zoom===30?28:40; // px per col
+  while(cur<=maxDate){
+    cols.push(new Date(cur));
+    cur.setDate(cur.getDate()+(zoom===7?1:zoom===30?7:30));
+  }
+  const totalW=cols.length*COL_W;
+  const today=new Date();today.setHours(0,0,0,0);
+
+  // Helper: date → x position
+  const dateToX=d=>{
+    const ms=new Date(d+'T00:00:00')-minDate;
+    const days=ms/86400000;
+    const totalDays=(maxDate-minDate)/86400000;
+    return Math.round(days/totalDays*totalW);
+  };
+  const dateToXObj=d=>{
+    const ms=d-minDate;
+    const days=ms/86400000;
+    const totalDays=(maxDate-minDate)/86400000;
+    return Math.round(days/totalDays*totalW);
+  };
+
+  // Build column header months
+  let monthHeaders='';
+  const monthMap={};
+  cols.forEach((d,i)=>{
+    const mk=d.getFullYear()+'-'+d.getMonth();
+    if(!monthMap[mk])monthMap[mk]={start:i,label:d.toLocaleDateString('id-ID',{month:'short',year:'2-digit'})};
+    monthMap[mk].end=i;
+  });
+  Object.values(monthMap).forEach(m=>{
+    const w=(m.end-m.start+1)*COL_W;
+    monthHeaders+=`<div class="gantt-month" style="width:${w}px;flex-shrink:0">${m.label}</div>`;
+  });
+
+  // Column headers (week/day labels)
+  let colHeaders='';
+  cols.forEach((d,i)=>{
+    const isToday=d.toDateString()===today.toDateString();
+    const label=zoom===7?d.getDate():zoom===30?'W'+(Math.ceil((d-new Date(d.getFullYear(),0,1))/86400000/7)):d.toLocaleDateString('id-ID',{month:'short'});
+    colHeaders+=`<div class="gantt-day-col" style="width:${COL_W}px;flex-shrink:0;${isToday?'color:var(--or);font-weight:700':''}">${label}</div>`;
+  });
+
+  // Today line x
+  const todayX=dateToXObj(today);
+
+  // Build rows
+  let rows='';
+  if(!cats.length){
+    rows=`<div style="padding:30px;text-align:center;color:var(--mt);font-size:12px">Belum ada WBS. Tambahkan item terlebih dahulu dan isi Start/Finish date.</div>`;
+  }else{
+    cats.forEach((cat,ci)=>{
+      // Cat summary bar (earliest start → latest finish)
+      const catChildren=all.filter(w=>w.parentId===cat.id||all.some(x=>x.parentId===cat.id&&x.id===w.parentId));
+      const catStarts=catChildren.map(w=>w.startDate).filter(Boolean).sort();
+      const catFinishes=catChildren.map(w=>w.finishDate).filter(Boolean).sort();
+      const catPlanBar=_ganttBar(catStarts[0],catFinishes.slice(-1)[0],dateToX,totalW,'cat');
+      const dur=_ganttDuration(catStarts[0],catFinishes.slice(-1)[0]);
+      rows+=`<div class="gantt-row gantt-cat-row">
+        <div class="gantt-cell-left" onclick="toggleGanttCat(this,'gc_${cat.id}')">
+          <span style="font-size:10px;color:var(--bl);opacity:.6;margin-right:2px">▼</span>
+          <span style="font-family:var(--fd);font-size:12px;letter-spacing:.5px">${String.fromCharCode(65+ci)}. ${safeStr(cat.name)}</span>
+          ${dur?`<span style="font-size:9px;color:var(--mt);margin-left:auto">${dur}</span>`:''}
+        </div>
+        <div class="gantt-bar-row" style="width:${totalW}px;position:relative">
+          ${catPlanBar}
+          <div class="gantt-today-line" style="left:${todayX}px"></div>
+        </div>
+      </div>`;
+
+      all.filter(w=>w.type==='subcat'&&w.parentId===cat.id).sort((a,b)=>a.order-b.order).forEach((sub,si)=>{
+        const subItems=all.filter(w=>w.type==='item'&&w.parentId===sub.id).sort((a,b)=>a.order-b.order);
+        const isLeaf=subItems.length===0;
+        const subPlanBar=_ganttBar(sub.startDate,sub.finishDate,dateToX,totalW,'sub');
+        const subActBar=isLeaf?_ganttActualBar(sub,dateToX,totalW,sub.startDate,sub.finishDate):'';
+        const subPct=isLeaf?+(sub.cumActual||0):subItems.reduce((s,x)=>s+(+x.cumActual||0),0);
+        rows+=`<div class="gantt-row gantt-sub-row" id="gc_${cat.id}">
+          <div class="gantt-cell-left" style="padding-left:20px" onclick="${!isLeaf?`toggleGanttCat(this,'gi_${sub.id}')`:''}" >
+            ${!isLeaf?'<span style="font-size:9px;color:var(--gn);opacity:.6;margin-right:2px">▼</span>':'<span style="width:12px;display:inline-block"></span>'}
+            <span style="font-size:11px">${ci+1}.${si+1} ${safeStr(sub.name)}</span>
+            ${subPct>0?`<span style="font-size:9px;font-family:var(--fm);color:var(--or);margin-left:auto">${subPct.toFixed(1)}%</span>`:''}
+          </div>
+          <div class="gantt-bar-row" style="width:${totalW}px;position:relative">
+            ${subPlanBar}${subActBar}
+            <div class="gantt-today-line" style="left:${todayX}px"></div>
+          </div>
+        </div>`;
+
+        subItems.forEach((item,ii)=>{
+          const planBar=_ganttBar(item.startDate||sub.startDate,item.finishDate||sub.finishDate,dateToX,totalW,'plan');
+          const actBar=_ganttActualBar(item,dateToX,totalW,sub.startDate,sub.finishDate);
+          const pct=+item.cumActual||0;
+          rows+=`<div class="gantt-row" id="gi_${sub.id}">
+            <div class="gantt-cell-left" style="padding-left:34px">
+              <span style="width:12px;display:inline-block"></span>
+              <span style="font-size:10px;color:var(--mt)">${ci+1}.${si+1}.${ii+1}</span>
+              <span style="font-size:10px">${safeStr(item.name)}</span>
+              ${pct>0?`<span style="font-size:9px;font-family:var(--fm);color:var(--or);margin-left:auto">${pct.toFixed(1)}%</span>`:''}
+            </div>
+            <div class="gantt-bar-row" style="width:${totalW}px;position:relative">
+              ${planBar}${actBar}
+              <div class="gantt-today-line" style="left:${todayX}px"></div>
+            </div>
+          </div>`;
+        });
+      });
+    });
+  }
+
+  $('wbsGanttChart').innerHTML=`
+    <div class="gantt-wrap">
+      <!-- Sticky left panel + header -->
+      <div style="position:sticky;left:0;z-index:5;flex-shrink:0">
+        <!-- empty top-left corner -->
+      </div>
+      <!-- Full chart -->
+      <div style="width:100%;overflow-x:auto" id="ganttScrollArea">
+        <!-- Month headers row -->
+        <div style="display:flex;position:sticky;top:0;z-index:5;min-width:${340+totalW}px">
+          <div style="width:340px;flex-shrink:0;background:var(--sf2);border-right:2px solid var(--bd);border-bottom:1px solid var(--bd);padding:0 12px;display:flex;align-items:center;font-size:9px;font-weight:700;color:var(--mt);letter-spacing:1px;text-transform:uppercase;height:20px;position:sticky;left:0;z-index:6">ITEM PEKERJAAN</div>
+          <div style="display:flex;border-bottom:1px solid var(--bd);background:var(--sf2)">${monthHeaders}</div>
+        </div>
+        <!-- Week/day sub-header -->
+        <div style="display:flex;position:sticky;top:20px;z-index:5;min-width:${340+totalW}px">
+          <div style="width:340px;flex-shrink:0;background:var(--sf2);border-right:2px solid var(--bd);border-bottom:2px solid var(--bd);height:18px;position:sticky;left:0;z-index:6;display:flex;align-items:center;padding:0 12px">
+            <span style="font-size:8px;color:var(--mt)">Bobot / Durasi / Progress</span>
+          </div>
+          <div style="display:flex;border-bottom:2px solid var(--bd);background:var(--sf2)">${colHeaders}</div>
+        </div>
+        <!-- Rows -->
+        <div style="min-width:${340+totalW}px">
+          ${rows}
+        </div>
+      </div>
+    </div>`;
+}
+
+function _ganttBar(start,finish,dateToX,totalW,type){
+  if(!start||!finish)return '';
+  const x1=dateToX(start),x2=dateToX(finish);
+  const w=Math.max(8,x2-x1);
+  const fmtShort=d=>new Date(d+'T12:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short'});
+  const labelStart=fmtShort(start);
+  const labelEnd=fmtShort(finish);
+  // Show labels outside bar if bar too narrow
+  const showInside=w>80;
+  const labelHtml=showInside
+    ?`<span style="position:absolute;left:4px;top:50%;transform:translateY(-50%);font-size:8px;color:rgba(255,255,255,.9);white-space:nowrap;font-weight:600">${labelStart}</span>
+       <span style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:8px;color:rgba(255,255,255,.9);white-space:nowrap;font-weight:600">${labelEnd}</span>`
+    :`<span style="position:absolute;left:${w+3}px;top:50%;transform:translateY(-50%);font-size:8px;color:var(--bl);white-space:nowrap;font-weight:600">${labelStart}→${labelEnd}</span>`;
+  if(type==='cat')return `<div class="gantt-bar-plan gantt-bar-cat" style="left:${x1}px;width:${w}px;position:absolute">${labelHtml}</div>`;
+  if(type==='sub')return `<div class="gantt-bar-plan gantt-bar-sub" style="left:${x1}px;width:${w}px;position:absolute">${labelHtml}</div>`;
+  return `<div class="gantt-bar-plan" style="left:${x1}px;width:${w}px;position:absolute">${labelHtml}</div>`;
+}
+
+function _ganttActualBar(node,dateToX,totalW,fallbackStart,fallbackFinish){
+  const pct=Math.min(100,+node.cumActual||0);if(!pct)return '';
+  // Use node dates, or fallback to parent dates
+  const start=node.startDate||fallbackStart;
+  const finish=node.finishDate||fallbackFinish;
+  if(!start||!finish)return `<div style="position:absolute;right:4px;top:22px;font-size:8px;color:var(--or);font-weight:700">${pct.toFixed(0)}%</div>`;
+  const x1=dateToX(start),x2=dateToX(finish);
+  const fullW=Math.max(8,x2-x1);
+  const actW=Math.max(4,Math.round(fullW*pct/100));
+  const pctLabel=`<span style="position:absolute;left:${actW+3}px;top:50%;transform:translateY(-50%);font-size:8px;color:var(--or);white-space:nowrap;font-weight:700">${pct.toFixed(0)}%</span>`;
+  return `<div class="gantt-bar-actual" style="left:${x1}px;width:${actW}px;position:absolute">${pctLabel}</div>`;
+}
+
+function _ganttDuration(start,finish){
+  if(!start||!finish)return '';
+  const d1=new Date(start+'T00:00:00'),d2=new Date(finish+'T00:00:00');
+  const days=Math.round((d2-d1)/86400000)+1;
+  return days+'d';
+}
+
+function toggleGanttCat(el,groupId){
+  const rows=document.querySelectorAll('#'+groupId);
+  const icon=el.querySelector('span');
+  const hidden=rows.length&&rows[0].style.display==='none';
+  rows.forEach(r=>r.style.display=hidden?'flex':'none');
+  if(icon)icon.textContent=hidden?'▼':'▶';
 }
 
 function safeStr(v){
