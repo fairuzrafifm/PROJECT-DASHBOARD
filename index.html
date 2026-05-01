@@ -2787,17 +2787,14 @@ function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>p.id!=
 // ═══════════════════════════════════════════════════════════════
 // GOOGLE SHEET
 // ═══════════════════════════════════════════════════════════════
-const GS_SCRIPT=`// ATW Solar Dashboard — Google Apps Script v7
-// Ganti SHEET_ID lalu Deploy sebagai Web App (Anyone can access)
+const GS_SCRIPT=`// ATW Solar Dashboard — Google Apps Script v8 (Multi-User Safe)
+// Deploy sebagai Web App: Execute as Me, Anyone can access
 
-const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
+const SHEET_ID = '${gsSheet||'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA'}';
 
-// Ambil spreadsheet — gunakan SHEET_ID jika sudah diset, fallback ke active
 function getSpreadsheet() {
   try {
-    if (SHEET_ID && SHEET_ID.length > 10) {
-      return SpreadsheetApp.openById(SHEET_ID);
-    }
+    if (SHEET_ID && SHEET_ID.length > 10) return SpreadsheetApp.openById(SHEET_ID);
   } catch(e) {}
   return SpreadsheetApp.getActiveSpreadsheet();
 }
@@ -2807,6 +2804,13 @@ function doOptions(e) {
 }
 
 function doPost(e) {
+  // LockService — prevent concurrent writes
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(8000); // wait max 8s
+  } catch(err) {
+    return makeOutput({status:'error', msg:'Server busy, coba lagi'});
+  }
   try {
     const d = JSON.parse(e.postData.contents || '{}');
     const ss = getSpreadsheet();
@@ -2817,32 +2821,62 @@ function doPost(e) {
       sh.appendRow(['key', 'value']);
       sh.appendRow(['pw_admin',  String(d.pw_admin  || 'admin123')]);
       sh.appendRow(['pw_editor', String(d.pw_editor || 'edit123')]);
+      lock.releaseLock();
       return makeOutput({status:'ok'});
     }
 
     if (d.action === 'sync') {
       const meta = ss.getSheetByName('_META');
       const currentTs = meta && meta.getLastRow() >= 2 ? +meta.getRange(2,1).getValue() : 0;
-      if ((d.lastSaved||0) < currentTs) {
-        return makeOutput({status:'rejected', currentTs, incomingTs: d.lastSaved||0});
+      const incomingTs = d.lastSaved || 0;
+
+      // Conflict check — if server newer, return server data for merge
+      if (incomingTs < currentTs - 2000) {
+        lock.releaseLock();
+        return makeOutput({
+          status: 'conflict',
+          currentTs,
+          incomingTs,
+          msg: 'Data di server lebih baru. Merge dilakukan otomatis.'
+        });
       }
+
+      // Merge all collections by id (never delete, only add/update)
+      const mergeById = (existing, incoming) => {
+        const map = new Map();
+        (existing||[]).forEach(r => { if(r.id) map.set(String(r.id), r); });
+        (incoming||[]).forEach(r => { if(r.id) map.set(String(r.id), r); });
+        return [...map.values()];
+      };
+
+      const existingProc = readSheet(ss,'PROCUREMENT') || [];
+      const existingIss  = readSheet(ss,'ISSUES')      || [];
+      const existingMp   = readSheet(ss,'MANPOWER_LOG')|| [];
+      const existingWbs  = readSheet(ss,'WBS')         || [];
+
       writeSheet(ss,'PROJECTS',   d.projects||[],    ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo']);
       writeSheet(ss,'HISTORY',    d.history||[],     ['projId','kode','date','actual','plan','mp','notes']);
-      writeSheet(ss,'ISSUES',     d.issues||[],      ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
-      writeSheet(ss,'PROCUREMENT',d.procurement||[], ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes']);
-      writeSheet(ss,'MANPOWER_LOG',d.manpowerLogs||[],['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
+      writeSheet(ss,'ISSUES',     mergeById(existingIss,  d.issues),      ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
+      writeSheet(ss,'PROCUREMENT',mergeById(existingProc, d.procurement), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes']);
+      writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,  d.manpowerLogs),['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
       writeSheet(ss,'ACCIDENT_LOG',d.accidentLogs||[],['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
       writeSheet(ss,'SCURVE',d.scurve||[],['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
-      writeSheet(ss,'WBS',d.wbs||[],['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
+      writeSheet(ss,'WBS',mergeById(existingWbs,d.wbs),['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
+
+      const now = Date.now();
       let ms = ss.getSheetByName('_META') || ss.insertSheet('_META');
       ms.clearContents();
-      ms.appendRow(['lastSaved','version']);
-      ms.appendRow([d.lastSaved||Date.now(), '7.0']);
-      return makeOutput({status:'ok', ts: new Date().toISOString()});
+      ms.appendRow(['lastSaved','version','lastUser']);
+      ms.appendRow([now, '8.0', d.user||'unknown']);
+
+      lock.releaseLock();
+      return makeOutput({status:'ok', ts: new Date().toISOString(), serverTs: now});
     }
 
+    lock.releaseLock();
     return makeOutput({status:'error', msg:'Unknown action'});
   } catch(err) {
+    try { lock.releaseLock(); } catch(e) {}
     return makeOutput({status:'error', msg: err.message});
   }
 }
@@ -2881,14 +2915,17 @@ function writeSheet(ss, name, data, cols) {
   sh.clearContents();
   sh.appendRow(cols);
   const dateFields = ['startDate','finishDate','date','mulai','selesai','due'];
-  data.forEach(row => sh.appendRow(cols.map(c => {
-    const v = row[c];
-    if (v === null || v === undefined) return '';
-    if (typeof v === 'object') return JSON.stringify(v);
-    // Store date fields as plain string to avoid GSheet auto-converting to Date
-    if (dateFields.includes(c) && typeof v === 'string' && v.length >= 10) return "'" + v.slice(0,10);
-    return v;
-  })));
+  if (data.length > 0) {
+    const rows = data.map(row => cols.map(c => {
+      const v = row[c];
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'object') return JSON.stringify(v);
+      if (dateFields.includes(c) && typeof v === 'string' && v.length >= 10)
+        return "'" + String(v).slice(0,10);
+      return v;
+    }));
+    sh.getRange(2, 1, rows.length, cols.length).setValues(rows);
+  }
 }
 
 function readSheet(ss, name) {
@@ -2898,13 +2935,12 @@ function readSheet(ss, name) {
   const dateFields = ['due','date','mulai','selesai','startDate','finishDate'];
   return rows.map(r => {
     const obj = Object.fromEntries(headers.map((k,i) => [k, r[i]]));
-    // Parse JSON strings back to objects/arrays
     ['weeklyData','weeklyPlan','dailyLogs','history'].forEach(field => {
-      if (obj[field] && typeof obj[field] === 'string' && (obj[field].startsWith('{') || obj[field].startsWith('['))) {
+      if (obj[field] && typeof obj[field] === 'string' &&
+          (obj[field].startsWith('{') || obj[field].startsWith('['))) {
         try { obj[field] = JSON.parse(obj[field]); } catch(e) {}
       }
     });
-    // Trim datetime to date only for date fields
     dateFields.forEach(field => {
       if (obj[field]) {
         const s = String(obj[field]).trim();
@@ -2950,18 +2986,38 @@ function copyGsScript(){
 }
 async function gsSync(){
   if(!gsOk||!gsUrl)return;
-  try{
-    const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
-    const body=JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS});
-    const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
-    if(r.ok){const txt=await r.text();try{const d=JSON.parse(txt);if(d.status==='ok')console.log('GS sync OK',d.ts);}catch(e){}}
-  }catch(e){
+  // Debounce — jangan sync terlalu sering
+  if(gsSync._pending)clearTimeout(gsSync._pending);
+  gsSync._pending=setTimeout(async()=>{
+    gsSync._pending=null;
     try{
       const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
-      fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
-      console.log('GS sync via no-cors fallback');
-    }catch(e2){console.log('GS sync error:',e2);}
-  }
+      const user=localStorage.getItem('atw_user')||'user';
+      const body=JSON.stringify({action:'sync',lastSaved:Date.now(),user,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS});
+      const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
+      if(r.ok){
+        const txt=await r.text();
+        try{
+          const d=JSON.parse(txt);
+          if(d.status==='ok'){
+            console.log('GS sync OK',d.ts);
+          }else if(d.status==='conflict'){
+            // Server lebih baru — load ulang dari GSheet lalu sync lagi
+            console.warn('GS conflict detected, reloading...');
+            await loadFromGS();
+          }else if(d.status==='error'&&d.msg==='Server busy, coba lagi'){
+            // Retry after 3s
+            setTimeout(()=>gsSync(),3000);
+          }
+        }catch(e){}
+      }
+    }catch(e){
+      try{
+        const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
+        fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
+      }catch(e2){}
+    }
+  },1500); // debounce 1.5s
 }
 async function syncAllGS(){
   if(!gsOk||!gsUrl){toast('Google Sheet belum tersambung','warn');return;}
@@ -3036,7 +3092,12 @@ async function loadFromGS(){
         if(!p.logo&&lv)p.logo=lv;
       });
       ISS=sanitizeIssues(d.issues);
-      PROC=sanitizeProc(d.procurement);
+      // Merge procurement: GSheet + lokal, tidak hapus data yang tidak ada di lokal
+      const remoteProc=sanitizeProc(d.procurement);
+      const procMergeMap=new Map();
+      PROC.forEach(p=>procMergeMap.set(String(p.id),p));
+      remoteProc.forEach(p=>procMergeMap.set(String(p.id),p));
+      PROC=[...procMergeMap.values()];
       MPLOGS=sanitizeMpLogs(d.manpowerLogs);
       ACCLOGS=sanitizeAccLogs(d.accidentLogs);
       SCURVE=Array.isArray(d.scurve)?d.scurve.map(s=>({projId:s.projId,week:+s.week||0,wPlan:+s.wPlan||0,wAct:+s.wAct||0,cPlan:s.cPlan!=null&&s.cPlan!==''?+s.cPlan:null,cAct:s.cAct!=null&&s.cAct!==''?+s.cAct:null,dateStart:safeStr(s.dateStart),fromWbs:!!s.fromWbs})):[];
@@ -6095,21 +6156,31 @@ setInterval(async()=>{
     if(!d.projects||!d.projects.length)return;
     const gTs=+d.lastSaved||0;
     const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||0;
-    if(gTs>lTs){
+    if(gTs>lTs+3000){ // server > 3s lebih baru → update
       P=sanitizeProjects(d.projects);
       try{const lc=JSON.parse(localStorage.getItem('atw_logos')||'{}');P.forEach(p=>{if(!p.logo&&(lc[p.id]||lc[String(p.id)]))p.logo=lc[p.id]||lc[String(p.id)];});}catch(ex){}
       ISS=sanitizeIssues(d.issues);
-      PROC=sanitizeProc(d.procurement);
+      // Merge procurement (jangan hapus data lokal)
+      const remP=sanitizeProc(d.procurement);
+      const pm=new Map();PROC.forEach(p=>pm.set(String(p.id),p));remP.forEach(p=>pm.set(String(p.id),p));PROC=[...pm.values()];
       MPLOGS=sanitizeMpLogs(d.manpowerLogs);
       ACCLOGS=sanitizeAccLogs(d.accidentLogs);
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
+      // Merge WBS
+      if(Array.isArray(d.wbs)&&d.wbs.length){
+        const wm=new Map();WBS.forEach(w=>wm.set(String(w.id),w));
+        d.wbs.forEach(w=>wm.set(String(w.id),w));
+        WBS=[...wm.values()];
+      }
       selId=selId||(P[0]?.id||null);
       saveLocal();render();
-      $('smsg').textContent='Auto-update dari GSheet · '+new Date().toLocaleTimeString('id-ID');
+      $('smsg').textContent='↻ Update dari GSheet · '+new Date().toLocaleTimeString('id-ID');
       $('sdot').style.background='var(--gn)';$('sdot').classList.remove('unsaved');
+      // Non-intrusive toast notification
+      toast('↻ Data diperbarui dari GSheet');
     }
   }catch(e){/* silent fail */}
-},120000); // 2 menit
+},60000); // setiap 1 menit
 </script>
 </body>
 </html>
