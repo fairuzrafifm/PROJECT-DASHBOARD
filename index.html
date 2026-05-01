@@ -2994,10 +2994,11 @@ async function loadFromGS(){
       WBS=[...wbsMap.values()];
 
       // Normalize all IDs to strings for consistent comparison
+      const _toId=v=>{if(v==null||v==='')return '';if(typeof v==='object'){const s=JSON.stringify(v);return s.replace(/[^0-9]/g,'').slice(0,16)||'';}return String(v);};
       WBS=WBS.map(w=>({...w,
-        id:String(w.id),
-        projId:String(w.projId),
-        parentId:w.parentId!=null&&w.parentId!==''?String(w.parentId):null
+        id:_toId(w.id)||String(Date.now()+Math.random()),
+        projId:_toId(w.projId),
+        parentId:w.parentId!=null&&w.parentId!==''?_toId(w.parentId):null
       }));
 
       // Match WBS projId to actual project IDs (handle numeric vs string mismatch)
@@ -3006,7 +3007,8 @@ async function loadFromGS(){
         WBS=WBS.map(w=>{
           if(validProjIds.has(w.projId))return w;
           const match=P.find(p=>+p.id===+w.projId);
-          if(match){console.log(`[WBS] remapped projId ${w.projId} → ${match.id}`);return{...w,projId:match.id};}
+          if(match){
+return{...w,projId:match.id};}
           return w;
         });
       }
@@ -3727,17 +3729,13 @@ function renderWBS(){
   if($('wbsChartTitle'))$('wbsChartTitle').textContent=proj?.nama||'';
   // Debug: log first few WBS entries vs projId
   if(WBS.length){
-    console.log(`[WBS DEBUG] projId from dropdown: "${projId}" (type:${typeof projId})`);
-    console.log(`[WBS DEBUG] Total WBS entries: ${WBS.length}`);
-    console.log(`[WBS DEBUG] First 3 WBS projIds:`, WBS.slice(0,3).map(w=>({projId:w.projId,type:typeof w.projId,name:w.name})));
-    console.log(`[WBS DEBUG] Match count: ${WBS.filter(w=>String(w.projId)===String(projId)).length}`);
+
   }
   // Try both string and loose match
   let all=WBS.filter(w=>String(w.projId)===String(projId));
   // Fallback: try numeric match if string match fails
   if(!all.length&&WBS.length){
     all=WBS.filter(w=>+w.projId===+projId);
-    if(all.length)console.log(`[WBS DEBUG] Fallback numeric match found ${all.length} items`);
   }
   const cats=all.filter(w=>w.type==='cat').sort((a,b)=>a.order-b.order);
   // Auto-sum bobot ke atas
