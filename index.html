@@ -2984,6 +2984,23 @@ async function loadFromGS(){
         startDate:parseDate(w.startDate),
         finishDate:parseDate(w.finishDate)
       })):[];
+
+      // Normalize WBS IDs — GSheet may return them as numbers or strings
+      // Match projId to actual project IDs
+      if(WBS.length&&P.length){
+        WBS=WBS.map(w=>{
+          // Find matching project — try string match first, then numeric
+          const matchProj=P.find(p=>String(p.id)===String(w.projId))||P.find(p=>+p.id===+w.projId);
+          return {...w,
+            id:w.id, // keep as-is, comparison uses String()
+            projId:matchProj?matchProj.id:w.projId,
+            parentId:w.parentId!==''&&w.parentId!==null&&w.parentId!==undefined?w.parentId:null
+          };
+        });
+        console.log(`WBS loaded: ${WBS.length} nodes for ${P.length} projects`);
+        WBS.forEach(w=>console.log(`  WBS: ${w.type} "${w.name}" projId=${w.projId} → match=${P.some(p=>String(p.id)===String(w.projId))}`));
+      }
+      syncAllWbsToProjects();
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
       selId=P[0]?.id||null;
       saveLocal();saveLogosCache();
@@ -3666,6 +3683,26 @@ function renderScManageTable(){
 // WBS — WORK BREAKDOWN STRUCTURE
 // ═══════════════════════════════════════════════════════════════
 
+function fixWbsProjId(correctProjId){
+  // Find WBS entries that don't match any project and reassign to correctProjId
+  const validIds=new Set(P.map(p=>String(p.id)));
+  let fixed=0;
+  WBS.forEach(w=>{
+    if(!validIds.has(String(w.projId))){
+      console.log(`[FIX] Reassigning WBS "${w.name}" projId: ${w.projId} → ${correctProjId}`);
+      w.projId=correctProjId;
+      fixed++;
+    }
+  });
+  if(fixed){
+    toast(`✓ Fixed ${fixed} WBS entries → projId ${correctProjId}`);
+    dirty();syncAllWbsToProjects();renderWBS();gsSync();
+  } else {
+    // If all already have valid IDs, maybe just wrong project selected
+    toast('Semua projId sudah valid — coba pilih project yang sesuai','warn');
+  }
+}
+
 function renderWBS(){
   const sel=$('wbsProjSel');
   if(sel){const cur=sel.value;sel.innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');if(cur)sel.value=cur;}
@@ -3673,7 +3710,20 @@ function renderWBS(){
   if(!projId){$('wbsTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:30px">Belum ada project</div>';return;}
   const proj=P.find(p=>String(p.id)===String(projId));
   if($('wbsChartTitle'))$('wbsChartTitle').textContent=proj?.nama||'';
-  const all=WBS.filter(w=>String(w.projId)===String(projId));
+  // Debug: log first few WBS entries vs projId
+  if(WBS.length){
+    console.log(`[WBS DEBUG] projId from dropdown: "${projId}" (type:${typeof projId})`);
+    console.log(`[WBS DEBUG] Total WBS entries: ${WBS.length}`);
+    console.log(`[WBS DEBUG] First 3 WBS projIds:`, WBS.slice(0,3).map(w=>({projId:w.projId,type:typeof w.projId,name:w.name})));
+    console.log(`[WBS DEBUG] Match count: ${WBS.filter(w=>String(w.projId)===String(projId)).length}`);
+  }
+  // Try both string and loose match
+  let all=WBS.filter(w=>String(w.projId)===String(projId));
+  // Fallback: try numeric match if string match fails
+  if(!all.length&&WBS.length){
+    all=WBS.filter(w=>+w.projId===+projId);
+    if(all.length)console.log(`[WBS DEBUG] Fallback numeric match found ${all.length} items`);
+  }
   const cats=all.filter(w=>w.type==='cat').sort((a,b)=>a.order-b.order);
   // Auto-sum bobot ke atas
   all.forEach(w=>{if(w.type==='subcat'){const cb=all.filter(x=>x.type==='item'&&x.parentId===w.id).reduce((s,x)=>s+(+x.bobot||0),0);if(cb>0)w._ab=cb;}});
@@ -3690,7 +3740,18 @@ function renderWBS(){
   const totalKontrib=trueLeaves.reduce((s,w)=>s+(+w.bobot||0)*(+w.cumActual||0)/100,0);
   const bobotOk=Math.abs(totalBobot-100)<0.1;  if($('wbsTotalBobot'))$('wbsTotalBobot').innerHTML='Total bobot: <span style="font-family:var(--fm);font-weight:700;color:'+( bobotOk?'var(--gn)':totalBobot>100?'var(--rd)':'var(--yw)')+'">'+totalBobot.toFixed(2)+'%</span>'+( bobotOk?' ✓':' (harus 100%)');
   let html='';
-  if(!cats.length){html='<div style="text-align:center;color:var(--mt);padding:30px;font-size:12px">Belum ada WBS — klik ＋ Kategori untuk mulai</div>';}
+  if(!cats.length){
+    html=WBS.length?
+      `<div style="padding:16px">
+        <div style="text-align:center;color:var(--mt);padding:10px;font-size:12px;margin-bottom:8px">Belum ada WBS untuk project ini</div>
+        <div style="padding:8px 12px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.3);border-radius:6px;font-size:11px;color:var(--or)">
+          ⚠ Terdeteksi ${WBS.length} data WBS tapi projId tidak cocok.<br>
+          <span style="font-family:monospace;font-size:10px">Project ID: <b>${projId}</b> | WBS projId: <b>${WBS[0]?.projId}</b></span><br>
+          <button onclick="fixWbsProjId('${projId}')" style="margin-top:6px;padding:4px 10px;background:var(--or);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600">🔧 Fix & Tampilkan WBS</button>
+        </div>
+      </div>`
+      :'<div style="text-align:center;color:var(--mt);padding:30px;font-size:12px">Belum ada WBS — klik ＋ Kategori untuk mulai</div>';
+  }
   else{
     const fmtD=d=>d?new Date(d+'T12:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'2-digit'}):'—';
     html=`<table class="tbl"><thead><tr><th style="width:50px">#</th><th>Item Pekerjaan</th><th style="width:70px;text-align:right">Bobot</th><th style="width:88px">Start</th><th style="width:88px">Finish</th><th style="width:80px;text-align:right">% Selesai</th><th style="width:80px;text-align:right">Kontribusi</th><th style="width:75px;text-align:center">Aksi</th></tr></thead><tbody>`;
