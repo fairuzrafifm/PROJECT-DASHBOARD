@@ -2794,9 +2794,11 @@ const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
 
 // Ambil spreadsheet — gunakan SHEET_ID jika sudah diset, fallback ke active
 function getSpreadsheet() {
-  if (SHEET_ID && SHEET_ID !== 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA') {
-    return SpreadsheetApp.openById(SHEET_ID);
-  }
+  try {
+    if (SHEET_ID && SHEET_ID.length > 10) {
+      return SpreadsheetApp.openById(SHEET_ID);
+    }
+  } catch(e) {}
   return SpreadsheetApp.getActiveSpreadsheet();
 }
 
