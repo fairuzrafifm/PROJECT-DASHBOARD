@@ -2198,7 +2198,8 @@ function renderProc(){
       const qty=safeStr(i.qty)||'—';
       const sat=safeStr(i.satuan)||'';
       const sup=safeStr(i.supplier)||'—';
-      const due=safeStr(i.due)||'—';
+      const _trimD=v=>{if(!v||v==='—')return v;const s=String(v).trim();return s.includes('T')?s.slice(0,10):s;};
+      const due=_trimD(safeStr(i.due))||'—';
       const stat=safeStr(i.status)||'—';
       const notes=safeStr(i.notes)||'—';
       const done=stat==='On Site'||stat==='Done';
@@ -2877,7 +2878,7 @@ function writeSheet(ss, name, data, cols) {
   const sh = ss.getSheetByName(name) || ss.insertSheet(name);
   sh.clearContents();
   sh.appendRow(cols);
-  const dateFields = ['startDate','finishDate','date','mulai','selesai'];
+  const dateFields = ['startDate','finishDate','date','mulai','selesai','due'];
   data.forEach(row => sh.appendRow(cols.map(c => {
     const v = row[c];
     if (v === null || v === undefined) return '';
@@ -2892,12 +2893,21 @@ function readSheet(ss, name) {
   const sh = ss.getSheetByName(name);
   if (!sh || sh.getLastRow() < 2) return [];
   const [headers, ...rows] = sh.getDataRange().getValues();
+  const dateFields = ['due','date','mulai','selesai','startDate','finishDate'];
   return rows.map(r => {
     const obj = Object.fromEntries(headers.map((k,i) => [k, r[i]]));
     // Parse JSON strings back to objects/arrays
     ['weeklyData','weeklyPlan','dailyLogs','history'].forEach(field => {
       if (obj[field] && typeof obj[field] === 'string' && (obj[field].startsWith('{') || obj[field].startsWith('['))) {
         try { obj[field] = JSON.parse(obj[field]); } catch(e) {}
+      }
+    });
+    // Trim datetime to date only for date fields
+    dateFields.forEach(field => {
+      if (obj[field]) {
+        const s = String(obj[field]).trim();
+        if (s.includes('T')) obj[field] = s.slice(0,10);
+        else if (s.startsWith("'")) obj[field] = s.slice(1,11);
       }
     });
     return obj;
@@ -5738,18 +5748,23 @@ function sanitizeIssues(arr){
   }));
 }
 function sanitizeProc(arr){
+  const _trimDate=v=>{if(!v)return'';const s=String(v).trim();return s.includes('T')?s.slice(0,10):s.slice(0,10);};
+  const seen=new Set();
   return (arr||[]).filter(r=>r.item&&typeof r.item==='string'&&r.item.trim()!='').map(pr=>({
-    id:pr.id||Date.now(),
-    projId:pr.projId,
+    id:String(pr.id||Date.now()),
+    projId:String(pr.projId||''),
     item:safeStr(pr.item).slice(0,200),
     kategori:safeStr(pr.kategori)||'Material',
     qty:safeStr(pr.qty).slice(0,50),
     satuan:safeStr(pr.satuan).slice(0,50),
     supplier:safeStr(pr.supplier).slice(0,200),
-    due:safeStr(pr.due).slice(0,30),
+    due:_trimDate(pr.due),
     status:safeStr(pr.status)||'Waiting Approval',
     notes:safeStr(pr.notes).slice(0,500)
-  }));
+  })).filter(pr=>{
+    if(seen.has(pr.id))return false;
+    seen.add(pr.id);return true;
+  });
 }
 function sanitizeMpLogs(arr){
   return (arr||[]).filter(r=>r.date).map(m=>({
