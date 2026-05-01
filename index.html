@@ -1667,7 +1667,8 @@ function loadLocal(){
     SCURVE=d.SC||[];
     const _pf=v=>{if(!v||v==='[object Object]')return{};if(typeof v==='object')return v;try{return JSON.parse(v);}catch(e){return{};}};
     const _pa=v=>{if(!v||v==='[object Object]')return[];if(Array.isArray(v))return v;try{const p=JSON.parse(v);return Array.isArray(p)?p:[];}catch(e){return[];}};
-    WBS=(d.WB||[]).map(w=>({...w,bobot:+w.bobot||0,cumActual:+w.cumActual||0,cumPlan:+w.cumPlan||0,weeklyData:_pf(w.weeklyData),weeklyPlan:_pf(w.weeklyPlan),dailyLogs:_pa(w.dailyLogs),qtyPlan:w.qtyPlan!=null?+w.qtyPlan:null,qtySatuan:w.qtySatuan||'',startDate:w.startDate||'',finishDate:w.finishDate||''}));
+    const _pd=v=>{if(!v)return'';const s=String(v);return s.includes('T')?s.slice(0,10):s.trim();};
+    WBS=(d.WB||[]).map(w=>({...w,bobot:+w.bobot||0,cumActual:+w.cumActual||0,cumPlan:+w.cumPlan||0,weeklyData:_pf(w.weeklyData),weeklyPlan:_pf(w.weeklyPlan),dailyLogs:_pa(w.dailyLogs),qtyPlan:w.qtyPlan!=null&&w.qtyPlan!==''?+w.qtyPlan:null,qtySatuan:w.qtySatuan||'',startDate:_pd(w.startDate),finishDate:_pd(w.finishDate)}));
     (d.P||[]).forEach(lp=>{const p=P.find(x=>x.id==lp.id);if(p&&Array.isArray(lp.history))p.history=lp.history;});
     // Re-sync WBS → project plan/actual
     syncAllWbsToProjects();
@@ -2802,10 +2803,13 @@ function writeSheet(ss, name, data, cols) {
   const sh = ss.getSheetByName(name) || ss.insertSheet(name);
   sh.clearContents();
   sh.appendRow(cols);
+  const dateFields = ['startDate','finishDate','date','mulai','selesai'];
   data.forEach(row => sh.appendRow(cols.map(c => {
     const v = row[c];
     if (v === null || v === undefined) return '';
     if (typeof v === 'object') return JSON.stringify(v);
+    // Store date fields as plain string to avoid GSheet auto-converting to Date
+    if (dateFields.includes(c) && typeof v === 'string' && v.length >= 10) return "'" + v.slice(0,10);
     return v;
   })));
 }
@@ -2960,6 +2964,13 @@ async function loadFromGS(){
         if(Array.isArray(v))return v;
         try{const p=JSON.parse(v);return Array.isArray(p)?p:[];}catch(e){return [];}
       };
+      // GSheet returns dates as "2026-04-22T00:00:00.000Z" — trim to YYYY-MM-DD
+      const parseDate=v=>{
+        if(!v)return '';
+        const s=String(v);
+        if(s.includes('T'))return s.slice(0,10);
+        return s.trim();
+      };
       WBS=Array.isArray(d.wbs)?d.wbs.map(w=>({
         ...w,
         bobot:+w.bobot||0,
@@ -2968,10 +2979,10 @@ async function loadFromGS(){
         weeklyData:parseField(w.weeklyData),
         weeklyPlan:parseField(w.weeklyPlan),
         dailyLogs:parseArr(w.dailyLogs),
-        qtyPlan:w.qtyPlan!=null?+w.qtyPlan:null,
+        qtyPlan:w.qtyPlan!=null&&w.qtyPlan!==''?+w.qtyPlan:null,
         qtySatuan:w.qtySatuan||'',
-        startDate:w.startDate||'',
-        finishDate:w.finishDate||''
+        startDate:parseDate(w.startDate),
+        finishDate:parseDate(w.finishDate)
       })):[];
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
       selId=P[0]?.id||null;
