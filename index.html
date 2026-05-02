@@ -2107,6 +2107,9 @@ function loadLocal(){
     P=sanitizeProjects(d.P||[]);
     ISS=sanitizeIssues(d.I||[]);
     PROC=sanitizeProc(d.PR||[]);
+    // Re-apply pending deletes (tahan page reload)
+    const _pdel=getPendingDeletes();
+    if(_pdel.size) PROC=PROC.map(p=>_pdel.has(String(p.id))?{...p,_deleted:true}:p);
     MPLOGS=sanitizeMpLogs(d.M||[]);
     ACCLOGS=sanitizeAccLogs(d.A||[]);
     SCURVE=d.SC||[];
@@ -2861,13 +2864,14 @@ function renderProc(){
   const filtKat=gv('procFiltKat');
   const search=(gv('procSearch')||'').toLowerCase();
   const filtered=PROC.filter(i=>{
+    if(i._deleted)return false;
     if(filtProj&&String(i.projId)!==String(filtProj))return false;
     if(filt&&i.status!==filt)return false;
     if(filtKat&&i.kategori!==filtKat)return false;
     if(search&&!i.item?.toLowerCase().includes(search)&&!i.supplier?.toLowerCase().includes(search))return false;
     return true;
   });
-  const cnt=s=>PROC.filter(i=>i.status===s).length;
+  const cnt=s=>PROC.filter(i=>!i._deleted&&i.status===s).length;
   $('pc1').textContent=cnt('Overdue');$('pc2').textContent=cnt('Due Today');
   $('pc3').textContent=cnt('In Transit');$('pc4').textContent=cnt('On Site');
   $('pc5').textContent=cnt('Waiting Approval')+cnt('PO Issued');
@@ -3509,9 +3513,12 @@ function saveProc(){
   else{d.id=String(Date.now());PROC.push(d);toast('Item ditambahkan ✓');}
   dirty();cm('addProc');renderProc();if(activeTab==='overview')renderOV();gsSync();
 }
-function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>String(p.id)!==String(editProcId));dirty();cm('addProc');renderProc();toast('Item dihapus','warn');gsSync();});}
-
-function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>String(p.id)!==String(editProcId));dirty();cm('addProc');renderProc();toast('Item dihapus','warn');gsSync();});}
+function delProc(){showConfirm('Hapus item ini?',()=>{
+  // Soft-delete: tandai _deleted + simpan ke localStorage agar tahan reload
+  const idx=PROC.findIndex(p=>String(p.id)===String(editProcId));
+  if(idx>=0){PROC[idx]._deleted=true;addPendingDelete(editProcId);}
+  dirty();cm('addProc');renderProc();toast('Item dihapus','warn');gsSync();
+});}
 
 // ===============================================================
 // COST / FINANCE
@@ -4113,7 +4120,7 @@ function exportRabCSV(){
 // Patch renderCost to also trigger renderRab
 const _origRenderCost=typeof renderCost==='function'?renderCost:null;
 
-const GS_SCRIPT=`// ATW Solar Dashboard \u2014 Google Apps Script v10 (Multi-User Safe \u2014 Full Merge + RAB)
+const GS_SCRIPT=`// ATW Solar Dashboard \u2014 Google Apps Script v11 (Multi-User Safe \u2014 Full Merge + Delete Support)
 // Deploy sebagai Web App: Execute as Me, Anyone can access
 
 const SHEET_ID = '${gsSheet||"GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA"}';
@@ -4133,7 +4140,7 @@ function doPost(e) {
   // LockService \u2014 prevent concurrent writes
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(8000); // wait max 8s
+    lock.waitLock(8000);
   } catch(err) {
     return makeOutput({status:'error', msg:'Server busy, coba lagi'});
   }
@@ -4143,18 +4150,15 @@ function doPost(e) {
 
     if (d.action === 'updatePw' || d.action === 'updateConfig') {
       let sh = ss.getSheetByName('_CONFIG') || ss.insertSheet('_CONFIG');
-      // Read existing config first to preserve fields not being updated
       const existing = {};
       if (sh.getLastRow() >= 2) {
         sh.getDataRange().getValues().slice(1).forEach(r => {
           if (r[0]) existing[String(r[0]).trim()] = String(r[1]||'');
         });
       }
-      // Merge incoming fields
       if (d.pw_admin  !== undefined) existing['pw_admin']  = String(d.pw_admin  || 'admin123');
       if (d.pw_editor !== undefined) existing['pw_editor'] = String(d.pw_editor || 'edit123');
       if (d.dash_logo !== undefined) existing['dash_logo'] = String(d.dash_logo || '');
-      // Rewrite sheet
       sh.clearContents();
       sh.appendRow(['key', 'value']);
       Object.entries(existing).forEach(([k,v]) => sh.appendRow([k, v]));
@@ -4163,27 +4167,20 @@ function doPost(e) {
     }
 
     if (d.action === 'sync') {
-      const meta = ss.getSheetByName('_META');
-      const currentTs = meta && meta.getLastRow() >= 2 ? +meta.getRange(2,1).getValue() : 0;
-      const incomingTs = d.lastSaved || 0;
+      // ---- MERGE STRATEGY v11 ----
+      // Always merge incoming WITH existing in GSheet.
+      // No conflict rejection \u2014 incoming wins per-record (last-write-wins by id).
+      // Exception: _deleted=true removes the record from GSheet.
+      // This makes concurrent multi-user edits on DIFFERENT records safe.
+      // Same-record concurrent edits: last sync wins (acceptable for this use case).
 
-      // Conflict check \u2014 if server newer, return server data for merge
-      if (incomingTs < currentTs - 2000) {
-        lock.releaseLock();
-        return makeOutput({
-          status: 'conflict',
-          currentTs,
-          incomingTs,
-          msg: 'Data di server lebih baru. Merge dilakukan otomatis.'
-        });
-      }
-
-      // Merge all collections by id (never delete, only add/update)
-      const mergeById = (existing, incoming) => {
+      const mergeById = (existing, incoming, allowDelete=false) => {
         const map = new Map();
         (existing||[]).forEach(r => { if(r.id) map.set(String(r.id), r); });
         (incoming||[]).forEach(r => { if(r.id) map.set(String(r.id), r); });
-        return [...map.values()];
+        const result = [...map.values()];
+        if (allowDelete) return result.filter(r => !r._deleted);
+        return result;
       };
 
       const existingProj = readSheet(ss,'PROJECTS')    || [];
@@ -4193,36 +4190,38 @@ function doPost(e) {
       const existingAcc  = readSheet(ss,'ACCIDENT_LOG')|| [];
       const existingWbs  = readSheet(ss,'WBS')         || [];
 
-      // Merge HISTORY by projId+date composite key (no id field)
+      // Merge HISTORY by projId+date composite key
       const existingHist = readSheet(ss,'HISTORY') || [];
       const histMap = new Map();
       existingHist.forEach(h => { const k=String(h.projId||'')+'|'+String(h.date||''); histMap.set(k, h); });
       (d.history||[]).forEach(h => { const k=String(h.projId||'')+'|'+String(h.date||''); histMap.set(k, h); });
       const mergedHist = [...histMap.values()];
 
-      writeSheet(ss,'PROJECTS',   mergeById(existingProj, d.projects||[]),    ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo','picPm','picSm','picEng','picProc']);
-      writeSheet(ss,'HISTORY',    mergedHist,     ['projId','kode','date','actual','plan','mp','notes']);
-      writeSheet(ss,'ISSUES',     mergeById(existingIss,  d.issues||[]),      ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
-      writeSheet(ss,'PROCUREMENT',mergeById(existingProc, d.procurement||[]), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes','harga']);
-      writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,  d.manpowerLogs||[]),['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
-      writeSheet(ss,'ACCIDENT_LOG',mergeById(existingAcc, d.accidentLogs||[]),['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
-      writeSheet(ss,'SCURVE',d.scurve||[],['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
-      writeSheet(ss,'WBS',mergeById(existingWbs,d.wbs||[]),['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
-      // COSTS (OPEX)
-      const existingCosts=readSheet(ss,'COSTS')||[];
-      writeSheet(ss,'COSTS',mergeById(existingCosts,d.costs||[]),['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes']);
-      // RAB (Rencana Anggaran Biaya)
-      const existingRab=readSheet(ss,'RAB')||[];
-      writeSheet(ss,'RAB',mergeById(existingRab,d.rab||[]),['id','projId','type','katId','name','deskripsi','satuan','volume','hargaSatuan','total','notes','urutan','isCustom','procKat']);
+      writeSheet(ss,'PROJECTS',    mergeById(existingProj, d.projects||[]),         ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo','picPm','picSm','picEng','picProc']);
+      writeSheet(ss,'HISTORY',     mergedHist,                                       ['projId','kode','date','actual','plan','mp','notes']);
+      writeSheet(ss,'ISSUES',      mergeById(existingIss,  d.issues||[]),            ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
+      writeSheet(ss,'PROCUREMENT', mergeById(existingProc, d.procurement||[], true), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes','harga']);
+      writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,   d.manpowerLogs||[]),      ['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
+      writeSheet(ss,'ACCIDENT_LOG',mergeById(existingAcc,  d.accidentLogs||[]),      ['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
+      writeSheet(ss,'SCURVE',      d.scurve||[],                                     ['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
+      writeSheet(ss,'WBS',         mergeById(existingWbs,  d.wbs||[]),               ['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
+
+      const existingCosts = readSheet(ss,'COSTS')||[];
+      writeSheet(ss,'COSTS', mergeById(existingCosts, d.costs||[]), ['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes']);
+
+      const existingRab = readSheet(ss,'RAB')||[];
+      writeSheet(ss,'RAB', mergeById(existingRab, d.rab||[]), ['id','projId','type','katId','name','deskripsi','satuan','volume','hargaSatuan','total','notes','urutan','isCustom','procKat']);
 
       const now = Date.now();
       let ms = ss.getSheetByName('_META') || ss.insertSheet('_META');
       ms.clearContents();
       ms.appendRow(['lastSaved','version','lastUser']);
-      ms.appendRow([now, '10.0', d.user||'unknown']);
+      ms.appendRow([now, '11.0', d.user||'unknown']);
 
       lock.releaseLock();
-      return makeOutput({status:'ok', ts: new Date().toISOString(), serverTs: now});
+      // Return current GSheet PROC so client can clean up _deleted flags
+      const freshProc = readSheet(ss,'PROCUREMENT')||[];
+      return makeOutput({status:'ok', ts: new Date().toISOString(), serverTs: now, procurement: freshProc});
     }
 
     lock.releaseLock();
@@ -4255,10 +4254,10 @@ function doGet(e) {
       procurement:  readSheet(ss,'PROCUREMENT') ||[],
       manpowerLogs: readSheet(ss,'MANPOWER_LOG')||[],
       accidentLogs: readSheet(ss,'ACCIDENT_LOG')||[],
-      costs:        readSheet(ss,'COSTS')||[],
+      costs:        readSheet(ss,'COSTS')        ||[],
       scurve:       readSheet(ss,'SCURVE')       ||[],
-      wbs:          readSheet(ss,'WBS')           ||[],
-      rab:          readSheet(ss,'RAB')           ||[],
+      wbs:          readSheet(ss,'WBS')          ||[],
+      rab:          readSheet(ss,'RAB')          ||[],
     });
   } catch(err) {
     return makeOutput({status:'error', msg: err.message});
@@ -4339,18 +4338,33 @@ function copyGsScript(){
     const t=document.createElement('textarea');t.value=GS_SCRIPT;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('Script disalin ✓');
   });
 }
+// ---- Deleted IDs management (persistent across reloads) ----
+function getPendingDeletes(){
+  try{return new Set(JSON.parse(localStorage.getItem('atw_deleted_proc')||'[]'));}catch(e){return new Set();}
+}
+function addPendingDelete(id){
+  const ids=getPendingDeletes();ids.add(String(id));
+  try{localStorage.setItem('atw_deleted_proc',JSON.stringify([...ids]));}catch(e){}
+}
+function clearPendingDeletes(){
+  try{localStorage.removeItem('atw_deleted_proc');}catch(e){}
+}
+
 async function gsSync(){
   if(!gsOk||!gsUrl)return;
-  // Debounce \u2014 jangan sync terlalu sering
+  // Debounce — jangan sync terlalu sering
   if(gsSync._pending)clearTimeout(gsSync._pending);
   gsSync._pending=setTimeout(async()=>{
     gsSync._pending=null;
     try{
       const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
       const user=localStorage.getItem('atw_user')||'user';
-      // Gunakan ts dari localStorage (waktu data terakhir diubah lokal), bukan Date.now()
-      // Ini penting agar conflict detection di server bisa bekerja dengan benar
       const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
+      // Re-apply pending deletes ke PROC sebelum kirim (tahan reload)
+      const pendingDel=getPendingDeletes();
+      if(pendingDel.size){
+        PROC=PROC.map(p=>pendingDel.has(String(p.id))?{...p,_deleted:true}:p);
+      }
       const body=JSON.stringify({action:'sync',lastSaved:lTs,user,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS,costs:COSTS,rab:RAB});
       const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
       if(r.ok){
@@ -4358,13 +4372,12 @@ async function gsSync(){
         try{
           const d=JSON.parse(txt);
           if(d.status==='ok'){
-            console.log('GS sync OK',d.ts);
-          }else if(d.status==='conflict'){
-            // Server lebih baru \u2014 load ulang dari GSheet lalu sync lagi
-            console.warn('GS conflict detected, reloading...');
-            await loadFromGS();
+            // Server confirmed — bersihkan _deleted dari PROC lokal
+            PROC=PROC.filter(p=>!p._deleted);
+            clearPendingDeletes();
+            saveLocal(lTs,false);
+            console.log('GS sync OK v11',d.ts);
           }else if(d.status==='error'&&d.msg==='Server busy, coba lagi'){
-            // Retry after 3s
             setTimeout(()=>gsSync(),3000);
           }
         }catch(e){}
@@ -4392,18 +4405,14 @@ async function syncAllGS(){
       try{
         const d=JSON.parse(txt);
         if(d.status==='ok'){
+          // Bersihkan _deleted setelah server confirm
+          PROC=PROC.filter(p=>!p._deleted);
+          clearPendingDeletes();
           toast('✅ Data tersimpan di Google Sheet!');
           $('smsg').textContent='Tersinkronisasi · '+new Date().toLocaleTimeString('id-ID');
           $('sdot').style.background='var(--gn)';$('sdot').classList.remove('unsaved');
           isDirty=false;$('sbar').classList.remove('dirty');
-        }else if(d.status==='rejected'){
-          // GSheet punya data lebih baru \u2014 harus load dulu
-          toast('⚠ GSheet punya data lebih baru! Klik ↓ Load GSheet dulu, lalu sync ulang.','warn');
-          $('smsg').textContent='⚠ Conflict: GSheet lebih baru \u2014 klik Load GSheet';
-          // Tawari untuk auto-load
-          if(confirm('Google Sheet punya data yang lebih baru.\n\nLoad data dari GSheet sekarang? (data lokal akan digabung)')){
-            await loadFromGS();
-          }
+          if(activeTab==='procurement')renderProc();
         }else{
           toast('⚠ GSheet: '+(d.msg||'unknown error'),'warn');
         }
@@ -4450,12 +4459,11 @@ async function loadFromGS(){
         if(!p.logo&&lv)p.logo=lv;
       });
       ISS=sanitizeIssues(d.issues);
-      // Merge procurement: GSheet + lokal, tidak hapus data yang tidak ada di lokal
+      // Merge procurement dari GSheet + pending deletes dari localStorage
       const remoteProc=sanitizeProc(d.procurement);
-      const procMergeMap=new Map();
-      PROC.forEach(p=>procMergeMap.set(String(p.id),p));
-      remoteProc.forEach(p=>procMergeMap.set(String(p.id),p));
-      PROC=[...procMergeMap.values()];
+      const localDeletedIds=getPendingDeletes();
+      // Filter item yg masih pending delete agar tidak "zombie" setelah reload
+      PROC=remoteProc.filter(p=>!localDeletedIds.has(String(p.id)));
       MPLOGS=sanitizeMpLogs(d.manpowerLogs);
       ACCLOGS=sanitizeAccLogs(d.accidentLogs);COSTS=sanitizeCosts(d.costs||[]);
       RAB=sanitizeRab(d.rab||[]);
@@ -7537,7 +7545,7 @@ function sanitizeIssues(arr){
 function sanitizeProc(arr){
   const _trimDate=v=>{if(!v)return'';const s=String(v).trim();return s.includes('T')?s.slice(0,10):s.slice(0,10);};
   const seen=new Set();
-  return (arr||[]).filter(r=>r.item&&typeof r.item==='string'&&r.item.trim()!='').map(pr=>({
+  return (arr||[]).filter(r=>!r._deleted&&r.item&&typeof r.item==='string'&&r.item.trim()!='').map(pr=>({
     id:String(pr.id||Date.now()),
     projId:String(pr.projId||''),
     item:safeStr(pr.item).slice(0,200),
