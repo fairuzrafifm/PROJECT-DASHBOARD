@@ -81,7 +81,7 @@
 .notif-btn:hover{border-color:var(--or)}
 .notif-badge{position:absolute;top:-4px;right:-4px;background:var(--rd);color:#fff;font-size:8px;font-weight:700;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;pointer-events:none;animation:pulse 2s infinite}
 .notif-badge.hidden{display:none}
-.notif-dropdown{position:fixed;top:58px;right:12px;background:var(--sf);border:1px solid var(--bd);border-radius:10px;min-width:290px;max-width:330px;max-height:360px;overflow-y:auto;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,.55);display:none}
+.notif-dropdown{position:fixed;top:58px;right:12px;background:var(--sf);border:1px solid var(--bd);border-radius:10px;min-width:290px;max-width:330px;max-height:360px;overflow-y:auto;z-index:999999;box-shadow:0 8px 32px rgba(0,0,0,.55);display:none;pointer-events:auto}
 .notif-dropdown.open{display:block;animation:fadeIn .15s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
 .notif-hdr{padding:10px 12px 7px;border-bottom:1px solid var(--bd);font-size:11px;font-weight:600;color:var(--tx);letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center}
@@ -514,10 +514,6 @@ select.fi{color-scheme:dark}
     <div class="notif-wrap" id="notifWrap">
       <button class="notif-btn" id="notifBtn" onclick="toggleNotif(event)" title="Notifikasi">🔔</button>
       <div class="notif-badge hidden" id="notifBadge">0</div>
-      <div class="notif-dropdown" id="notifDropdown">
-        <div class="notif-hdr"><span>🔔 ALERTS</span><span style="font-size:9px;color:var(--mt);font-weight:400" id="notifTime"></span></div>
-        <div id="notifList"><div class="notif-empty">Tidak ada alert aktif ✓</div></div>
-      </div>
     </div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Ganti tema">🌙</button>
     <div id="roleBadgeHdr" class="role-badge rb-viewer" style="display:none"></div>
@@ -558,9 +554,6 @@ select.fi{color-scheme:dark}
   <div class="tab" onclick="sw('procurement',this)" title="[5] Procurement">📦 Procurement</div>
   <div class="tab" onclick="sw('wbs',this)" title="[6] WBS">🏗 WBS</div>
   <div class="tab" onclick="sw('daily',this)" title="[7] Daily Report">📊 Daily Report</div>
-  <div style="margin-left:auto;padding:0 10px;display:flex;align-items:center;gap:4px;font-size:9px;color:var(--mt);font-family:var(--fm);white-space:nowrap" title="Tekan angka 1-7 untuk pindah tab, S untuk toggle sidebar, Esc untuk tutup modal">
-    ⌨ <span style="opacity:.6">1-7 · S · Esc</span>
-  </div>
 </div>
 
 <!-- MAIN LAYOUT -->
@@ -2848,6 +2841,8 @@ function changeDashLogo(input){
     const img=$('dashLogoImg');if(img)img.src=src;
     try{localStorage.setItem('atw_dash_logo',src);}catch(err){}
     const btn=$('btnResetLogo');if(btn)btn.style.display='flex';
+    // Sync logo ke GSheet _CONFIG jika tersambung
+    syncDashLogoToGS(src);
     toast('Logo dashboard diganti ✓');
   };
   reader.readAsDataURL(file);
@@ -2855,12 +2850,27 @@ function changeDashLogo(input){
 function resetDashLogo(){
   if(!confirm('Reset logo ke default ATW Solar?'))return;
   try{localStorage.removeItem('atw_dash_logo');}catch(e){}
-  // Restore original logo from img default src baked in HTML
-  const img=$('dashLogoImg');
+  // Hapus dari GSheet jika tersambung
+  syncDashLogoToGS('');
   // Re-load page to restore original embedded logo
   location.reload();
 }
-// Load custom logo saat startup jika ada
+// Sync logo dashboard ke GSheet _CONFIG
+async function syncDashLogoToGS(logoSrc){
+  if(!gsOk||!gsUrl)return;
+  try{
+    const pw=JSON.parse(localStorage.getItem('atw_pw')||'{}');
+    await fetch(gsUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({
+        action:'updateConfig',
+        dash_logo: logoSrc||'',
+        pw_admin:  pw.admin||'admin123',
+        pw_editor: pw.editor||'edit123'
+      })
+    });
+  }catch(e){}
+}
+// Load custom logo saat startup — cek localStorage dulu, lalu GSheet
 function loadDashLogo(){
   try{
     const saved=localStorage.getItem('atw_dash_logo');
@@ -3162,12 +3172,23 @@ function doPost(e) {
     const d = JSON.parse(e.postData.contents || '{}');
     const ss = getSpreadsheet();
 
-    if (d.action === 'updatePw') {
+    if (d.action === 'updatePw' || d.action === 'updateConfig') {
       let sh = ss.getSheetByName('_CONFIG') || ss.insertSheet('_CONFIG');
+      // Read existing config first to preserve fields not being updated
+      const existing = {};
+      if (sh.getLastRow() >= 2) {
+        sh.getDataRange().getValues().slice(1).forEach(r => {
+          if (r[0]) existing[String(r[0]).trim()] = String(r[1]||'');
+        });
+      }
+      // Merge incoming fields
+      if (d.pw_admin  !== undefined) existing['pw_admin']  = String(d.pw_admin  || 'admin123');
+      if (d.pw_editor !== undefined) existing['pw_editor'] = String(d.pw_editor || 'edit123');
+      if (d.dash_logo !== undefined) existing['dash_logo'] = String(d.dash_logo || '');
+      // Rewrite sheet
       sh.clearContents();
       sh.appendRow(['key', 'value']);
-      sh.appendRow(['pw_admin',  String(d.pw_admin  || 'admin123')]);
-      sh.appendRow(['pw_editor', String(d.pw_editor || 'edit123')]);
+      Object.entries(existing).forEach(([k,v]) => sh.appendRow([k, v]));
       lock.releaseLock();
       return makeOutput({status:'ok'});
     }
@@ -3240,18 +3261,19 @@ function doPost(e) {
 function doGet(e) {
   try {
     const ss = getSpreadsheet();
-    let pw_admin = 'admin123', pw_editor = 'edit123';
+    let pw_admin = 'admin123', pw_editor = 'edit123', dash_logo = '';
     const cfg = ss.getSheetByName('_CONFIG');
     if (cfg && cfg.getLastRow() >= 2) {
       cfg.getDataRange().getValues().slice(1).forEach(r => {
         if (String(r[0]).trim() === 'pw_admin')  pw_admin  = String(r[1]).trim();
         if (String(r[0]).trim() === 'pw_editor') pw_editor = String(r[1]).trim();
+        if (String(r[0]).trim() === 'dash_logo') dash_logo = String(r[1]).trim();
       });
     }
     const meta = readSheet(ss,'_META');
     return makeOutput({
       lastSaved:    meta.length ? (+meta[0].lastSaved||0) : 0,
-      pw_admin, pw_editor,
+      pw_admin, pw_editor, dash_logo,
       projects:     readSheet(ss,'PROJECTS')    ||[],
       history:      readSheet(ss,'HISTORY')     ||[],
       issues:       readSheet(ss,'ISSUES')      ||[],
@@ -3519,6 +3541,14 @@ return{...w,projId:match.id};}
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
       selId=P[0]?.id||null;
       saveLocal();saveLogosCache();
+      // Apply dash_logo dari GSheet jika ada dan belum ada di localStorage
+      if(d.dash_logo&&d.dash_logo.startsWith('data:')){
+        try{
+          localStorage.setItem('atw_dash_logo',d.dash_logo);
+          const img=$('dashLogoImg');if(img)img.src=d.dash_logo;
+          const btn=$('btnResetLogo');if(btn)btn.style.display='flex';
+        }catch(e){}
+      }
       clean('Google Sheet');render();
       toast('✓ '+P.length+' project dimuat dari Google Sheet');
     }else{
@@ -4180,7 +4210,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.0.1';
+  const DASH_VER='3.0.2';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Simpan config penting
@@ -6663,6 +6693,18 @@ async function _rtPoll(){
     selId=selId||(P[0]?.id||null);
     saveLocal();
 
+    // Apply dash_logo dari GSheet jika ada dan berbeda dari yang di localStorage
+    if(d.dash_logo&&d.dash_logo.startsWith('data:')){
+      try{
+        const cur=localStorage.getItem('atw_dash_logo')||'';
+        if(cur!==d.dash_logo){
+          localStorage.setItem('atw_dash_logo',d.dash_logo);
+          const img=$('dashLogoImg');if(img)img.src=d.dash_logo;
+          const btn=$('btnResetLogo');if(btn)btn.style.display='flex';
+        }
+      }catch(e){}
+    }
+
     // Jika user sedang edit (silentMode/isDirty), simpan ke memory tapi jangan re-render
     // agar form yang sedang diisi tidak terganggu
     if(!silentMode){
@@ -6706,5 +6748,11 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 </script>
+<!-- NOTIFICATION DROPDOWN — body-level agar tidak ter-clip oleh overflow:hidden header -->
+<div class="notif-dropdown" id="notifDropdown">
+  <div class="notif-hdr"><span>🔔 ALERTS</span><span style="font-size:9px;color:var(--mt);font-weight:400" id="notifTime"></span></div>
+  <div id="notifList"><div class="notif-empty">Tidak ada alert aktif ✓</div></div>
+</div>
+
 </body>
 </html>
