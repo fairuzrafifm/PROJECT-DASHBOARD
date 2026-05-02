@@ -1615,7 +1615,7 @@ select.fi{color-scheme:dark}
       <input class="fi" type="password" id="authPw" placeholder="Masukkan password..." onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <div class="auth-err" id="authErr">Password salah. Coba lagi.</div>
-    <button class="btn bp" onclick="doLogin()" style="width:100%;justify-content:center;margin-top:4px;padding:10px">Masuk →</button>
+    <button class="btn bp" id="authBtn" onclick="doLogin()" style="width:100%;justify-content:center;margin-top:4px;padding:10px">Masuk →</button>
 
   </div>
 </div>
@@ -1747,19 +1747,29 @@ function loadLocal(){
 // Recalculate plan/actual for ALL projects from WBS data
 function syncAllWbsToProjects(){
   if(!WBS||!WBS.length)return;
+  // First: auto-fix orphaned WBS projIds
+  // If a WBS node's projId doesn't match any project, try to find correct project
+  const validProjIds=new Set(P.map(p=>String(p.id)));
+  WBS.forEach(w=>{
+    if(!validProjIds.has(String(w.projId))){
+      // Try numeric match
+      const match=P.find(p=>+p.id===+w.projId);
+      if(match){w.projId=match.id;return;}
+      // If only 1 project exists, assign to it
+      if(P.length===1){w.projId=P[0].id;}
+    }
+  });
   P.forEach(proj=>{
     const projId=proj.id;
     const all=WBS.filter(w=>String(w.projId)===String(projId));
     if(!all.length)return;
     const leaves=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
     if(!leaves.length)return;
-    // Calc actual
     const cAct=leaves.reduce((s,n)=>{
       const wd=n.weeklyData||{};
       const cum=Math.min(100,Object.keys(wd).reduce((ss,k)=>ss+(+(wd[k].wAct||0)),0));
       return s+(+n.bobot||0)*cum/100;
     },0);
-    // Calc plan
     const cPlan=leaves.reduce((s,n)=>{
       const wp=n.weeklyPlan||{};
       const cum=Math.min(100,Object.keys(wp).reduce((ss,k)=>ss+(+(wp[k].wPlan||0)),0));
@@ -1768,7 +1778,6 @@ function syncAllWbsToProjects(){
     if(cAct>0||cPlan>0){
       proj.actual=Math.round(cAct*10)/10;
       if(cPlan>0)proj.plan=Math.round(cPlan*10)/10;
-      // Also sync SCURVE
       syncWbsToSCurve(projId);
     }
   });
@@ -3017,7 +3026,7 @@ async function gsSync(){
         fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
       }catch(e2){}
     }
-  },1500); // debounce 1.5s
+  },800); // debounce 800ms
 }
 async function syncAllGS(){
   if(!gsOk||!gsUrl){toast('Google Sheet belum tersambung','warn');return;}
@@ -3839,6 +3848,44 @@ function renderScManageTable(){
 // WBS — WORK BREAKDOWN STRUCTURE
 // ═══════════════════════════════════════════════════════════════
 
+function autoFixWbsProjIds(){
+  // Strategy: match orphaned projIds to projects by numeric comparison
+  // If ambiguous (multiple orphaned → multiple projects), use order/proximity
+  const validIds=new Set(P.map(p=>String(p.id)));
+  const orphanedIds=[...new Set(WBS.filter(w=>!validIds.has(String(w.projId))).map(w=>String(w.projId)))];
+  if(!orphanedIds.length){toast('Semua projId sudah valid ✓');renderWBS();return;}
+
+  let fixed=0;
+  orphanedIds.forEach(oid=>{
+    // Try exact numeric match first
+    const numMatch=P.find(p=>+p.id===+oid);
+    if(numMatch){
+      WBS.filter(w=>String(w.projId)===oid).forEach(w=>{w.projId=numMatch.id;fixed++;});
+      return;
+    }
+    // If only 1 project, assign all
+    if(P.length===1){
+      WBS.filter(w=>String(w.projId)===oid).forEach(w=>{w.projId=P[0].id;fixed++;});
+      return;
+    }
+    // Check if orphaned nodes' parentId chain can help identify project
+    // Find root categories for this orphaned group
+    const orphanedNodes=WBS.filter(w=>String(w.projId)===oid&&w.type==='cat');
+    if(orphanedNodes.length){
+      // Try matching by project name similarity (not implemented — use manual)
+      toast(`${orphanedNodes.length} kategori dengan projId ${oid.slice(-6)} tidak bisa di-fix otomatis — gunakan tombol Fix manual`,'warn');
+    }
+  });
+
+  if(fixed>0){
+    dirty();syncAllWbsToProjects();saveLocal();renderWBS();gsSync();
+    toast(`✓ ${fixed} WBS node berhasil di-fix`);
+  }else{
+    // Fallback: show per-project assignment buttons
+    renderWBS();
+  }
+}
+
 function fixWbsProjId(fromProjId, toProjId){
   let fixed=0;
   WBS.forEach(w=>{
@@ -3899,21 +3946,24 @@ function renderWBS(){
   let html='';
   if(!cats.length){
     const projIdsInWBS=[...new Set(WBS.map(w=>String(w.projId)))];
-    const projIdsInP=P.map(p=>String(p.id));
-    html=WBS.length?
-      `<div style="padding:16px">
-        <div style="padding:10px 14px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.3);border-radius:8px;font-size:11px">
-          <b style="color:var(--or)">⚠ WBS ada ${WBS.length} data tapi projId tidak cocok</b><br><br>
-          <span style="font-family:monospace;font-size:10px">
-            Project ID di dashboard: <b style="color:var(--gn)">${projIdsInP.join(', ')}</b><br>
-            projId di WBS: <b style="color:var(--rd)">${projIdsInWBS.join(', ')}</b><br>
-          </span>
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-          <button onclick="resetWbsAndReload()" style="margin-bottom:6px;padding:5px 12px;background:var(--bl);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;display:block">🔄 Reset & Load Ulang dari GSheet (Recommended)</button>
-          </div>
+    const validIds=new Set(P.map(p=>String(p.id)));
+    const orphaned=projIdsInWBS.filter(id=>!validIds.has(id));
+    if(WBS.length&&orphaned.length){
+      html=`<div style="padding:16px"><div style="padding:10px 14px;background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.3);border-radius:8px;font-size:11px">
+        <b style="color:var(--or)">⚠ ${WBS.length} WBS node dengan projId tidak cocok — klik Auto-Fix</b><br><br>
+        <div style="font-family:monospace;font-size:10px;margin-bottom:8px">
+          ${orphaned.map(oid=>{const m=P.find(p=>+p.id===+oid);const c=WBS.filter(w=>String(w.projId)===oid).length;
+            return '<span style="display:block;padding:3px 6px;background:var(--sf);border-radius:3px;margin-bottom:3px">projId <b style=\"color:var(--rd)\">'
+              +oid+'</b> ('+c+' node) '+(m?'→ <b style=\"color:var(--gn)\">'+m.kode+'</b>':'→ tidak ada project cocok')+'</span>';}).join('')}
         </div>
-      </div>`
-      :'<div style="text-align:center;color:var(--mt);padding:30px;font-size:12px">Belum ada WBS — klik ＋ Kategori untuk mulai</div>';
+        <div style="display:flex;gap:8px">
+          <button onclick="autoFixWbsProjIds()" style="padding:5px 14px;background:var(--gn);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600">✓ Auto-Fix projId</button>
+          <button onclick="resetWbsAndReload()" style="padding:5px 14px;background:var(--bl);color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600">↓ Load dari GSheet</button>
+        </div>
+      </div></div>`;
+    }else{
+      html='<div style="text-align:center;color:var(--mt);padding:30px;font-size:12px">Belum ada WBS — klik ＋ Kategori untuk mulai</div>';
+    }
   }
   else{
     const fmtD=d=>d?new Date(d+'T12:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'2-digit'}):'—';
@@ -5898,49 +5948,38 @@ function loadTheme(){
 // ═══════════════════════════════════════════════════════════════
 // AUTH SYSTEM
 // ═══════════════════════════════════════════════════════════════
-// Default passwords — disimpan di localStorage, bisa diganti
+// AUTH — Password selalu dari GSheet, tidak disimpan di localStorage
 const DEFAULT_PW={admin:'admin123',editor:'edit123'};
-let gsPw={admin:'admin123',editor:'edit123'}; // loaded from GSheet
+let gsPw={admin:null,editor:null}; // null = belum load dari GSheet
+let gsPwLoaded=false;
 
-function getPw(){
-  // Gabung: GSheet password (prioritas) dengan fallback localStorage
-  try{
-    const local=JSON.parse(localStorage.getItem('atw_pw')||'{}');
-    return {...DEFAULT_PW,...local,...gsPw};
-  }catch(e){return {...DEFAULT_PW,...gsPw};}
-}
 function getRolePw(role){
-  if(role==='viewer')return null; // viewer tidak perlu password
-  return getPw()[role]||DEFAULT_PW[role];
+  if(role==='viewer')return null;
+  // Hanya gunakan GSheet password, fallback ke default jika belum load
+  if(role==='admin')return gsPw.admin||DEFAULT_PW.admin;
+  if(role==='editor')return gsPw.editor||DEFAULT_PW.editor;
+  return null;
 }
 
-// Load password dari GSheet saat startup
+// Load password LANGSUNG dari GSheet — wajib sebelum login
 async function loadPwFromGS(){
-  // Load GSheet config dari localStorage dulu
   try{const c=JSON.parse(localStorage.getItem('atw_gs')||'{}');if(c.url&&!gsUrl){gsUrl=c.url;gsSheet=c.sheet||'';gsOk=true;}}catch(e){}
-  // Coba load password dari GSheet
   if(!gsOk||!gsUrl){
-    // Fallback ke localStorage cache
-    try{const lc=JSON.parse(localStorage.getItem('atw_pw')||'{}');if(lc.admin)gsPw.admin=lc.admin;if(lc.editor)gsPw.editor=lc.editor;}catch(e){}
+    // Tidak ada GSheet → pakai default, tandai sudah loaded
+    gsPwLoaded=true;
     return;
   }
   try{
-    const r=await fetch(gsUrl+'?pw=1&t='+Date.now(),{cache:'no-cache'});
+    const r=await fetch(gsUrl+'?pw=1&t='+Date.now(),{cache:'no-store'});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const d=await r.json();
-    if(d.pw_admin){gsPw.admin=String(d.pw_admin);}
-    if(d.pw_editor){gsPw.editor=String(d.pw_editor);}
-    // Cache ke localStorage
-    localStorage.setItem('atw_pw',JSON.stringify({admin:gsPw.admin,editor:gsPw.editor}));
-    console.log('Password loaded from GSheet');
+    if(d.pw_admin)gsPw.admin=String(d.pw_admin).trim();
+    if(d.pw_editor)gsPw.editor=String(d.pw_editor).trim();
+    gsPwLoaded=true;
+    console.log('✓ Password loaded from GSheet');
   }catch(e){
-    console.log('loadPwFromGS fallback:',e.message);
-    // Fallback ke localStorage cache
-    try{
-      const lc=JSON.parse(localStorage.getItem('atw_pw')||'{}');
-      if(lc.admin)gsPw.admin=lc.admin;
-      if(lc.editor)gsPw.editor=lc.editor;
-    }catch(e2){}
+    console.warn('loadPwFromGS failed:',e.message);
+    gsPwLoaded=true; // tetap bisa login dengan default
   }
 }
 
@@ -5967,29 +6006,51 @@ function selectRole(role){
   $('authErr').style.display='none';
 }
 
-function doLogin(){
+async function doLogin(){
   if(!selectedRoleLogin){toast('Pilih role dulu','error');return;}
   const pw=($('authPw')?.value||'').trim();
+  if(!pw&&selectedRoleLogin!=='viewer'){
+    $('authErr').textContent='Password tidak boleh kosong';
+    $('authErr').style.display='block';return;
+  }
+
+  // Viewer langsung masuk
+  if(selectedRoleLogin==='viewer'){
+    _loginSuccess('viewer');return;
+  }
+
+  // Selalu fetch password terbaru dari GSheet sebelum validasi
+  const btn=$('authBtn');
+  if(btn){btn.disabled=true;btn.textContent='Memverifikasi...';}
+  if($('authErr'))$('authErr').style.display='none';
+
+  // Re-fetch password dari GSheet (bypass cache)
+  gsPw={admin:null,editor:null};gsPwLoaded=false;
+  await loadPwFromGS();
+
+  if(btn){btn.disabled=false;btn.textContent='Masuk';}
+
   const correct=getRolePw(selectedRoleLogin);
   if(pw===correct){
-    currentRole=selectedRoleLogin;
-    localStorage.setItem('atw_session',JSON.stringify({role:currentRole,ts:Date.now()}));
-    $('authScreen').style.display='none';
-    applyRole(currentRole);
-    // Init dashboard setelah login
-    autoLoadOnStart();
-    loadDashLogo();
-    loadTheme();
-    initFromUrlParams();
-    setTimeout(()=>{loadLogosCache();render();},300);
+    _loginSuccess(selectedRoleLogin);
   }else{
+    $('authErr').textContent='Password salah';
     $('authErr').style.display='block';
     $('authPw').value='';$('authPw').focus();
-    // Shake animation
     const box=$('authScreen').querySelector('.auth-box');
     box.style.animation='none';box.offsetHeight;
     box.style.animation='shake .4s ease';
   }
+}
+
+function _loginSuccess(role){
+  currentRole=role;
+  // Simpan session dengan timestamp (8 jam)
+  localStorage.setItem('atw_session',JSON.stringify({role,ts:Date.now()}));
+  $('authScreen').style.display='none';
+  applyRole(role);
+  autoLoadOnStart();loadDashLogo();loadTheme();initFromUrlParams();
+  setTimeout(()=>{loadLogosCache();render();},300);
 }
 
 function applyRole(role){
@@ -6063,17 +6124,19 @@ async function testPwSync(){
 
 function saveNewPw(){
   const role=gv('cpRole');
-  const np=gv('cpNewPw').trim();
-  const cp=gv('cpConfPw').trim();
+  const np=(gv('cpNewPw')||'').trim();
+  const cp=(gv('cpConfPw')||'').trim();
   if(np.length<4){toast('Password minimal 4 karakter','error');return;}
   if(np!==cp){toast('Konfirmasi password tidak sama','error');return;}
-  // Update lokal dulu
+
+  // Update in memory
   gsPw[role]=np;
-  localStorage.setItem('atw_pw',JSON.stringify({admin:gsPw.admin,editor:gsPw.editor}));
+  // Remove localStorage cache — force fresh fetch on next login
+  localStorage.removeItem('atw_pw');
   cm('changePw');
-  // Sync ke GSheet
+
   if(!gsOk||!gsUrl){
-    toast('Password diubah secara lokal. Sambungkan GSheet agar berlaku di semua browser.','warn');
+    toast('GSheet belum terhubung — password hanya berlaku di browser ini','warn');
     return;
   }
   toast('⏳ Menyimpan password ke Google Sheet...');
@@ -6088,13 +6151,12 @@ function saveNewPw(){
       try{
         const d=JSON.parse(txt);
         if(d.status==='ok'){
-          toast(`✅ Password ${role} berhasil diupdate di semua browser!`);
+          toast(`✅ Password ${role} berhasil diupdate — berlaku di semua browser!`);
         }else{
-          toast(`⚠ GSheet: ${d.msg||'cek Apps Script'}. Password tersimpan lokal.`,'warn');
+          toast(`⚠ Gagal: ${d.msg||'cek Apps Script'}','warn`);
         }
       }catch(e){
-        // no-cors response — dianggap berhasil
-        toast(`✅ Password ${role} dikirim ke GSheet. Berlaku dalam beberapa detik.`);
+        toast(`✅ Password ${role} dikirim ke GSheet`);
       }
     })
     .catch(e=>{
@@ -6106,16 +6168,18 @@ function saveNewPw(){
 }
 
 function checkSession(){
-  // Cek apakah sudah login (session maks 8 jam)
   try{
     const s=JSON.parse(localStorage.getItem('atw_session')||'{}');
-    if(s.role&&(Date.now()-s.ts)<28800000){ // 8 jam
+    // Session valid max 8 jam
+    if(s.role&&(Date.now()-s.ts)<28800000){
       currentRole=s.role;
       $('authScreen').style.display='none';
       applyRole(currentRole);
       return true;
     }
   }catch(e){}
+  // Clear expired session
+  localStorage.removeItem('atw_session');
   return false;
 }
 
@@ -6144,43 +6208,132 @@ function initAuth(){
 initAuth();
 
 // AUTO-POLLING
-setInterval(async()=>{
-  if(!gsOk||!gsUrl)return;
-  if(isDirty)return;
+// ═══════════════════════════════════════════════════════════════
+// REAL-TIME SYNC ENGINE — Poll GSheet setiap 15 detik
+// ═══════════════════════════════════════════════════════════════
+let _rtLastTs=0;
+let _rtOnline=true;
+let _rtFailCount=0;
+
+// Online/offline indicator
+window.addEventListener('online',  ()=>{ _rtOnline=true; _rtSetStatus('online'); });
+window.addEventListener('offline', ()=>{ _rtOnline=false; _rtSetStatus('offline'); });
+
+function _rtSetStatus(s){
+  const dot=$('sdot');const msg=$('smsg');
+  if(s==='online')  { if(dot)dot.style.background='var(--gn)'; }
+  if(s==='offline') { if(dot)dot.style.background='var(--rd)'; if(msg)msg.textContent='Offline — data terakhir ditampilkan'; }
+  if(s==='syncing') { if(dot)dot.style.background='var(--yw)'; if(msg)msg.textContent='Sinkronisasi...'; }
+  if(s==='synced')  { if(dot){dot.style.background='var(--gn)';dot.classList.remove('unsaved');} }
+}
+
+async function _rtPoll(){
+  if(!gsOk||!gsUrl||!_rtOnline||isDirty)return;
   try{
-    const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-cache'});
-    if(!r.ok)return;
+    const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(8000)});
+    if(!r.ok)throw new Error('HTTP '+r.status);
     const txt=await r.text();
-    if(!txt||!txt.trim().startsWith('{'))return; // bukan JSON valid
+    if(!txt||!txt.trim().startsWith('{'))throw new Error('Invalid JSON');
     const d=JSON.parse(txt);
-    if(!d.projects||!d.projects.length)return;
+    if(d.status==='error')throw new Error(d.msg);
+    if(!d.projects?.length)return;
+
+    _rtFailCount=0;
     const gTs=+d.lastSaved||0;
-    const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||0;
-    if(gTs>lTs+3000){ // server > 3s lebih baru → update
-      P=sanitizeProjects(d.projects);
-      try{const lc=JSON.parse(localStorage.getItem('atw_logos')||'{}');P.forEach(p=>{if(!p.logo&&(lc[p.id]||lc[String(p.id)]))p.logo=lc[p.id]||lc[String(p.id)];});}catch(ex){}
-      ISS=sanitizeIssues(d.issues);
-      // Merge procurement (jangan hapus data lokal)
-      const remP=sanitizeProc(d.procurement);
-      const pm=new Map();PROC.forEach(p=>pm.set(String(p.id),p));remP.forEach(p=>pm.set(String(p.id),p));PROC=[...pm.values()];
-      MPLOGS=sanitizeMpLogs(d.manpowerLogs);
-      ACCLOGS=sanitizeAccLogs(d.accidentLogs);
-      if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
-      // Merge WBS
-      if(Array.isArray(d.wbs)&&d.wbs.length){
-        const wm=new Map();WBS.forEach(w=>wm.set(String(w.id),w));
-        d.wbs.forEach(w=>wm.set(String(w.id),w));
-        WBS=[...wm.values()];
-      }
-      selId=selId||(P[0]?.id||null);
-      saveLocal();render();
-      $('smsg').textContent='↻ Update dari GSheet · '+new Date().toLocaleTimeString('id-ID');
-      $('sdot').style.background='var(--gn)';$('sdot').classList.remove('unsaved');
-      // Non-intrusive toast notification
-      toast('↻ Data diperbarui dari GSheet');
+
+    // Hanya update jika GSheet lebih baru
+    if(gTs<=_rtLastTs)return;
+    _rtLastTs=gTs;
+
+    // Smart merge — semua collection
+    const prevProjCount=P.length;
+    const prevProcCount=PROC.length;
+
+    P=sanitizeProjects(d.projects);
+    try{
+      const lc=JSON.parse(localStorage.getItem('atw_logos')||'{}');
+      P.forEach(p=>{if(!p.logo&&(lc[p.id]||lc[String(p.id)]))p.logo=lc[p.id]||lc[String(p.id)];});
+    }catch(ex){}
+
+    ISS=sanitizeIssues(d.issues);
+
+    // Merge PROC by id
+    const remP=sanitizeProc(d.procurement);
+    const pm=new Map();
+    PROC.forEach(p=>pm.set(String(p.id),p));
+    remP.forEach(p=>pm.set(String(p.id),p));
+    PROC=[...pm.values()];
+
+    MPLOGS=sanitizeMpLogs(d.manpowerLogs);
+    ACCLOGS=sanitizeAccLogs(d.accidentLogs);
+
+    if(d.history){
+      d.history.forEach(h=>{
+        const p=P.find(x=>x.id==h.projId);
+        if(p){if(!p.history)p.history=[];
+          if(!p.history.find(x=>x.date===h.date&&x.actual===h.actual))p.history.push(h);}
+      });
     }
-  }catch(e){/* silent fail */}
-},60000); // setiap 1 menit
+
+    // Merge WBS by id
+    if(Array.isArray(d.wbs)&&d.wbs.length){
+      const wm=new Map();
+      WBS.forEach(w=>wm.set(String(w.id),w));
+      d.wbs.forEach(w=>wm.set(String(w.id),w));
+      WBS=[...wm.values()];
+      syncAllWbsToProjects();
+    }
+
+    if(Array.isArray(d.scurve)){
+      SCURVE=d.scurve.map(s=>({
+        projId:s.projId,week:+s.week||0,
+        wPlan:+s.wPlan||0,wAct:+s.wAct||0,
+        cPlan:s.cPlan!=null?+s.cPlan:null,
+        cAct:s.cAct!=null?+s.cAct:null,
+        dateStart:String(s.dateStart||''),fromWbs:!!s.fromWbs
+      }));
+    }
+
+    selId=selId||(P[0]?.id||null);
+    saveLocal();
+
+    // Render hanya tab yang aktif — tidak re-render semua
+    _rtSmartRender();
+
+    const now=new Date().toLocaleTimeString('id-ID');
+    if($('smsg'))$('smsg').textContent='GSheet ✓ · '+now;
+    _rtSetStatus('synced');
+
+  }catch(e){
+    _rtFailCount++;
+    if(_rtFailCount>=3){
+      if($('smsg'))$('smsg').textContent='GSheet tidak terjangkau — data lokal ditampilkan';
+      if($('sdot'))$('sdot').style.background='var(--yw)';
+    }
+  }
+}
+
+function _rtSmartRender(){
+  // Hanya render tab yang sedang aktif — lebih efisien
+  renderSB();
+  if(activeTab==='overview')renderOV();
+  else if(activeTab==='projects'&&selId)renderDetail(selId);
+  else if(activeTab==='manpower')renderMP();
+  else if(activeTab==='issues')renderIssues?.();
+  else if(activeTab==='procurement')renderProc();
+  else if(activeTab==='wbs')renderWBS();
+  else if(activeTab==='daily')renderDailyReport();
+}
+
+// Start polling setiap 15 detik
+setInterval(_rtPoll, 15000);
+
+// Juga poll segera setelah user kembali online
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&gsOk&&gsUrl){
+    setTimeout(_rtPoll, 500);
+  }
+});
 </script>
 </body>
 </html>
