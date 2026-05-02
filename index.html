@@ -27,8 +27,26 @@
 :root.light body{background:var(--bg)}
 :root.light .hdr{background:linear-gradient(135deg,#0f2444 0%,#1a3a6b 100%)}
 :root.light .hdr::after{opacity:.5}
+/* Header text harus tetap terang karena background header selalu gelap */
+:root.light .dash-ttl{color:#e2e8f0}
+:root.light .dash-sub{color:#7eb8d4}
+:root.light .logo-sep{background:rgba(255,255,255,.2)}
+:root.light #liveDate{color:#94a3b8}
+/* Save bar light mode — teks lebih kontras */
 :root.light .sbar{background:#e8f5e9;border-bottom-color:#c8e6c9}
 :root.light .sbar.dirty{background:#fff8e1;border-bottom-color:#ffe082}
+:root.light .sbar-info{color:#334155}
+:root.light #smsg{color:#334155}
+:root.light #flabel{color:#475569}
+/* Header right buttons di light mode - pakai warna kontras terhadap dark header */
+:root.light .hdr-right .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#e2e8f0}
+:root.light .hdr-right .btn:hover{border-color:var(--or);color:var(--or)}
+:root.light .hdr-right .theme-toggle{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#e2e8f0}
+:root.light .hdr-right .theme-toggle:hover{border-color:var(--or);color:var(--or)}
+:root.light .hdr-right .notif-btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2)}
+:root.light .hdr-right .gs-badge.gs-on{background:rgba(16,185,129,.2);border-color:#10b981;color:#10b981}
+:root.light .hdr-right .gs-badge.gs-off{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:#94a3b8}
+:root.light #roleBadgeHdr{color:#e2e8f0!important;border-color:rgba(255,255,255,.2)!important}
 :root.light .tabs{background:#ffffff;border-bottom-color:var(--bd)}
 :root.light .sidebar{background:#ffffff;border-right-color:var(--bd)}
 :root.light .pi:hover{background:#f1f5f9}
@@ -56,6 +74,27 @@
 /* THEME TOGGLE BUTTON */
 .theme-toggle{background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--tx);display:flex;align-items:center;gap:5px;transition:background .15s,color .15s;user-select:none;white-space:nowrap}
 .theme-toggle:hover{border-color:var(--or);color:var(--or)}
+
+/* NOTIFICATION BELL */
+.notif-wrap{position:relative;flex-shrink:0}
+.notif-btn{background:var(--sf2);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:14px;color:var(--tx);display:flex;align-items:center;transition:border-color .15s}
+.notif-btn:hover{border-color:var(--or)}
+.notif-badge{position:absolute;top:-4px;right:-4px;background:var(--rd);color:#fff;font-size:8px;font-weight:700;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;pointer-events:none;animation:pulse 2s infinite}
+.notif-badge.hidden{display:none}
+.notif-dropdown{position:absolute;top:calc(100% + 6px);right:0;background:var(--sf);border:1px solid var(--bd);border-radius:10px;min-width:280px;max-width:320px;max-height:340px;overflow-y:auto;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.5);display:none}
+.notif-dropdown.open{display:block;animation:fadeIn .15s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.notif-hdr{padding:10px 12px 7px;border-bottom:1px solid var(--bd);font-size:11px;font-weight:600;color:var(--tx);letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center}
+.notif-item{padding:8px 12px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s;display:flex;gap:8px;align-items:flex-start}
+.notif-item:last-child{border-bottom:none}
+.notif-item:hover{background:var(--sf2)}
+.notif-item .ni-ico{font-size:14px;flex-shrink:0;margin-top:1px}
+.notif-item .ni-body{flex:1;min-width:0}
+.notif-item .ni-title{font-size:11px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notif-item .ni-sub{font-size:10px;color:var(--mt);margin-top:1px}
+.notif-empty{padding:18px;text-align:center;color:var(--mt);font-size:11px}
+/* light overrides */
+:root.light .notif-dropdown{box-shadow:0 8px 24px rgba(0,0,0,.15)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;height:100vh;overflow:hidden;display:flex;flex-direction:column}
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
@@ -112,7 +151,16 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .tab.active{color:var(--or);border-bottom-color:var(--or)}
 
 /* LAYOUT */
-.layout{display:grid;grid-template-columns:252px 1fr;flex:1;overflow:hidden}
+.layout{display:grid;grid-template-columns:252px 1fr;flex:1;overflow:hidden;transition:grid-template-columns .25s ease}
+.layout.sidebar-hidden{grid-template-columns:0 1fr}
+.layout.sidebar-hidden #mainSidebar{overflow:hidden;min-width:0;border:none}
+.layout.sb-hidden{grid-template-columns:0px 1fr}
+.layout.sb-hidden .sidebar{width:0;min-width:0;overflow:hidden;border:none;padding:0}
+.sb-toggle{position:fixed;left:252px;top:50%;transform:translateY(-50%);z-index:50;width:18px;height:56px;background:var(--sf2);border:1px solid var(--bd);border-left:none;border-radius:0 8px 8px 0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mt);transition:left .2s ease,background .1s;box-shadow:3px 0 8px rgba(0,0,0,.2)}
+.sb-toggle:hover{background:var(--or);color:#fff;border-color:var(--or)}
+.layout.sb-hidden .sb-toggle{left:0px}
+.layout.sb-hidden .sb-toggle .sb-arrow{transform:rotate(180deg)}
+.sb-arrow{transition:transform .2s;display:block}
 
 /* SIDEBAR */
 .sidebar{background:var(--sf);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
@@ -404,24 +452,28 @@ select.fi{color-scheme:dark}
 .empty{text-align:center;padding:38px 20px;color:var(--mt)}
 
 /* PROJECT STATUS CARDS */
-.psc{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;cursor:pointer}
-.psc:hover{transform:translateY(-2px);border-color:rgba(249,115,22,.4)}
-.psc.crit{border-top:3px solid var(--rd);border-left:none}
-.psc.del{border-top:3px solid var(--yw);border-left:none}
-.psc.on{border-top:3px solid var(--gn);border-left:none}
-.psc.plan{border-top:3px solid var(--bl);border-left:none}
-.psc.done{border-top:3px solid var(--pu);border-left:none}
+.psc{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:18px;cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}
+.psc:hover{transform:translateY(-2px);border-color:rgba(249,115,22,.4);box-shadow:0 6px 24px rgba(0,0,0,.3)}
+.psc.crit{border-top:3px solid var(--rd);border-left:none;box-shadow:0 0 0 1px rgba(239,68,68,.1)}
+.psc.del{border-top:3px solid var(--yw);border-left:none;box-shadow:0 0 0 1px rgba(245,158,11,.1)}
+.psc.on{border-top:3px solid var(--gn);border-left:none;box-shadow:0 0 0 1px rgba(16,185,129,.1)}
+.psc.plan{border-top:3px solid var(--bl);border-left:none;box-shadow:0 0 0 1px rgba(59,130,246,.1)}
+.psc.done{border-top:3px solid var(--pu);border-left:none;box-shadow:0 0 0 1px rgba(139,92,246,.1)}
 .psc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .psc-name{font-weight:700;font-size:15px;margin-bottom:4px;color:var(--tx)}
 .psc-loc{font-size:10px;color:var(--mt);display:flex;align-items:center;gap:4px}
 .psc-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;text-align:center}
-.psc-m{padding:6px 4px}
+.psc-m{padding:6px 4px;background:var(--sf2);border-radius:8px}
 .psc-mv{font-family:var(--fd);font-size:22px;letter-spacing:1px;line-height:1;margin-bottom:4px}
 .psc-ml{font-size:9px;text-transform:uppercase;color:var(--mt);letter-spacing:1px}
 .psc-bar-wrap{margin-bottom:7px}
 .psc-bar-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--mt);margin-bottom:4px}
 .psc-bar{height:6px;background:var(--sf2);border-radius:3px;overflow:hidden}
 .psc-bar-fill{height:100%;border-radius:3px;transition:width .8s ease}
+.psc-timeline{margin-top:8px;margin-bottom:2px}
+.psc-timeline-lbl{display:flex;justify-content:space-between;font-size:9px;color:var(--mt);margin-bottom:3px}
+.psc-timeline-track{height:4px;background:var(--sf2);border-radius:2px;overflow:hidden;position:relative}
+.psc-timeline-fill{height:100%;border-radius:2px;transition:width .8s ease;background:linear-gradient(90deg,var(--bl),#60a5fa)}
 .psc-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);font-size:11px}
 .var-badge{padding:3px 9px;border-radius:4px;font-family:var(--fm);font-size:11px;font-weight:700}
 .var-neg{background:rgba(239,68,68,.18);color:var(--rd)}
@@ -458,6 +510,15 @@ select.fi{color-scheme:dark}
     <div style="font-family:var(--fm);font-size:9px;color:var(--mt);margin-top:2px" id="liveDate"></div>
   </div>
   <div class="hdr-right">
+    <!-- NOTIFICATION BELL -->
+    <div class="notif-wrap" id="notifWrap">
+      <button class="notif-btn" id="notifBtn" onclick="toggleNotif(event)" title="Notifikasi">🔔</button>
+      <div class="notif-badge hidden" id="notifBadge">0</div>
+      <div class="notif-dropdown" id="notifDropdown">
+        <div class="notif-hdr"><span>🔔 ALERTS</span><span style="font-size:9px;color:var(--mt);font-weight:400" id="notifTime"></span></div>
+        <div id="notifList"><div class="notif-empty">Tidak ada alert aktif ✓</div></div>
+      </div>
+    </div>
     <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Ganti tema">🌙</button>
     <div id="roleBadgeHdr" class="role-badge rb-viewer" style="display:none"></div>
     <button class="btn btn-sm" id="btnChangePw" onclick="openModal('changePw')" style="display:none;border-color:var(--mt);color:var(--mt)" title="Ganti Password">🔐</button>
@@ -490,20 +551,27 @@ select.fi{color-scheme:dark}
 
 <!-- TABS -->
 <div class="tabs">
-  <div class="tab active" onclick="sw('overview',this)">🗂 Portfolio Overview</div>
-  <div class="tab" onclick="sw('projects',this)">📊 Projects</div>
-  <div class="tab" onclick="sw('manpower',this)">👷 Manpower</div>
-  <div class="tab" onclick="sw('issues',this)">⚠️ Issues<span id="ibadge" style="background:var(--rd);color:#fff;border-radius:10px;padding:0 5px;font-size:9px;font-weight:700;margin-left:3px"></span></div>
-  <div class="tab" onclick="sw('procurement',this)">📦 Procurement</div>
-  <div class="tab" onclick="sw('wbs',this)">🏗 WBS</div>
-  <div class="tab" onclick="sw('daily',this)">📊 Daily Report</div>
+  <div class="tab active" onclick="sw('overview',this)" title="[1] Portfolio Overview">🗂 Portfolio Overview</div>
+  <div class="tab" onclick="sw('projects',this)" title="[2] Projects">📊 Projects</div>
+  <div class="tab" onclick="sw('manpower',this)" title="[3] Manpower">👷 Manpower</div>
+  <div class="tab" onclick="sw('issues',this)" title="[4] Issues">⚠️ Issues<span id="ibadge" style="background:var(--rd);color:#fff;border-radius:10px;padding:0 5px;font-size:9px;font-weight:700;margin-left:3px"></span></div>
+  <div class="tab" onclick="sw('procurement',this)" title="[5] Procurement">📦 Procurement</div>
+  <div class="tab" onclick="sw('wbs',this)" title="[6] WBS">🏗 WBS</div>
+  <div class="tab" onclick="sw('daily',this)" title="[7] Daily Report">📊 Daily Report</div>
+  <div style="margin-left:auto;padding:0 10px;display:flex;align-items:center;gap:4px;font-size:9px;color:var(--mt);font-family:var(--fm);white-space:nowrap" title="Tekan angka 1-7 untuk pindah tab, S untuk toggle sidebar, Esc untuk tutup modal">
+    ⌨ <span style="opacity:.6">1-7 · S · Esc</span>
+  </div>
 </div>
 
 <!-- MAIN LAYOUT -->
-<div class="layout">
+<div class="layout" id="mainLayout">
+  <!-- Sidebar toggle button -->
+  <button class="sb-toggle" id="sbToggleBtn" onclick="toggleSidebar()" title="Sembunyikan sidebar [S]">
+    <span class="sb-arrow">◀</span>
+  </button>
 
   <!-- SIDEBAR -->
-  <div class="sidebar">
+  <div class="sidebar" id="mainSidebar" style="position:relative">
     <div class="sb-head">
       <div class="sb-title">PROJECTS (<span id="pcount">0</span>)</div>
       <button class="btn btn-sm bg" onclick="openModal('addProj')" style="padding:2px 7px">＋</button>
@@ -543,9 +611,18 @@ select.fi{color-scheme:dark}
 
       <!-- PROJECT STATUS CARDS -->
       <div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <div style="width:24px;height:2px;background:var(--or)"></div>
-          <div style="font-family:var(--fd);font-size:13px;letter-spacing:2px;color:var(--mt)">PROJECT STATUS CARDS</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:24px;height:2px;background:var(--or)"></div>
+            <div style="font-family:var(--fd);font-size:13px;letter-spacing:2px;color:var(--mt)">PROJECT STATUS CARDS</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input class="fi" id="ovSearch" placeholder="🔍 Cari project..." oninput="renderProjStatusCards()" style="padding:4px 9px;font-size:11px;width:160px">
+            <select class="fi" id="ovFiltStatus" onchange="renderProjStatusCards()" style="padding:4px 9px;font-size:11px;width:auto">
+              <option value="">Semua Status</option>
+              <option>On Track</option><option>Delayed</option><option>Critical</option><option>Planning</option><option>Done</option>
+            </select>
+          </div>
         </div>
         <div id="projStatusCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px"></div>
       </div>
@@ -649,7 +726,7 @@ select.fi{color-scheme:dark}
       <!-- Edit Log History -->
       <div class="card">
         <div class="ct">RIWAYAT INPUT MANPOWER — EDIT / HAPUS
-          <select class="fi" style="width:auto;padding:3px 8px;font-size:11px" id="mpLogFiltProj" onchange="renderMpLog()">
+          <select class="fi" style="width:auto;padding:3px 8px;font-size:11px" id="mpLogFiltProj" onchange="this._mpFiltManual=true;renderMpLog()">
             <option value="">Semua Project</option>
           </select>
         </div>
@@ -681,7 +758,7 @@ select.fi{color-scheme:dark}
     <div id="tp-procurement" class="tp">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;gap:8px;flex-wrap:wrap">
         <div style="display:flex;gap:7px;flex-wrap:wrap">
-          <select class="fi" style="width:auto;padding:4px 9px;font-size:11px" id="procFiltProj" onchange="renderProc()">
+          <select class="fi" style="width:auto;padding:4px 9px;font-size:11px" id="procFiltProj" onchange="this._procFiltManual=true;renderProc()">
             <option value="">Semua Project</option>
           </select>
           <select class="fi" style="width:auto;padding:4px 9px;font-size:11px" id="procFilt" onchange="renderProc()">
@@ -751,7 +828,7 @@ select.fi{color-scheme:dark}
       <div class="card" style="padding:10px 14px">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="font-size:12px;color:var(--mt)">Project:</div>
-          <select class="fi" style="width:auto;min-width:220px" id="wbsProjSel" onchange="renderWBS()"></select>
+          <select class="fi" style="width:auto;min-width:220px" id="wbsProjSel" onchange="onWbsProjChange(this.value)"></select>
           <div style="display:flex;border:1px solid var(--bd);border-radius:6px;overflow:hidden" class="edit-only">
             <button class="btn btn-sm" style="border:none;border-radius:0;border-right:1px solid var(--bd);color:var(--bl)" onclick="openModal('wbsAddCat')">＋ Kategori</button>
             <button class="btn btn-sm" style="border:none;border-radius:0;border-right:1px solid var(--bd);color:var(--gn)" onclick="openModal('wbsAddSub')">＋ Sub-Kategori</button>
@@ -817,7 +894,7 @@ select.fi{color-scheme:dark}
       <div class="card" style="padding:10px 14px">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="font-size:12px;color:var(--mt)">Project:</div>
-          <select class="fi" style="width:auto;min-width:220px" id="drProjSel" onchange="renderDailyReport()"></select>
+          <select class="fi" style="width:auto;min-width:220px" id="drProjSel" onchange="onDrProjChange(this.value)"></select>
           <div style="font-size:12px;color:var(--mt)">Tanggal:</div>
           <input type="date" class="fi" style="width:auto" id="drDate" onchange="renderDailyReport()">
           <button class="btn btn-sm edit-only" style="border-color:var(--gn);color:var(--gn)" onclick="openModal('drInput')">＋ Input Harian</button>
@@ -1789,6 +1866,7 @@ function dirty(){
   $('smsg').textContent='Perubahan belum disimpan — Ctrl+S';
   $('sbar').classList.add('dirty');
   saveLocal(Date.now()); // timestamp = saat data diubah
+  if(typeof updateNotif==='function')updateNotif();
 }
 function clean(f){
   isDirty=false;curFile=f||curFile;
@@ -1797,6 +1875,9 @@ function clean(f){
   $('flabel').textContent=curFile||'—';
   $('sbar').classList.remove('dirty');
   saveLocal();
+  // Setelah user selesai save, render ulang untuk tampilkan data user lain
+  // yang mungkin masuk selama isDirty (silentMode)
+  if(typeof _rtSmartRender==='function')_rtSmartRender();
 }
 function toast(msg,type='success'){
   const el=$('toast');
@@ -1807,15 +1888,141 @@ function toast(msg,type='success'){
 // ═══════════════════════════════════════════════════════════════
 // TAB SWITCH
 // ═══════════════════════════════════════════════════════════════
+function toggleSidebar(forceHide){
+  const layout=$('mainLayout');
+  const btn=$('sbToggleBtn');
+  const hidden = forceHide !== undefined
+    ? (forceHide ? layout.classList.add('sb-hidden') || true : layout.classList.remove('sb-hidden') || false)
+    : layout.classList.toggle('sb-hidden');
+  const isHidden = layout.classList.contains('sb-hidden');
+  localStorage.setItem('atw_sb_hidden', isHidden?'1':'0');
+  if(btn){
+    btn.title = isHidden ? 'Tampilkan sidebar [S]' : 'Sembunyikan sidebar [S]';
+  }
+  if(!isHidden&&activeTab==='wbs')setTimeout(renderWBS,250);
+  if(!isHidden&&activeTab==='daily')setTimeout(renderDailyReport,250);
+}
+
+function restoreSidebarState(){
+  const hidden=localStorage.getItem('atw_sb_hidden')==='1';
+  if(hidden){
+    $('mainLayout')?.classList.add('sb-hidden');
+    const btn=$('sbToggleBtn');
+    if(btn)btn.title='Tampilkan sidebar [S]';
+  }
+}
+
+// Keyboard shortcut S untuk toggle sidebar
+document.addEventListener('keydown',e=>{
+  const inInput=['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
+  // S = toggle sidebar
+  if(e.key==='s'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!inInput){
+    toggleSidebar();
+  }
+  // Esc = tutup dropdown notif atau modal
+  if(e.key==='Escape'){
+    const nd=$('notifDropdown');
+    if(nd&&nd.classList.contains('open')){nd.classList.remove('open');return;}
+    const om=document.querySelector('.modal-overlay:not([style*="display: none"]):not([style*="display:none"])');
+    if(om)om.style.display='none';
+  }
+  // Digit 1-8 = switch tab (jangan saat di input)
+  if(!inInput&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+    const tabMap={'1':'overview','2':'projects','3':'manpower','4':'issues','5':'procurement','6':'wbs','7':'daily','8':'weekly'};
+    const t=tabMap[e.key];
+    if(t){
+      const tabEl=document.querySelector(`.tab[onclick*="'${t}'"]`)||document.querySelector(`.tab[onclick*='"${t}"']`);
+      if(tabEl)tabEl.click();
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// NOTIFICATION BELL
+// ═══════════════════════════════════════════════════════════════
+function toggleNotif(e){
+  e.stopPropagation();
+  const dd=$('notifDropdown');
+  if(!dd)return;
+  const open=dd.classList.contains('open');
+  if(!open)updateNotif();
+  dd.classList.toggle('open',!open);
+}
+document.addEventListener('click',e=>{
+  const wrap=$('notifWrap');
+  if(wrap&&!wrap.contains(e.target)){
+    const dd=$('notifDropdown');
+    if(dd)dd.classList.remove('open');
+  }
+});
+function updateNotif(){
+  const items=[];
+  const today=new Date();today.setHours(0,0,0,0);
+  // 1. Overdue procurement
+  const overdue=PROC.filter(i=>i.status==='Overdue'||(() => {
+    if(!i.due||i.status==='On Site'||i.status==='Done')return false;
+    const d=new Date(i.due);d.setHours(0,0,0,0);
+    return d<today;
+  })());
+  if(overdue.length)items.push({ico:'📦',color:'var(--rd)',title:`${overdue.length} Item Procurement Overdue`,sub:overdue.slice(0,2).map(i=>i.item).join(', ')+(overdue.length>2?` +${overdue.length-2} lagi`:''),tab:'procurement'});
+  // 2. Due hari ini / ≤3 hari
+  const dueSoon=PROC.filter(i=>{
+    if(!i.due||i.status==='On Site'||i.status==='Done'||i.status==='Overdue')return false;
+    const d=new Date(i.due);d.setHours(0,0,0,0);
+    const diff=Math.ceil((d-today)/86400000);
+    return diff>=0&&diff<=3;
+  });
+  if(dueSoon.length)items.push({ico:'⏰',color:'var(--yw)',title:`${dueSoon.length} Procurement Jatuh Tempo ≤3 Hari`,sub:dueSoon.slice(0,2).map(i=>i.item).join(', ')+(dueSoon.length>2?` +${dueSoon.length-2} lagi`:''),tab:'procurement'});
+  // 3. Critical projects
+  const crits=P.filter(p=>p.status==='Critical');
+  if(crits.length)items.push({ico:'🔴',color:'var(--rd)',title:`${crits.length} Project Status Critical`,sub:crits.map(p=>p.kode).join(', '),tab:'projects'});
+  // 4. Open high-priority issues
+  const highIss=ISS.filter(i=>i.status!=='Closed'&&(i.prioritas==='High'||i.priority==='High'));
+  if(highIss.length)items.push({ico:'⚠️',color:'var(--rd)',title:`${highIss.length} Issue Priority High Belum Closed`,sub:highIss.slice(0,2).map(i=>i.uraian||i.subject||i.title||'Issue').join(', ')+(highIss.length>2?` +${highIss.length-2} lagi`:''),tab:'issues'});
+  // 5. Delayed projects
+  const del=P.filter(p=>p.status==='Delayed');
+  if(del.length)items.push({ico:'⚡',color:'var(--yw)',title:`${del.length} Project Delayed`,sub:del.map(p=>p.kode).join(', '),tab:'projects'});
+  // Update badge
+  const badge=$('notifBadge');
+  const total=items.length;
+  if(badge){badge.textContent=total>9?'9+':total;badge.classList.toggle('hidden',total===0);}
+  // Update dropdown
+  const list=$('notifList');
+  const timeEl=$('notifTime');
+  if(timeEl)timeEl.textContent=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+  if(!list)return;
+  if(!items.length){list.innerHTML='<div class="notif-empty">✅ Tidak ada alert aktif</div>';return;}
+  list.innerHTML=items.map(it=>`<div class="notif-item" onclick="(function(){const te=document.querySelector('.tab[onclick*=\\'${it.tab}\\']');if(te)sw('${it.tab}',te);$('notifDropdown').classList.remove('open');})()">
+    <div class="ni-ico">${it.ico}</div>
+    <div class="ni-body">
+      <div class="ni-title" style="color:${it.color}">${it.title}</div>
+      <div class="ni-sub">${it.sub}</div>
+    </div>
+  </div>`).join('');
+}
+// Update notif badge setiap 30 detik dan saat data berubah
+setInterval(()=>{if(typeof PROC!=='undefined')updateNotif();},30000);
+
+function restoreSidebarState(){
+  if(localStorage.getItem('atw_sb_hidden')==='1'){
+    const layout=$('mainLayout');
+    if(layout){layout.classList.add('sb-hidden');}
+    const btn=$('sbToggleBtn');
+    if(btn)btn.title='Tampilkan sidebar';
+  }
+}
+
 function sw(t,el){
   activeTab=t;
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   el.classList.add('active');
   document.querySelectorAll('.tp').forEach(x=>x.classList.remove('active'));
   $('tp-'+t).classList.add('active');
+  // Sync project selector sebelum render
+  if(selId) _syncAllProjSelectors(selId);
   if(t==='overview')renderOV();
   if(t==='projects')renderProjTab();
-  if(t==='manpower')renderMP();
+  if(t==='manpower'){renderMP();setTimeout(()=>renderMpLog&&renderMpLog(),100);}
   if(t==='issues')renderIssues();
   if(t==='procurement')renderProc();
   if(t==='wbs'){
@@ -1838,6 +2045,7 @@ function render(){
   renderSB();
   updateBadge();
   updateGsBadge();
+  if(typeof updateNotif==='function')updateNotif();
   $('btnUpd').disabled=!selId;
   if(activeTab==='overview')renderOV();
   if(activeTab==='projects')renderProjTab();
@@ -1862,6 +2070,35 @@ function updateGsBadge(){
 // ═══════════════════════════════════════════════════════════════
 // SIDEBAR
 // ═══════════════════════════════════════════════════════════════
+function toggleSidebar(){
+  const layout=document.getElementById('mainLayout');
+  const btn=document.getElementById('sbToggleBtn');
+  const arrow=btn?.querySelector('.sb-arrow');
+  const hidden=layout.classList.toggle('sidebar-hidden');
+  if(arrow)arrow.textContent=hidden?'▶':'◀';
+  if(btn)btn.title=hidden?'Tampilkan sidebar':'Sembunyikan sidebar';
+  if(hidden){
+    if(btn)btn.style.cssText='position:fixed;top:50vh;left:0;transform:translateY(-50%);z-index:100';
+  }else{
+    if(btn)btn.style.cssText='';
+  }
+  localStorage.setItem('atw_sidebar',hidden?'0':'1');
+}
+
+// Restore sidebar state on load
+(function(){
+  if(localStorage.getItem('atw_sidebar')==='0'){
+    document.addEventListener('DOMContentLoaded',()=>{
+      const layout=document.getElementById('mainLayout');
+      const btn=document.getElementById('sbToggleBtn');
+      const arrow=btn?.querySelector('.sb-arrow');
+      if(layout)layout.classList.add('sidebar-hidden');
+      if(arrow)arrow.textContent='▶';
+      if(btn)btn.style.cssText='position:fixed;top:50vh;left:0;transform:translateY(-50%);z-index:100';
+    });
+  }
+})();
+
 function renderSB(){
   $('pcount').textContent=P.length;
   const sc={'On Track':'p-on','Delayed':'p-del','Critical':'p-crit','Planning':'p-plan','Done':'p-done'};
@@ -1886,7 +2123,66 @@ function renderSB(){
       </div>
     </div>`).join('')||'<div style="padding:16px;text-align:center;color:var(--mt);font-size:11px">Belum ada project</div>';
 }
-function selProj(id){selId=String(id);$('btnUpd').disabled=false;renderSB();renderDetail(selId);}
+function onWbsProjChange(id){
+  selId=String(id);
+  _syncAllProjSelectors(id);
+  renderSB(); // highlight project di sidebar
+  renderWBS();
+}
+
+function onDrProjChange(id){
+  selId=String(id);
+  _syncAllProjSelectors(id);
+  renderSB();
+  renderDailyReport();
+}
+
+function selProj(id){
+  selId=String(id);
+  $('btnUpd').disabled=false;
+  // Reset manual filter flags agar selector ikut project yang diklik di sidebar
+  const pfe=document.getElementById('procFiltProj');if(pfe)pfe._procFiltManual=false;
+  const mfe=document.getElementById('mpLogFiltProj');if(mfe)mfe._mpFiltManual=false;
+  // Sync semua project selector di semua tab
+  _syncAllProjSelectors(selId);
+  renderSB();
+  renderDetail(selId);
+  // Jika sedang di tab WBS atau Daily, langsung render
+  if(activeTab==='wbs')renderWBS();
+  else if(activeTab==='daily')renderDailyReport();
+}
+
+function _syncAllProjSelectors(id){
+  const sid=String(id);
+  // Sync dropdown tanpa filter "Semua Project"
+  ['wbsProjSel','drProjSel'].forEach(elId=>{
+    const el=document.getElementById(elId);
+    if(!el)return;
+    if(!el.querySelector(`option[value="${sid}"]`))
+      el.innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    el.value=sid;
+  });
+  // Sync procurement filter dan re-render
+  // Hanya update jika user belum set manual (flag _procFiltManual)
+  const procEl=document.getElementById('procFiltProj');
+  if(procEl){
+    if(!procEl.querySelector(`option[value="${sid}"]`))
+      procEl.innerHTML='<option value="">Semua Project</option>'+
+        P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    if(!procEl._procFiltManual) procEl.value=sid;
+    if(activeTab==='procurement')renderProc();
+  }
+  // Sync manpower log filter
+  // Hanya update jika user belum set manual (flag _mpFiltManual)
+  const mpEl=document.getElementById('mpLogFiltProj');
+  if(mpEl){
+    if(!mpEl.querySelector(`option[value="${sid}"]`))
+      mpEl.innerHTML='<option value="">Semua Project</option>'+
+        P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    if(!mpEl._mpFiltManual) mpEl.value=sid;
+    if(activeTab==='manpower')renderMpLog?.();
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // OVERVIEW TAB
@@ -1983,12 +2279,20 @@ function renderProjStatusCards(){
   const el=$('projStatusCards');
   if(!el)return;
   if(!P.length){el.innerHTML='<div style="text-align:center;color:var(--mt);font-size:12px;padding:20px;grid-column:1/-1">Belum ada project — tambah project untuk melihat status cards</div>';return;}
+  const q=(gv('ovSearch')||'').toLowerCase();
+  const fs=gv('ovFiltStatus')||'';
+  const filtered=P.filter(p=>{
+    if(fs&&p.status!==fs)return false;
+    if(q&&!p.nama?.toLowerCase().includes(q)&&!p.kode?.toLowerCase().includes(q)&&!p.lokasi?.toLowerCase().includes(q))return false;
+    return true;
+  });
+  if(!filtered.length){el.innerHTML='<div style="text-align:center;color:var(--mt);font-size:12px;padding:20px;grid-column:1/-1">Tidak ada project cocok dengan filter</div>';return;}
   const statusCls={'On Track':'on','Delayed':'del','Critical':'crit','Planning':'plan','Done':'done'};
   const barClr={'On Track':'linear-gradient(90deg,var(--gn),#34d399)','Delayed':'linear-gradient(90deg,var(--yw),#fbbf24)','Critical':'linear-gradient(90deg,var(--rd),#f87171)','Planning':'linear-gradient(90deg,var(--bl),#60a5fa)','Done':'linear-gradient(90deg,var(--pu),#a78bfa)'};
   const metClr={'On Track':'var(--gn)','Delayed':'var(--yw)','Critical':'var(--rd)','Planning':'var(--bl)','Done':'var(--pu)'};
   const pillBg={'On Track':'rgba(16,185,129,.15)','Delayed':'rgba(245,158,11,.15)','Critical':'rgba(239,68,68,.15)','Planning':'rgba(59,130,246,.15)','Done':'rgba(139,92,246,.15)'};
   const pillClr={'On Track':'var(--gn)','Delayed':'var(--yw)','Critical':'var(--rd)','Planning':'var(--bl)','Done':'var(--pu)'};
-  el.innerHTML=P.map(p=>{
+  el.innerHTML=filtered.map(p=>{
     const v=p.actual-p.plan;
     const spi=p.plan>0?(p.actual/p.plan).toFixed(2):'—';
     const pIss=ISS.filter(i=>i.projId===p.id&&i.status!=='Closed').length;
@@ -2037,6 +2341,23 @@ function renderProjStatusCards(){
         <div class="psc-bar-lbl"><span>Plan</span><span style="color:var(--bl)">${p.plan}%</span></div>
         <div class="psc-bar"><div class="psc-bar-fill" style="width:${p.plan}%;background:rgba(59,130,246,.45)"></div></div>
       </div>
+      ${(()=>{
+        if(!p.mulai||!p.selesai)return '';
+        const start=new Date(p.mulai),end=new Date(p.selesai),now2=new Date();
+        const total=end-start,elapsed=Math.min(Math.max(now2-start,0),total);
+        const timePct=total>0?Math.round(elapsed/total*100):0;
+        const daysLeft=Math.max(0,Math.ceil((end-now2)/86400000));
+        const timeClr=timePct>90?'var(--rd)':timePct>70?'var(--yw)':'var(--bl)';
+        return `<div class="psc-timeline">
+          <div class="psc-timeline-lbl">
+            <span>⏱ Timeline</span>
+            <span style="color:${timeClr}">${timePct}% waktu terpakai · ${daysLeft}h lagi</span>
+          </div>
+          <div class="psc-timeline-track">
+            <div class="psc-timeline-fill" style="width:${timePct}%;background:linear-gradient(90deg,${timeClr},${timeClr}88)"></div>
+          </div>
+        </div>`;
+      })()}
       <div class="psc-footer">
         <span style="color:var(--mt)">Variance: <span class="var-badge ${varCls}">${varTxt}</span></span>
         <span style="color:${etaClr}">ETA: ${etaTxt}</span>
@@ -2169,15 +2490,22 @@ function renderIssues(){
 // PROCUREMENT
 // ═══════════════════════════════════════════════════════════════
 function renderProc(){
-  // Update project dropdown
+  // Update project dropdown — jangan timpa nilai yang sudah di-set manual oleh user
   const fp=$('procFiltProj');
-  if(fp){const cur=fp.value;fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');if(cur)fp.value=cur;}
+  if(fp){
+    const cur=fp.value;
+    const wasManual=fp._procFiltManual;
+    fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    fp._procFiltManual=wasManual; // restore flag setelah rebuild innerHTML
+    if(wasManual&&cur!==undefined) fp.value=cur; // pertahankan pilihan manual (termasuk "")
+    else if(selId) fp.value=selId;
+  }
   const filtProj=gv('procFiltProj');
   const filt=gv('procFilt');
   const filtKat=gv('procFiltKat');
   const search=(gv('procSearch')||'').toLowerCase();
   const filtered=PROC.filter(i=>{
-    if(filtProj&&i.projId!=filtProj)return false;
+    if(filtProj&&String(i.projId)!==String(filtProj))return false;
     if(filt&&i.status!==filt)return false;
     if(filtKat&&i.kategori!==filtKat)return false;
     if(search&&!i.item?.toLowerCase().includes(search)&&!i.supplier?.toLowerCase().includes(search))return false;
@@ -2796,7 +3124,7 @@ function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>p.id!=
 // ═══════════════════════════════════════════════════════════════
 // GOOGLE SHEET
 // ═══════════════════════════════════════════════════════════════
-const GS_SCRIPT=`// ATW Solar Dashboard — Google Apps Script v8 (Multi-User Safe)
+const GS_SCRIPT=`// ATW Solar Dashboard — Google Apps Script v9 (Multi-User Safe — Full Merge)
 // Deploy sebagai Web App: Execute as Me, Anyone can access
 
 const SHEET_ID = '${gsSheet||'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA'}';
@@ -2858,25 +3186,34 @@ function doPost(e) {
         return [...map.values()];
       };
 
+      const existingProj = readSheet(ss,'PROJECTS')    || [];
       const existingProc = readSheet(ss,'PROCUREMENT') || [];
       const existingIss  = readSheet(ss,'ISSUES')      || [];
       const existingMp   = readSheet(ss,'MANPOWER_LOG')|| [];
+      const existingAcc  = readSheet(ss,'ACCIDENT_LOG')|| [];
       const existingWbs  = readSheet(ss,'WBS')         || [];
 
-      writeSheet(ss,'PROJECTS',   d.projects||[],    ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo']);
-      writeSheet(ss,'HISTORY',    d.history||[],     ['projId','kode','date','actual','plan','mp','notes']);
-      writeSheet(ss,'ISSUES',     mergeById(existingIss,  d.issues),      ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
-      writeSheet(ss,'PROCUREMENT',mergeById(existingProc, d.procurement), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes']);
-      writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,  d.manpowerLogs),['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
-      writeSheet(ss,'ACCIDENT_LOG',d.accidentLogs||[],['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
+      // Merge HISTORY by projId+date composite key (no id field)
+      const existingHist = readSheet(ss,'HISTORY') || [];
+      const histMap = new Map();
+      existingHist.forEach(h => { const k=String(h.projId||'')+'|'+String(h.date||''); histMap.set(k, h); });
+      (d.history||[]).forEach(h => { const k=String(h.projId||'')+'|'+String(h.date||''); histMap.set(k, h); });
+      const mergedHist = [...histMap.values()];
+
+      writeSheet(ss,'PROJECTS',   mergeById(existingProj, d.projects||[]),    ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo']);
+      writeSheet(ss,'HISTORY',    mergedHist,     ['projId','kode','date','actual','plan','mp','notes']);
+      writeSheet(ss,'ISSUES',     mergeById(existingIss,  d.issues||[]),      ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
+      writeSheet(ss,'PROCUREMENT',mergeById(existingProc, d.procurement||[]), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes']);
+      writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,  d.manpowerLogs||[]),['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
+      writeSheet(ss,'ACCIDENT_LOG',mergeById(existingAcc, d.accidentLogs||[]),['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
       writeSheet(ss,'SCURVE',d.scurve||[],['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
-      writeSheet(ss,'WBS',mergeById(existingWbs,d.wbs),['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
+      writeSheet(ss,'WBS',mergeById(existingWbs,d.wbs||[]),['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
 
       const now = Date.now();
       let ms = ss.getSheetByName('_META') || ss.insertSheet('_META');
       ms.clearContents();
       ms.appendRow(['lastSaved','version','lastUser']);
-      ms.appendRow([now, '8.0', d.user||'unknown']);
+      ms.appendRow([now, '9.0', d.user||'unknown']);
 
       lock.releaseLock();
       return makeOutput({status:'ok', ts: new Date().toISOString(), serverTs: now});
@@ -3002,7 +3339,10 @@ async function gsSync(){
     try{
       const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
       const user=localStorage.getItem('atw_user')||'user';
-      const body=JSON.stringify({action:'sync',lastSaved:Date.now(),user,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS});
+      // Gunakan ts dari localStorage (waktu data terakhir diubah lokal), bukan Date.now()
+      // Ini penting agar conflict detection di server bisa bekerja dengan benar
+      const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
+      const body=JSON.stringify({action:'sync',lastSaved:lTs,user,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS});
       const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
       if(r.ok){
         const txt=await r.text();
@@ -3830,7 +4170,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='2.9';
+  const DASH_VER='3.0.1';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Simpan config penting
@@ -3913,7 +4253,13 @@ function resetWbsAndReload(){
 
 function renderWBS(){
   const sel=$('wbsProjSel');
-  if(sel){const cur=sel.value;sel.innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');if(cur)sel.value=cur;}
+  if(sel){
+    const cur=sel.value||selId;
+    sel.innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    if(cur)sel.value=cur;
+    // Fallback ke selId jika option tidak tersedia
+    if(!sel.value&&selId)sel.value=selId;
+  }
   const projId=sel?.value||P[0]?.id;
   if(!projId){$('wbsTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:30px">Belum ada project</div>';return;}
   const proj=P.find(p=>String(p.id)===String(projId));
@@ -4700,7 +5046,12 @@ function renderWbsSCurve(projId){
 
 function renderDailyReport(){
   const sel=$('drProjSel');
-  if(sel){const cur=sel.value;sel.innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');if(cur)sel.value=cur;}
+  if(sel){
+    const cur=sel.value||selId;
+    sel.innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    if(cur)sel.value=cur;
+    if(!sel.value&&selId)sel.value=selId;
+  }
   const projId=sel?.value||P[0]?.id;
   const today=new Date().toISOString().slice(0,10);
   if(!$('drDate').value)$('drDate').value=today;
@@ -5994,6 +6345,7 @@ function quickViewerLogin(){
   autoLoadOnStart();
   loadDashLogo();
   loadTheme();
+  restoreSidebarState();
   initFromUrlParams();
   setTimeout(()=>{loadLogosCache();render();},300);
 }
@@ -6050,6 +6402,7 @@ function _loginSuccess(role){
   $('authScreen').style.display='none';
   applyRole(role);
   autoLoadOnStart();loadDashLogo();loadTheme();initFromUrlParams();
+  restoreSidebarState();
   setTimeout(()=>{loadLogosCache();render();},300);
 }
 
@@ -6228,7 +6581,10 @@ function _rtSetStatus(s){
 }
 
 async function _rtPoll(){
-  if(!gsOk||!gsUrl||!_rtOnline||isDirty)return;
+  if(!gsOk||!gsUrl||!_rtOnline)return;
+  // Jika user sedang edit (isDirty), tetap poll tapi jangan re-render tab aktif
+  // agar data user lain tetap masuk ke memory tanpa ganggu form yang sedang diisi
+  const silentMode=isDirty;
   try{
     const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(8000)});
     if(!r.ok)throw new Error('HTTP '+r.status);
@@ -6297,11 +6653,14 @@ async function _rtPoll(){
     selId=selId||(P[0]?.id||null);
     saveLocal();
 
-    // Render hanya tab yang aktif — tidak re-render semua
-    _rtSmartRender();
+    // Jika user sedang edit (silentMode/isDirty), simpan ke memory tapi jangan re-render
+    // agar form yang sedang diisi tidak terganggu
+    if(!silentMode){
+      _rtSmartRender();
+    }
 
     const now=new Date().toLocaleTimeString('id-ID');
-    if($('smsg'))$('smsg').textContent='GSheet ✓ · '+now;
+    if($('smsg')&&!isDirty)$('smsg').textContent='GSheet ✓ · '+now;
     _rtSetStatus('synced');
 
   }catch(e){
@@ -6316,6 +6675,8 @@ async function _rtPoll(){
 function _rtSmartRender(){
   // Hanya render tab yang sedang aktif — lebih efisien
   renderSB();
+  updateBadge();
+  if(typeof updateNotif==='function')updateNotif();
   if(activeTab==='overview')renderOV();
   else if(activeTab==='projects'&&selId)renderDetail(selId);
   else if(activeTab==='manpower')renderMP();
