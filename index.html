@@ -71,7 +71,26 @@
 :root.light ::-webkit-scrollbar-track{background:#f0f4f8}
 :root.light ::-webkit-scrollbar-thumb{background:#cbd5e1}
 
-/* THEME TOGGLE BUTTON */
+/* COST / FINANCE */
+.cost-bar{height:8px;background:var(--sf2);border-radius:4px;overflow:hidden;margin-top:4px}
+.cost-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gn),#34d399)}
+.cost-type-proc{background:rgba(59,130,246,.15);color:var(--bl);padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700}
+.cost-type-opex{background:rgba(139,92,246,.15);color:var(--pu);padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700}
+.cost-type-other{background:rgba(100,116,139,.15);color:var(--mt);padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700}
+/* RAB */
+.rab-kat-row{background:var(--sf2);font-weight:700;cursor:pointer;user-select:none}
+.rab-kat-row:hover{background:rgba(251,146,60,.08)}
+.rab-kat-name{display:flex;align-items:center;gap:6px}
+.rab-progress-bar{height:10px;background:var(--sf);border-radius:5px;overflow:hidden;min-width:90px;border:1px solid var(--bd)}
+.rab-progress-fill{height:100%;border-radius:5px;transition:width .3s}
+.rab-pct-ok{background:linear-gradient(90deg,var(--gn),#34d399)}
+.rab-pct-warn{background:linear-gradient(90deg,var(--yw),#fbbf24)}
+.rab-pct-danger{background:linear-gradient(90deg,var(--rd),#f87171)}
+.rab-item-row{font-size:11.5px}
+.rab-item-row:hover{background:rgba(59,130,246,.04)}
+.rab-badge-over{background:rgba(239,68,68,.15);color:var(--rd);padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700}
+.rab-badge-warn{background:rgba(251,191,36,.2);color:#d97706;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700}
+.rab-badge-ok{background:rgba(34,197,94,.1);color:var(--gn);padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700}
 .theme-toggle{background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--tx);display:flex;align-items:center;gap:5px;transition:background .15s,color .15s;user-select:none;white-space:nowrap}
 .theme-toggle:hover{border-color:var(--or);color:var(--or)}
 
@@ -554,6 +573,7 @@ select.fi{color-scheme:dark}
   <div class="tab" onclick="sw('procurement',this)" title="[5] Procurement">📦 Procurement</div>
   <div class="tab" onclick="sw('wbs',this)" title="[6] WBS">🏗 WBS</div>
   <div class="tab" onclick="sw('daily',this)" title="[7] Daily Report">📊 Daily Report</div>
+  <div class="tab" onclick="sw('cost',this)" title="[8] Cost/Finance">💰 Cost/Finance</div>
 </div>
 
 <!-- MAIN LAYOUT -->
@@ -586,8 +606,8 @@ select.fi{color-scheme:dark}
 
     <!-- ══ PORTFOLIO OVERVIEW ══ -->
     <div id="tp-overview" class="tp active">
-      <!-- KPI TOP ROW: 5 cards -->
-      <div class="krow" style="grid-template-columns:repeat(5,1fr)">
+      <!-- KPI TOP ROW: 6 cards -->
+      <div class="krow" style="grid-template-columns:repeat(6,1fr)">
         <div class="kpi ko"><div class="kl">Total Projects</div><div class="kv" id="ov1" style="color:var(--or)">0</div><div class="ks">Active portfolio</div></div>
         <div class="kpi kb"><div class="kl">Total Manhours Hari Ini</div><div class="kv" id="ov2" style="color:var(--bl)">0</div><div class="ks" id="ov2s">Plan: 0 jam</div></div>
         <div class="kpi" style="background:var(--sf);border-color:var(--bd)">
@@ -600,6 +620,11 @@ select.fi{color-scheme:dark}
         </div>
         <div class="kpi kr"><div class="kl">Open Issues</div><div class="kv" id="ov4" style="color:var(--rd)">0</div><div class="ks">All projects</div></div>
         <div class="kpi ky"><div class="kl">Total Time Lost</div><div class="kv" id="ov5" style="color:var(--yw)">0 hr</div><div class="ks">Acc + Weather</div></div>
+        <div class="kpi" style="border-top:3px solid var(--gn);cursor:pointer" onclick="const te=document.querySelector('.tab[onclick*=\\'cost\\']');if(te)sw('cost',te)" title="Klik untuk detail">
+          <div class="kl">Total Pengeluaran</div>
+          <div class="kv" id="ov6" style="color:var(--gn);font-size:15px">Rp 0</div>
+          <div class="ks" id="ov6s">Procurement + OPEX</div>
+        </div>
       </div>
 
       <!-- PROJECT STATUS CARDS -->
@@ -923,6 +948,76 @@ select.fi{color-scheme:dark}
 
     </div>
 
+    <!-- ══ COST / FINANCE ══ -->
+    <div id="tp-cost" class="tp">
+
+      <!-- Controls -->
+      <div class="card" style="padding:10px 14px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <select class="fi" style="width:auto;min-width:200px" id="costFiltProj" onchange="this._costFiltManual=true;renderCost()">
+            <option value="">Semua Project</option>
+          </select>
+          <select class="fi" style="width:auto" id="costFiltType" onchange="renderCost()">
+            <option value="">Semua Tipe</option>
+            <option value="procurement">Procurement</option>
+            <option value="opex">Operasional (OPEX)</option>
+          </select>
+          <input class="fi" id="costSearch" placeholder="🔍 Cari item..." oninput="renderCost()" style="width:160px;padding:4px 9px;font-size:11px">
+          <button class="btn btn-sm edit-only" style="border-color:var(--gn);color:var(--gn);margin-left:auto" onclick="openModal('addCost')">＋ Tambah Pengeluaran</button>
+        </div>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="krow" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi ko"><div class="kl">Total Pengeluaran</div><div class="kv" id="ck1" style="color:var(--or);font-size:16px">Rp 0</div><div class="ks" id="ck1s">Semua project</div></div>
+        <div class="kpi kb"><div class="kl">Cost Procurement</div><div class="kv" id="ck2" style="color:var(--bl);font-size:16px">Rp 0</div><div class="ks" id="ck2s">PO Released</div></div>
+        <div class="kpi" style="border-top:3px solid var(--pu)"><div class="kl">Cost Operasional</div><div class="kv" id="ck3" style="color:var(--pu);font-size:16px">Rp 0</div><div class="ks" id="ck3s">OPEX entries</div></div>
+        <div class="kpi" style="border-top:3px solid var(--gn)"><div class="kl">Project Terbesar</div><div class="kv" id="ck4" style="color:var(--gn);font-size:13px">—</div><div class="ks" id="ck4s">—</div></div>
+      </div>
+
+      <!-- Cost per Project Summary -->
+      <div class="card">
+        <div class="ct" style="display:flex;align-items:center;gap:10px">
+          <span>RINGKASAN COST PER PROJECT</span>
+          <button class="btn btn-sm" style="margin-left:auto;border-color:var(--bl);color:var(--bl);font-size:10px" onclick="exportCostCSV()">📥 Export CSV</button>
+        </div>
+        <div id="costSummaryTable" style="overflow-x:auto"></div>
+      </div>
+
+      <!-- Detail Table -->
+      <div class="card">
+        <div class="ct">DETAIL PENGELUARAN</div>
+        <div id="costDetailTable" style="overflow-x:auto;max-height:calc(100vh - 440px);overflow-y:auto"></div>
+      </div>
+
+      <!-- RAB Section -->
+      <div class="card" id="rabSection">
+        <div class="ct" style="display:flex;align-items:center;gap:10px">
+          <span>📋 RAB (RENCANA ANGGARAN BIAYA)</span>
+          <select class="fi" style="width:auto;min-width:200px;margin-left:auto" id="rabFiltProj" onchange="renderRab()">
+            <option value="">— Pilih Project —</option>
+          </select>
+          <button class="btn btn-sm edit-only" style="border-color:var(--gn);color:var(--gn)" onclick="openRabKatModal(null)">＋ Kategori</button>
+          <button class="btn btn-sm edit-only" id="btnAddRabItem" style="border-color:var(--bl);color:var(--bl);display:none" onclick="openRabItemModal(null)">＋ Item RAB</button>
+          <button class="btn btn-sm" style="border-color:var(--pu);color:var(--pu)" onclick="exportRabCSV()">📥 Export RAB</button>
+        </div>
+
+        <!-- RAB KPI -->
+        <div id="rabKpiRow" style="display:none">
+          <div class="krow" style="grid-template-columns:repeat(4,1fr);margin:10px 0 6px">
+            <div class="kpi" style="border-top:3px solid var(--bl)"><div class="kl">Total RAB</div><div class="kv" id="rabK1" style="color:var(--bl);font-size:16px">Rp 0</div><div class="ks" id="rabK1s">—</div></div>
+            <div class="kpi" style="border-top:3px solid var(--gn)"><div class="kl">Total Pengeluaran Aktual</div><div class="kv" id="rabK2" style="color:var(--gn);font-size:16px">Rp 0</div><div class="ks" id="rabK2s">0% dari RAB</div></div>
+            <div class="kpi" style="border-top:3px solid var(--or)"><div class="kl">Sisa Anggaran</div><div class="kv" id="rabK3" style="font-size:16px">Rp 0</div><div class="ks" id="rabK3s">—</div></div>
+            <div class="kpi" style="border-top:3px solid var(--rd)"><div class="kl">Kategori Kritis (&gt;90%)</div><div class="kv" id="rabK4" style="color:var(--rd);font-size:20px">0</div><div class="ks" id="rabK4s">kategori mendekati/melewati RAB</div></div>
+          </div>
+        </div>
+
+        <!-- RAB Table -->
+        <div id="rabTable" style="overflow-x:auto"></div>
+      </div>
+
+    </div>
+
   </div><!-- /content -->
 </div><!-- /layout -->
 
@@ -1133,13 +1228,160 @@ select.fi{color-scheme:dark}
   </div>
   <div class="f2">
     <div class="fg"><label class="fl">Supplier</label><input class="fi" id="pSup" placeholder="PT Solar Utama"></div>
-    <div class="fg"><label class="fl">Status</label><select class="fi" id="pStat"><option>Waiting Approval</option><option>PO Issued</option><option>In Transit</option><option>On Site</option><option>Due Today</option><option>Overdue</option></select></div>
+    <div class="fg"><label class="fl">Status</label><select class="fi" id="pStat" onchange="toggleProcCost(this.value)"><option>Waiting Approval</option><option>PO Issued</option><option>In Transit</option><option>On Site</option><option>Due Today</option><option>Overdue</option></select></div>
+  </div>
+  <!-- Harga total — tampil saat PO Issued / In Transit / On Site -->
+  <div class="fg" id="procCostWrap" style="display:none">
+    <label class="fl" style="color:var(--gn)">💰 Harga Total (Rp)</label>
+    <input class="fi" type="number" id="pHarga" min="0" placeholder="Masukkan total harga setelah PO diterbitkan" style="border-color:rgba(16,185,129,.4)">
+    <div style="font-size:10px;color:var(--mt);margin-top:3px">Input harga total setelah PO diterbitkan / barang tiba</div>
   </div>
   <div class="fg"><label class="fl">Keterangan</label><input class="fi" id="pNotes"></div>
   <div class="mfoot">
     <button class="btn brd" id="btnDelProc" onclick="delProc()" style="margin-right:auto;display:none">🗑 Hapus</button>
     <button class="btn" onclick="cm('addProc')">Batal</button>
     <button class="btn bp" onclick="saveProc()" id="btnSaveProc">Simpan</button>
+  </div>
+</div></div>
+
+<!-- COST / OPEX MODAL -->
+<div class="ov" id="ov-addCost" onclick="if(event.target===this)cm('addCost')">
+<div class="modal">
+  <div class="mtitle"><span id="costMT">TAMBAH PENGELUARAN</span><button class="mclose" onclick="cm('addCost')">✕</button></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Project *</label><select class="fi" id="cProj"></select></div>
+    <div class="fg"><label class="fl">Tanggal *</label><input class="fi" type="date" id="cDate"></div>
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Tipe</label>
+      <select class="fi" id="cType">
+        <option value="opex">Operasional (OPEX)</option>
+        <option value="other">Lainnya</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Kategori *
+      <span style="font-size:9px;color:var(--mt);font-weight:400"> (bebas isi)</span>
+    </label>
+      <input class="fi" id="cKat" list="cKatList" placeholder="Transportasi, Konsumsi, Sewa Alat...">
+      <datalist id="cKatList">
+        <option value="Transportasi">
+        <option value="Konsumsi / Makan">
+        <option value="Sewa Alat">
+        <option value="Sewa Kendaraan">
+        <option value="Akomodasi">
+        <option value="ATK / Perlengkapan Kantor">
+        <option value="Komunikasi">
+        <option value="Keselamatan / K3">
+        <option value="Listrik / Air">
+        <option value="Lainnya">
+      </datalist>
+    </div>
+  </div>
+  <div class="fg"><label class="fl">Deskripsi *</label>
+    <input class="fi" id="cDesc" placeholder="Misal: Transport tim survey ke lokasi proyek">
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">💰 Jumlah (Rp) *</label>
+      <input class="fi" type="number" id="cAmount" min="0" placeholder="0">
+    </div>
+    <div class="fg"><label class="fl">Dibayar oleh</label>
+      <input class="fi" id="cPaidBy" placeholder="Nama / Jabatan">
+    </div>
+  </div>
+  <div class="fg"><label class="fl">Keterangan</label>
+    <input class="fi" id="cNotes" placeholder="Keterangan tambahan (opsional)">
+  </div>
+  <div class="mfoot">
+    <button class="btn brd" id="btnDelCost" onclick="delCost()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn" onclick="cm('addCost')">Batal</button>
+    <button class="btn bp" onclick="saveCost()" id="btnSaveCost">＋ Tambah</button>
+  </div>
+</div></div>
+
+<!-- MODAL: ADD/EDIT RAB KATEGORI -->
+<div class="ov" id="ov-addRabKat" onclick="if(event.target===this)cm('addRabKat')">
+<div class="modal">
+  <div class="mtitle"><span id="rabKatMT">TAMBAH KATEGORI RAB</span><button class="mclose" onclick="cm('addRabKat')">✕</button></div>
+  <div class="fg"><label class="fl">Project *</label>
+    <select class="fi" id="rkProj" onchange="updateRabKatDropdown()"></select>
+  </div>
+  <div class="fg"><label class="fl">Nama Kategori *</label>
+    <input class="fi" id="rkName" list="rkNameList" placeholder="Misal: Material & Equipment">
+    <datalist id="rkNameList">
+      <option value="Material & Equipment">
+      <option value="Manpower">
+      <option value="Subkontraktor">
+      <option value="Transportasi & Logistik">
+      <option value="Overhead & Administrasi">
+      <option value="Contingency">
+    </datalist>
+  </div>
+  <div class="fg"><label class="fl">Urutan</label>
+    <input class="fi" type="number" id="rkUrutan" min="1" value="1" placeholder="Urutan tampil">
+  </div>
+  <div class="mfoot">
+    <button class="btn brd" id="btnDelRabKat" onclick="delRabKat()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn" onclick="cm('addRabKat')">Batal</button>
+    <button class="btn bp" onclick="saveRabKat()" id="btnSaveRabKat">＋ Tambah</button>
+  </div>
+</div></div>
+
+<!-- MODAL: ADD/EDIT RAB ITEM -->
+<div class="ov" id="ov-addRabItem" onclick="if(event.target===this)cm('addRabItem')">
+<div class="modal wide">
+  <div class="mtitle"><span id="rabItemMT">TAMBAH ITEM RAB</span><button class="mclose" onclick="cm('addRabItem')">✕</button></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Project *</label>
+      <select class="fi" id="riProj" onchange="updateRabItemDropdown()"></select>
+    </div>
+    <div class="fg"><label class="fl">Kategori *</label>
+      <select class="fi" id="riKat"></select>
+    </div>
+  </div>
+  <div class="fg"><label class="fl">Deskripsi Item *</label>
+    <input class="fi" id="riDesc" placeholder="Misal: Pipa HDPE 6 inch">
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Satuan</label>
+      <input class="fi" id="riSatuan" list="riSatuanList" placeholder="m, unit, ls, bulan...">
+      <datalist id="riSatuanList">
+        <option value="m"><option value="m²"><option value="m³">
+        <option value="unit"><option value="buah"><option value="set">
+        <option value="kg"><option value="ton"><option value="ls">
+        <option value="bulan"><option value="hari"><option value="orang/hari">
+        <option value="liter"><option value="roll">
+      </datalist>
+    </div>
+    <div class="fg"><label class="fl">Volume / Qty</label>
+      <input class="fi" type="number" id="riVolume" min="0" step="any" placeholder="0" oninput="calcRabTotal()">
+    </div>
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Harga Satuan (Rp)</label>
+      <input class="fi" type="number" id="riHarga" min="0" placeholder="0" oninput="calcRabTotal()">
+    </div>
+    <div class="fg"><label class="fl">Total (Rp) — otomatis</label>
+      <input class="fi" type="number" id="riTotal" min="0" placeholder="0" style="background:var(--sf2)">
+    </div>
+  </div>
+  <div class="fg"><label class="fl">Link ke Kategori Procurement</label>
+    <select class="fi" id="riProcKat">
+      <option value="">— Tidak dihubungkan —</option>
+      <option value="Material">Material</option>
+      <option value="Equipment">Equipment</option>
+      <option value="Civil">Civil</option>
+      <option value="Electrical">Electrical</option>
+      <option value="Service / Jasa">Service / Jasa</option>
+      <option value="Lainnya">Lainnya</option>
+    </select>
+  </div>
+  <div class="fg"><label class="fl">Catatan</label>
+    <input class="fi" id="riNotes" placeholder="Catatan tambahan (opsional)">
+  </div>
+  <div class="mfoot">
+    <button class="btn brd" id="btnDelRabItem" onclick="delRabItem()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn" onclick="cm('addRabItem')">Batal</button>
+    <button class="btn bp" onclick="saveRabItem()" id="btnSaveRabItem">＋ Tambah</button>
   </div>
 </div></div>
 
@@ -1727,12 +1969,16 @@ const ATW_LOGO_B64="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAlgAAADwCAYAAA
 // ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
-let P=[],ISS=[],PROC=[],MPLOGS=[],ACCLOGS=[],SCURVE=[],WBS=[];
+let P=[],ISS=[],PROC=[],MPLOGS=[],ACCLOGS=[],SCURVE=[],WBS=[],COSTS=[],RAB=[];
 // WBS structure:
+// RAB structure:
+// RAB Kategori: {id, projId, type:'kat', name, urutan, isCustom}
+// RAB Item: {id, projId, type:'item', katId, deskripsi, satuan, volume, hargaSatuan, total, notes}
+// total = volume * hargaSatuan (computed on save)
 // {id, projId, type:'cat'|'subcat'|'item', parentId, name, bobot, order}
 // WBS_PROGRESS:
 // {id, wbsId, projId, week, wPlan, wAct, cPlan, cAct, dateStart}
-let selId=null,editProjId=null,editIssId=null,editProcId=null;
+let selId=null,editProjId=null,editIssId=null,editProcId=null,editRabId=null,editRabCatId=null;
 let isDirty=false,pendImp=null,curFile=null,activeTab='overview';
 let gsUrl='',gsSheet='',gsOk=false;
 
@@ -1762,12 +2008,13 @@ function fmtDate(d){
 function cm(t){
   const m={addProj:'ov-addProj',updProgress:'ov-updProgress',inputMp:'ov-inputMp',
     addAccident:'ov-addAccident',editWeather:'ov-editWeather',addIssue:'ov-addIssue',
-    addProc:'ov-addProc',gsConfig:'ov-gsConfig',import:'ov-import',
+    addProc:'ov-addProc',addCost:'ov-addCost',gsConfig:'ov-gsConfig',import:'ov-import',
     editMpLog:'ov-editMpLog',editHist:'ov-editHist',editAcc:'ov-editAcc',
     changePw:'ov-changePw',scPlan:'ov-scPlan',scActual:'ov-scActual',scManage:'ov-scManage',
     wbsAddCat:'ov-wbsAddCat',wbsAddSub:'ov-wbsAddSub',wbsAddItem:'ov-wbsAddItem',
     wbsProgress:'ov-wbsProgress',wbsPlan:'ov-wbsPlan',wbsActual:'ov-wbsActual',wbsEdit:'ov-wbsEdit',wbsDaily:'ov-wbsDaily',
-    drQtySetup:'ov-drQtySetup',drInput:'ov-drInput',weeklyReport:'ov-weeklyReport'};
+    drQtySetup:'ov-drQtySetup',drInput:'ov-drInput',weeklyReport:'ov-weeklyReport',
+    addRabKat:'ov-addRabKat',addRabItem:'ov-addRabItem'};
   $(m[t]||'ov-'+t)?.classList.remove('open');
 }
 function rv(inp,dv,bv){
@@ -1775,8 +2022,8 @@ function rv(inp,dv,bv){
   if(dv)$(dv).textContent=v+'%';
   if(bv)$(bv).style.width=v+'%';
 }
-function saveLocal(ts){
-  try{localStorage.setItem('atw_data',JSON.stringify({P,I:ISS,PR:PROC,M:MPLOGS,A:ACCLOGS,SC:SCURVE,WB:WBS,ts:ts||Date.now()}));}catch(e){}
+function saveLocal(ts,fromGS=false){
+  try{localStorage.setItem('atw_data',JSON.stringify({P,I:ISS,PR:PROC,M:MPLOGS,A:ACCLOGS,SC:SCURVE,WB:WBS,CO:COSTS,RB:RAB,ts:ts||Date.now(),fromGS:fromGS}));}catch(e){}
 }
 function loadLocal(){
   try{
@@ -1805,6 +2052,8 @@ function loadLocal(){
     // Deduplicate by id
     const _wbsMap=new Map();_rawWbs.forEach(w=>_wbsMap.set(String(w.id),w));
     WBS=[..._wbsMap.values()].map(w=>({...w,id:String(w.id),projId:String(w.projId),parentId:w.parentId!=null&&w.parentId!==''?String(w.parentId):null}));
+    COSTS=sanitizeCosts(d.CO||[]);
+    RAB=sanitizeRab(d.RB||[]);
     (d.P||[]).forEach(lp=>{const p=P.find(x=>x.id==lp.id);if(p&&Array.isArray(lp.history))p.history=lp.history;});
     // Re-sync WBS → project plan/actual
     syncAllWbsToProjects();
@@ -1985,6 +2234,20 @@ function updateNotif(){
   // 5. Delayed projects
   const del=P.filter(p=>p.status==='Delayed');
   if(del.length)items.push({ico:'⚡',color:'var(--yw)',title:`${del.length} Project Delayed`,sub:del.map(p=>p.kode).join(', '),tab:'projects'});
+  // 6. RAB over/near budget
+  if(typeof RAB!=='undefined'&&RAB.length){
+    P.forEach(p=>{
+      const kats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(p.id));
+      if(!kats.length)return;
+      const items2=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(p.id));
+      if(!items2.length)return;
+      const actByKat=typeof getRabActualByKat==='function'?getRabActualByKat(p.id):{};
+      const overKats=kats.filter(k=>{const rk=items2.filter(i=>i.katId===k.id).reduce((s,i)=>s+(+i.total||0),0);return rk>0&&(actByKat[k.id]||0)>=rk;});
+      const nearKats=kats.filter(k=>{const rk=items2.filter(i=>i.katId===k.id).reduce((s,i)=>s+(+i.total||0),0);const act=actByKat[k.id]||0;return rk>0&&act/rk>=0.9&&act<rk;});
+      if(overKats.length)items.push({ico:'💸',color:'var(--rd)',title:`${p.kode}: ${overKats.length} Kategori RAB OVER Budget`,sub:overKats.map(k=>k.name).join(', '),tab:'cost'});
+      else if(nearKats.length)items.push({ico:'⚠️',color:'var(--yw)',title:`${p.kode}: ${nearKats.length} Kategori RAB Mendekati Limit`,sub:nearKats.map(k=>k.name).join(', '),tab:'cost'});
+    });
+  }
   // Update badge
   const badge=$('notifBadge');
   const total=items.length;
@@ -2039,6 +2302,7 @@ function sw(t,el){
     },100);
   }
   if(t==='daily')renderDailyReport();
+  if(t==='cost'){renderCost();renderRab();}
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2055,6 +2319,7 @@ function render(){
   if(activeTab==='manpower')renderMP();
   if(activeTab==='issues')renderIssues();
   if(activeTab==='procurement')renderProc();
+  if(activeTab==='cost'){renderCost();renderRab();}
 }
 function updateBadge(){
   const n=ISS.filter(i=>i.status!=='Closed').length;
@@ -2235,6 +2500,15 @@ function renderOV(){
   let ov5detail=ov5el.querySelector('.tl-detail');
   if(!ov5detail){ov5detail=document.createElement('div');ov5detail.className='tl-detail';ov5detail.style.cssText='font-size:9px;color:var(--mt);margin-top:3px;line-height:1.5';ov5el.appendChild(ov5detail);}
   ov5detail.innerHTML=`<span style="color:var(--rd)">Acc: ${accTL}hr</span> + <span style="color:var(--yw)">Weather: ${mpTL}hr</span>`;
+  // Total Cost KPI
+  if($('ov6')){
+    const allCosts=typeof getAllCosts==='function'?getAllCosts():[];
+    const totalCost=allCosts.reduce((s,c)=>s+(+c.amount||0),0);
+    const procCost=allCosts.filter(c=>c.type==='procurement').reduce((s,c)=>s+(+c.amount||0),0);
+    const opexCost=allCosts.filter(c=>c.type!=='procurement').reduce((s,c)=>s+(+c.amount||0),0);
+    $('ov6').textContent=typeof fmtRpShort==='function'?fmtRpShort(totalCost):'Rp 0';
+    if($('ov6s'))$('ov6s').innerHTML=`<span style="color:var(--bl)">Proc: ${typeof fmtRpShort==='function'?fmtRpShort(procCost):'0'}</span> · <span style="color:var(--pu)">OPEX: ${typeof fmtRpShort==='function'?fmtRpShort(opexCost):'0'}</span>`;
+  }
 
   // WEATHER
   const wmap={'☀️ Sunny':'Sunny','⛅ Partly Cloudy':'Partly Cloudy','🌥 Overcast':'Overcast','🌧 Rainy':'Rainy','⛈ Thunderstorm':'Thunderstorm','🌫 Foggy':'Foggy'};
@@ -2727,12 +3001,12 @@ function openModal(type,id=null){
     show('ov-editWeather');
   }
   if(type==='addIssue'||type==='editIssue'){
-    editIssId=id;
+    editIssId=id?String(id):null;
     $('issMT').textContent=id?'EDIT ISSUE':'TAMBAH ISSUE';
     $('btnSaveIss').textContent=id?'💾 Simpan':'＋ Tambah';
     $('btnDelIss').style.display=id?'block':'none';
     $('iProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
-    const iss=id?ISS.find(x=>x.id===id):null;
+    const iss=id?ISS.find(x=>String(x.id)===String(id)):null;
     sv('iProj',iss?.projId||(selId||''));sv('iTgl',iss?.tgl||new Date().toISOString().slice(0,10));
     sv('iPri',iss?.prioritas||'Medium');sv('iKat',iss?.kategori||'Other');
     sv('iUraian',iss?.uraian||'');sv('iPJ',iss?.pj||'');sv('iDue',iss?.due||'');
@@ -2740,17 +3014,20 @@ function openModal(type,id=null){
     show('ov-addIssue');
   }
   if(type==='addProc'||type==='editProc'){
-    editProcId=id;
+    editProcId=id?String(id):null;
     $('procMT').textContent=id?'EDIT ITEM':'TAMBAH ITEM';
     $('btnSaveProc').textContent=id?'💾 Simpan':'＋ Tambah';
     $('btnDelProc').style.display=id?'block':'none';
     $('pProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
-    const pr=id?PROC.find(x=>x.id===id):null;
+    const pr=id?PROC.find(x=>String(x.id)===String(id)):null;
     sv('pProj',pr?.projId||(selId||''));sv('pKat',pr?.kategori||'Material');
     sv('pItem',pr?.item||'');sv('pQty',pr?.qty||'');sv('pSat',pr?.satuan||'');
     sv('pDue',pr?.due||'');sv('pSup',pr?.supplier||'');sv('pStat',pr?.status||'Waiting Approval');sv('pNotes',pr?.notes||'');
+    if($('pHarga'))$('pHarga').value=pr?.harga||'';
+    toggleProcCost(pr?.status||'Waiting Approval');
     show('ov-addProc');
   }
+  if(type==='addCost'||type==='editCost'){openCostModal(id);return;}
   if(type==='gsConfig'){sv('gsSheetUrl',gsSheet);sv('gsScriptUrl',gsUrl);$('gsTestRes').style.display='none';show('ov-gsConfig');}
 }
 
@@ -3126,25 +3403,625 @@ function saveIss(){
   const uraian=gv('iUraian').trim();if(!uraian){toast('Uraian wajib diisi','error');return;}
   const d={projId:+gv('iProj')||gv('iProj'),tgl:gv('iTgl'),uraian,prioritas:gv('iPri'),
     kategori:gv('iKat'),pj:gv('iPJ').trim(),due:gv('iDue'),status:gv('iStat'),done:gv('iDone'),action:gv('iAction').trim()};
-  if(editIssId){const i=ISS.findIndex(x=>x.id===editIssId);ISS[i]={...ISS[i],...d};toast('Issue diupdate ✓');}
-  else{d.id=Date.now();ISS.push(d);toast('Issue ditambahkan ✓');}
+  if(editIssId){const i=ISS.findIndex(x=>String(x.id)===String(editIssId));if(i>=0)ISS[i]={...ISS[i],...d};toast('Issue diupdate ✓');}
+  else{d.id=String(Date.now());ISS.push(d);toast('Issue ditambahkan ✓');}
   dirty();cm('addIssue');renderIssues();$('pk5').textContent=ISS.filter(i=>i.status!=='Closed').length;gsSync();
 }
-function delIss(){showConfirm('Hapus issue ini?',()=>{ISS=ISS.filter(i=>i.id!==editIssId);dirty();cm('addIssue');renderIssues();toast('Issue dihapus','warn');});}
+function delIss(){showConfirm('Hapus issue ini?',()=>{ISS=ISS.filter(i=>String(i.id)!==String(editIssId));dirty();cm('addIssue');renderIssues();toast('Issue dihapus','warn');gsSync();});}
 function saveProc(){
   const item=gv('pItem').trim();if(!item){toast('Nama item wajib diisi','error');return;}
   const d={projId:+gv('pProj')||gv('pProj'),item,kategori:gv('pKat'),qty:gv('pQty'),satuan:gv('pSat'),
-    due:gv('pDue'),supplier:gv('pSup').trim(),status:gv('pStat'),notes:gv('pNotes').trim()};
-  if(editProcId){const i=PROC.findIndex(x=>x.id===editProcId);PROC[i]={...PROC[i],...d};toast('Item diupdate ✓');}
-  else{d.id=Date.now();PROC.push(d);toast('Item ditambahkan ✓');}
+    due:gv('pDue'),supplier:gv('pSup').trim(),status:gv('pStat'),notes:gv('pNotes').trim(),
+    harga:$('pHarga')&&$('pHarga').value?+$('pHarga').value||0:undefined};
+  if(editProcId){const i=PROC.findIndex(x=>String(x.id)===String(editProcId));if(i>=0)PROC[i]={...PROC[i],...d};toast('Item diupdate ✓');}
+  else{d.id=String(Date.now());PROC.push(d);toast('Item ditambahkan ✓');}
   dirty();cm('addProc');renderProc();if(activeTab==='overview')renderOV();gsSync();
 }
-function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>p.id!==editProcId);dirty();cm('addProc');renderProc();toast('Item dihapus','warn');});}
+function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>String(p.id)!==String(editProcId));dirty();cm('addProc');renderProc();toast('Item dihapus','warn');gsSync();});}
+
+function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>String(p.id)!==String(editProcId));dirty();cm('addProc');renderProc();toast('Item dihapus','warn');gsSync();});}
 
 // ═══════════════════════════════════════════════════════════════
-// GOOGLE SHEET
+// COST / FINANCE
 // ═══════════════════════════════════════════════════════════════
-const GS_SCRIPT=`// ATW Solar Dashboard — Google Apps Script v9 (Multi-User Safe — Full Merge)
+let editCostId=null;
+
+function fmtRp(n){
+  if(!n&&n!==0)return'—';
+  const v=+n;if(isNaN(v))return'—';
+  return'Rp '+v.toLocaleString('id-ID');
+}
+function fmtRpShort(n){
+  const v=+n||0;
+  if(v>=1e9)return'Rp '+(v/1e9).toFixed(1).replace('.',',')+'M';
+  if(v>=1e6)return'Rp '+(v/1e6).toFixed(1).replace('.',',')+'jt';
+  if(v>=1e3)return'Rp '+(v/1e3).toFixed(0)+'rb';
+  return'Rp '+v.toLocaleString('id-ID');
+}
+
+function toggleProcCost(status){
+  const wrap=$('procCostWrap');
+  if(!wrap)return;
+  const show=['PO Issued','In Transit','On Site'].includes(status);
+  wrap.style.display=show?'block':'none';
+}
+
+function getAllCosts(){
+  // Gabungkan COSTS (OPEX) + PROC yang sudah ada harga
+  const all=[];
+  // OPEX entries
+  COSTS.forEach(c=>all.push({...c,_src:'opex'}));
+  // Procurement dengan harga
+  PROC.filter(p=>p.harga&&+p.harga>0).forEach(p=>{
+    all.push({
+      id:'proc_'+String(p.id),
+      projId:String(p.projId),
+      date:p.due||'',
+      type:'procurement',
+      kategori:p.kategori||'Material',
+      deskripsi:p.item+(p.supplier?` (${p.supplier})`:''),
+      amount:+p.harga||0,
+      paidBy:p.supplier||'',
+      notes:p.notes||'',
+      _src:'procurement'
+    });
+  });
+  return all.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+}
+
+function renderCost(){
+  // Sync project dropdown
+  const fp=$('costFiltProj');
+  if(fp){
+    const cur=fp.value,wasManual=fp._costFiltManual;
+    fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    fp._costFiltManual=wasManual;
+    if(wasManual&&cur!==undefined)fp.value=cur;
+    else if(selId)fp.value=selId;
+  }
+  const filtProj=gv('costFiltProj')||'';
+  const filtType=gv('costFiltType')||'';
+  const search=(gv('costSearch')||'').toLowerCase();
+  const all=getAllCosts();
+  const filtered=all.filter(c=>{
+    if(filtProj&&String(c.projId)!==String(filtProj))return false;
+    if(filtType&&c.type!==filtType)return false;
+    if(search&&!c.deskripsi?.toLowerCase().includes(search)&&!c.kategori?.toLowerCase().includes(search))return false;
+    return true;
+  });
+
+  // KPI
+  const totalAll=all.reduce((s,c)=>s+(+c.amount||0),0);
+  const totalProc=all.filter(c=>c.type==='procurement').reduce((s,c)=>s+(+c.amount||0),0);
+  const totalOpex=all.filter(c=>c.type==='opex'||c.type==='other').reduce((s,c)=>s+(+c.amount||0),0);
+  $('ck1').textContent=fmtRpShort(totalAll);
+  $('ck1s').textContent=`${all.length} entri · ${P.length} project`;
+  $('ck2').textContent=fmtRpShort(totalProc);
+  $('ck2s').textContent=`${PROC.filter(p=>p.harga&&+p.harga>0).length} item PO`;
+  $('ck3').textContent=fmtRpShort(totalOpex);
+  $('ck3s').textContent=`${COSTS.length} entri OPEX`;
+  // Project terbesar
+  const byProj={};
+  all.forEach(c=>{const k=String(c.projId);byProj[k]=(byProj[k]||0)+(+c.amount||0);});
+  const topProjId=Object.entries(byProj).sort((a,b)=>b[1]-a[1])[0];
+  if(topProjId){
+    const tp=P.find(p=>String(p.id)===topProjId[0]);
+    $('ck4').textContent=tp?.kode||'—';
+    $('ck4s').textContent=fmtRpShort(topProjId[1]);
+  }
+
+  // Summary per project
+  const summEl=$('costSummaryTable');
+  if(summEl){
+    const projRows=P.map(p=>{
+      const pid=String(p.id);
+      const pAll=all.filter(c=>String(c.projId)===pid);
+      const pProc=pAll.filter(c=>c.type==='procurement').reduce((s,c)=>s+(+c.amount||0),0);
+      const pOpex=pAll.filter(c=>c.type!=='procurement').reduce((s,c)=>s+(+c.amount||0),0);
+      const pTotal=pProc+pOpex;
+      return{p,pTotal,pProc,pOpex};
+    }).filter(r=>r.pTotal>0).sort((a,b)=>b.pTotal-a.pTotal);
+    const grandTotal=projRows.reduce((s,r)=>s+r.pTotal,0);
+    if(!projRows.length){
+      summEl.innerHTML='<div style="text-align:center;color:var(--mt);font-size:12px;padding:16px">Belum ada data cost</div>';
+    }else{
+      summEl.innerHTML=`<table class="tbl"><thead><tr>
+        <th>Project</th><th>Procurement</th><th>Operasional</th><th>Total</th><th>% dari Semua</th>
+      </tr></thead><tbody>
+      ${projRows.map(({p,pTotal,pProc,pOpex})=>{
+        const pct=grandTotal?Math.round(pTotal/grandTotal*100):0;
+        return`<tr>
+          <td><span style="font-family:var(--fm);color:var(--bl);font-size:11px">${p.kode}</span><br><span style="font-size:10px;color:var(--mt)">${p.nama}</span></td>
+          <td style="font-family:var(--fm);color:var(--bl)">${fmtRp(pProc)}</td>
+          <td style="font-family:var(--fm);color:var(--pu)">${fmtRp(pOpex)}</td>
+          <td style="font-family:var(--fm);font-weight:700;color:var(--or)">${fmtRp(pTotal)}</td>
+          <td style="min-width:100px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="cost-bar" style="flex:1"><div class="cost-bar-fill" style="width:${pct}%"></div></div>
+              <span style="font-size:10px;font-family:var(--fm);color:var(--mt);width:28px">${pct}%</span>
+            </div>
+          </td>
+        </tr>`;}).join('')}
+      <tr style="border-top:2px solid var(--bd);font-weight:700">
+        <td style="color:var(--tx)">TOTAL</td>
+        <td style="font-family:var(--fm);color:var(--bl)">${fmtRp(projRows.reduce((s,r)=>s+r.pProc,0))}</td>
+        <td style="font-family:var(--fm);color:var(--pu)">${fmtRp(projRows.reduce((s,r)=>s+r.pOpex,0))}</td>
+        <td style="font-family:var(--fm);color:var(--or)">${fmtRp(grandTotal)}</td>
+        <td></td>
+      </tr>
+      </tbody></table>`;
+    }
+  }
+
+  // Detail table
+  const detEl=$('costDetailTable');
+  if(!detEl)return;
+  if(!filtered.length){
+    detEl.innerHTML=`<div style="text-align:center;color:var(--mt);font-size:12px;padding:22px">${all.length?'Tidak ada entri cocok filter':'Belum ada data pengeluaran — klik ＋ Tambah Pengeluaran atau update harga di Procurement'}</div>`;
+    return;
+  }
+  const typeLabel=t=>t==='procurement'?`<span class="cost-type-proc">PROC</span>`:t==='opex'?`<span class="cost-type-opex">OPEX</span>`:`<span class="cost-type-other">LAIN</span>`;
+  detEl.innerHTML=`<table class="tbl"><thead><tr>
+    <th>Tgl</th><th>Project</th><th>Tipe</th><th>Kategori</th><th>Deskripsi</th><th>Dibayar oleh</th><th style="text-align:right">Jumlah</th><th></th>
+  </tr></thead><tbody>
+  ${filtered.map(c=>{
+    const pr=P.find(p=>String(p.id)===String(c.projId));
+    const canEdit=c._src==='opex'||c._src==='other';
+    return`<tr>
+      <td style="font-family:var(--fm);font-size:10px;white-space:nowrap">${c.date||'—'}</td>
+      <td style="font-family:var(--fm);font-size:10px;color:var(--bl)">${pr?.kode||'—'}</td>
+      <td>${typeLabel(c.type)}</td>
+      <td style="color:var(--mt);font-size:11px">${c.kategori||'—'}</td>
+      <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.deskripsi||''}">${c.deskripsi||'—'}</td>
+      <td style="color:var(--mt);font-size:11px">${c.paidBy||'—'}</td>
+      <td style="font-family:var(--fm);font-weight:700;color:var(--gn);text-align:right;white-space:nowrap">${fmtRp(c.amount)}</td>
+      <td>${canEdit?`<button class="btn btn-sm edit-only" style="padding:2px 6px" onclick="openModal('editCost','${c.id}')">✏</button>`:'<span style="font-size:9px;color:var(--mt)">via Proc</span>'}</td>
+    </tr>`;}).join('')}
+  </tbody></table>`;
+}
+
+function openCostModal(id=null){
+  editCostId=id?String(id):null;
+  $('costMT').textContent=id?'EDIT PENGELUARAN':'TAMBAH PENGELUARAN';
+  $('btnSaveCost').textContent=id?'💾 Simpan':'＋ Tambah';
+  $('btnDelCost').style.display=id?'block':'none';
+  $('cProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+  const c=id?COSTS.find(x=>String(x.id)===String(id)):null;
+  if(c){
+    sv('cProj',String(c.projId));sv('cDate',c.date||'');
+    sv('cType',c.type||'opex');sv('cKat',c.kategori||'');
+    sv('cDesc',c.deskripsi||'');
+    if($('cAmount'))$('cAmount').value=c.amount||'';
+    sv('cPaidBy',c.paidBy||'');sv('cNotes',c.notes||'');
+  }else{
+    sv('cProj',selId||'');sv('cDate',new Date().toISOString().slice(0,10));
+    sv('cType','opex');sv('cKat','');sv('cDesc','');
+    if($('cAmount'))$('cAmount').value='';
+    sv('cPaidBy','');sv('cNotes','');
+  }
+  show('ov-addCost');
+}
+
+function saveCost(){
+  const desc=(gv('cDesc')||'').trim();
+  const amt=+gv('cAmount')||0;
+  if(!desc){toast('Deskripsi wajib diisi','error');return;}
+  if(!amt){toast('Jumlah wajib diisi','error');return;}
+  const d={
+    projId:String(gv('cProj')||selId||''),
+    date:gv('cDate')||new Date().toISOString().slice(0,10),
+    type:gv('cType')||'opex',
+    kategori:(gv('cKat')||'Lainnya').trim(),
+    deskripsi:desc,
+    amount:amt,
+    paidBy:(gv('cPaidBy')||'').trim(),
+    notes:(gv('cNotes')||'').trim()
+  };
+  if(editCostId){
+    const i=COSTS.findIndex(x=>String(x.id)===String(editCostId));
+    if(i>=0)COSTS[i]={...COSTS[i],...d};
+    toast('Pengeluaran diupdate ✓');
+  }else{
+    d.id=String(Date.now());
+    COSTS.push(d);
+    toast('Pengeluaran ditambahkan ✓');
+  }
+  dirty();cm('addCost');renderCost();
+  if(activeTab==='overview')renderOV();
+  gsSync();
+}
+
+function delCost(){
+  showConfirm('Hapus entri pengeluaran ini?',()=>{
+    COSTS=COSTS.filter(c=>String(c.id)!==String(editCostId));
+    dirty();cm('addCost');renderCost();toast('Pengeluaran dihapus','warn');gsSync();
+  });
+}
+
+function exportCostCSV(){
+  const all=getAllCosts();
+  if(!all.length){toast('Tidak ada data untuk di-export','warn');return;}
+  const hdr=['Tanggal','Project','Kode','Tipe','Kategori','Deskripsi','Jumlah','Dibayar Oleh','Keterangan'];
+  const rows=all.map(c=>{
+    const pr=P.find(p=>String(p.id)===String(c.projId));
+    return[c.date||'',pr?.nama||'',pr?.kode||'',c.type||'',c.kategori||'',c.deskripsi||'',c.amount||0,c.paidBy||'',c.notes||''];
+  });
+  const csv=[hdr,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
+  a.download=`ATW_Cost_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();URL.revokeObjectURL(url);
+  toast('CSV berhasil di-export ✓');
+}
+
+function sanitizeCosts(arr){
+  const seen=new Set();
+  return(arr||[]).filter(c=>c.deskripsi||c.amount).map(c=>({
+    id:String(c.id||Date.now()),
+    projId:String(c.projId||''),
+    date:String(c.date||'').slice(0,10),
+    type:String(c.type||'opex'),
+    kategori:String(c.kategori||'Lainnya').slice(0,100),
+    deskripsi:String(c.deskripsi||'').slice(0,300),
+    amount:+c.amount||0,
+    paidBy:String(c.paidBy||'').slice(0,100),
+    notes:String(c.notes||'').slice(0,300)
+  })).filter(c=>{if(seen.has(c.id))return false;seen.add(c.id);return true;});
+}
+
+// RAB default categories
+const RAB_DEFAULT_CATS=['Material & Equipment','Manpower','Subkontraktor','Transportasi & Logistik','Overhead & Administrasi','Contingency'];
+
+function sanitizeRab(arr){
+  const seen=new Set();
+  return(arr||[]).filter(r=>r.id).map(r=>({
+    id:String(r.id||Date.now()),
+    projId:String(r.projId||''),
+    type:String(r.type||'item'), // 'kat' | 'item'
+    katId:r.katId!=null?String(r.katId):'',
+    name:String(r.name||'').slice(0,200),       // for type='kat'
+    deskripsi:String(r.deskripsi||'').slice(0,300), // for type='item'
+    satuan:String(r.satuan||'').slice(0,50),
+    volume:+r.volume||0,
+    hargaSatuan:+r.hargaSatuan||0,
+    total:+r.total||0,
+    notes:String(r.notes||'').slice(0,300),
+    urutan:+r.urutan||0,
+    isCustom:!!r.isCustom
+  })).filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RAB — RENCANA ANGGARAN BIAYA
+// ═══════════════════════════════════════════════════════════════
+
+// Helper: get actual spending per RAB kategori for a project
+function getRabActualByKat(projId){
+  // Collect all costs for this project
+  const allCosts=getAllCosts().filter(c=>String(c.projId)===String(projId));
+  const byKat={};
+  // Map procurement kategori → RAB kategori via procKat field on RAB items
+  const rabItems=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(projId));
+  // Build map: procKat → rabKatId
+  const procKatToRabKat={};
+  rabItems.forEach(ri=>{
+    if(ri.procKat){procKatToRabKat[ri.procKat]=ri.katId;}
+  });
+  // Accumulate by kategori
+  allCosts.forEach(c=>{
+    // Try to match to a RAB category
+    let katId=null;
+    if(c.type==='procurement'&&c.kategori&&procKatToRabKat[c.kategori]){
+      katId=procKatToRabKat[c.kategori];
+    } else {
+      // Try matching by kategori name to RAB kat name
+      const matchKat=RAB.find(r=>r.type==='kat'&&String(r.projId)===String(projId)&&r.name===c.kategori);
+      if(matchKat)katId=matchKat.id;
+    }
+    if(katId){byKat[katId]=(byKat[katId]||0)+(+c.amount||0);}
+    else{byKat['_uncat']=(byKat['_uncat']||0)+(+c.amount||0);}
+  });
+  return byKat;
+}
+
+function renderRab(){
+  // Sync project dropdown
+  const fp=$('rabFiltProj');
+  if(fp){
+    const cur=fp.value;
+    fp.innerHTML='<option value="">— Pilih Project —</option>'+P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    if(cur)fp.value=cur;
+  }
+  const projId=gv('rabFiltProj');
+  const btnAdd=$('btnAddRabItem');
+  if(btnAdd)btnAdd.style.display=projId?'block':'none';
+
+  const rabKpiRow=$('rabKpiRow');
+  const rabTable=$('rabTable');
+  if(!rabTable)return;
+
+  if(!projId){
+    rabTable.innerHTML='<div style="text-align:center;color:var(--mt);font-size:12px;padding:24px">Pilih project untuk melihat RAB</div>';
+    if(rabKpiRow)rabKpiRow.style.display='none';
+    return;
+  }
+
+  const kats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(projId)).sort((a,b)=>a.urutan-b.urutan||(a.name>b.name?1:-1));
+  const items=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(projId));
+  const actualByKat=getRabActualByKat(projId);
+
+  // Total RAB
+  const totalRab=items.reduce((s,i)=>s+(+i.total||0),0);
+  const totalActual=Object.values(actualByKat).reduce((s,v)=>s+v,0);
+  const sisaAngg=totalRab-totalActual;
+  const pctUsed=totalRab>0?Math.round(totalActual/totalRab*100):0;
+  const critKats=kats.filter(k=>{
+    const rabKat=items.filter(i=>i.katId===k.id).reduce((s,i)=>s+(+i.total||0),0);
+    const act=actualByKat[k.id]||0;
+    return rabKat>0&&act/rabKat>=0.9;
+  }).length;
+
+  // KPI
+  if(rabKpiRow)rabKpiRow.style.display='block';
+  const el1=$('rabK1');if(el1)el1.textContent=fmtRpShort(totalRab);
+  const el1s=$('rabK1s');if(el1s)el1s.textContent=`${items.length} item di ${kats.length} kategori`;
+  const el2=$('rabK2');if(el2)el2.textContent=fmtRpShort(totalActual);
+  const el2s=$('rabK2s');if(el2s)el2s.textContent=`${pctUsed}% dari total RAB`;
+  const el3=$('rabK3');
+  if(el3){el3.textContent=fmtRpShort(Math.abs(sisaAngg));el3.style.color=sisaAngg<0?'var(--rd)':sisaAngg/totalRab<0.1&&totalRab>0?'var(--yw)':'var(--gn)';}
+  const el3s=$('rabK3s');if(el3s)el3s.textContent=sisaAngg<0?'⚠ MELEBIHI RAB':sisaAngg===0?'Pas RAB':'Tersedia';
+  const el4=$('rabK4');if(el4)el4.textContent=critKats;
+  const el4s=$('rabK4s');if(el4s)el4s.textContent=`kategori sudah ≥90% terpakai`;
+
+  if(!kats.length&&!items.length){
+    rabTable.innerHTML=`<div style="text-align:center;color:var(--mt);font-size:12px;padding:24px">
+      Belum ada RAB untuk project ini. Klik <strong>＋ Kategori</strong> untuk memulai.
+    </div>`;
+    return;
+  }
+
+  // Build table
+  let rows='';
+  kats.forEach(k=>{
+    const katItems=items.filter(i=>i.katId===k.id);
+    const rabKatTotal=katItems.reduce((s,i)=>s+(+i.total||0),0);
+    const actKat=actualByKat[k.id]||0;
+    const pctKat=rabKatTotal>0?Math.round(actKat/rabKatTotal*100):0;
+    const sisaKat=rabKatTotal-actKat;
+    const fillClass=pctKat>=100?'rab-pct-danger':pctKat>=90?'rab-pct-warn':'rab-pct-ok';
+    const badge=pctKat>=100?`<span class="rab-badge-over">OVER ${pctKat}%</span>`:pctKat>=90?`<span class="rab-badge-warn">${pctKat}% ⚠</span>`:`<span class="rab-badge-ok">${pctKat}%</span>`;
+
+    rows+=`<tr class="rab-kat-row" onclick="toggleRabKat('rkat_${k.id}')">
+      <td colspan="4">
+        <div class="rab-kat-name">
+          <span id="rkat_${k.id}_ico">▼</span>
+          <span style="font-size:12px">${k.name}</span>
+          ${badge}
+          <div class="rab-progress-bar" style="flex:1;max-width:140px">
+            <div class="rab-progress-fill ${fillClass}" style="width:${Math.min(pctKat,100)}%"></div>
+          </div>
+        </div>
+      </td>
+      <td style="font-family:var(--fm);text-align:right;color:var(--bl)">${fmtRp(rabKatTotal)}</td>
+      <td style="font-family:var(--fm);text-align:right;color:var(--gn)">${fmtRp(actKat)}</td>
+      <td style="font-family:var(--fm);text-align:right;color:${sisaKat<0?'var(--rd)':sisaKat/rabKatTotal<0.1&&rabKatTotal>0?'var(--yw)':'var(--tx)'};font-weight:700">${fmtRp(Math.abs(sisaKat))}${sisaKat<0?' (OVER)':''}</td>
+      <td class="edit-only" style="white-space:nowrap">
+        <button class="btn btn-sm" style="padding:2px 6px;font-size:10px" onclick="event.stopPropagation();openRabKatModal('${k.id}')">✏</button>
+        <button class="btn btn-sm" style="padding:2px 6px;font-size:10px;border-color:var(--bl);color:var(--bl)" onclick="event.stopPropagation();openRabItemModal(null,'${k.id}')">＋</button>
+      </td>
+    </tr>`;
+
+    // Items under this kategori
+    rows+=`<tbody id="rkat_${k.id}">`;
+    if(katItems.length){
+      katItems.sort((a,b)=>a.deskripsi>b.deskripsi?1:-1).forEach(item=>{
+        const itemPct=item.total>0?Math.round((actualByKat[k.id]||0)/item.total*100):0;
+        rows+=`<tr class="rab-item-row">
+          <td style="padding-left:28px;color:var(--mt);font-size:10px">└</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.deskripsi}">${item.deskripsi}</td>
+          <td style="color:var(--mt);font-size:10px;text-align:center">${item.volume||'—'} ${item.satuan||''}</td>
+          <td style="font-family:var(--fm);text-align:right;font-size:10px;color:var(--mt)">${fmtRp(item.hargaSatuan)}</td>
+          <td style="font-family:var(--fm);text-align:right;color:var(--bl)">${fmtRp(item.total)}</td>
+          <td style="color:var(--mt);font-size:10px;text-align:right">—</td>
+          <td></td>
+          <td class="edit-only"><button class="btn btn-sm" style="padding:2px 6px;font-size:10px" onclick="openRabItemModal('${item.id}')">✏</button></td>
+        </tr>`;
+      });
+    } else {
+      rows+=`<tr><td colspan="8" style="padding:6px 28px;color:var(--mt);font-size:11px;font-style:italic">Belum ada item — klik ＋ untuk tambah</td></tr>`;
+    }
+    rows+=`</tbody>`;
+  });
+
+  // Grand total row
+  const grandTotal=items.reduce((s,i)=>s+(+i.total||0),0);
+  const grandAct=Object.entries(actualByKat).filter(([k])=>k!=='_uncat').reduce((s,[,v])=>s+v,0);
+  const grandSisa=grandTotal-grandAct;
+
+  rabTable.innerHTML=`<table class="tbl"><thead><tr>
+    <th style="width:20px"></th><th>Item</th><th>Volume</th><th>Harga Satuan</th>
+    <th style="text-align:right">RAB</th><th style="text-align:right">Aktual</th>
+    <th style="text-align:right">Sisa</th><th class="edit-only" style="width:60px"></th>
+  </tr></thead><tbody>
+  ${rows}
+  <tr style="border-top:2px solid var(--bd);font-weight:700;background:var(--sf2)">
+    <td colspan="4" style="color:var(--tx)">TOTAL RAB</td>
+    <td style="font-family:var(--fm);text-align:right;color:var(--bl)">${fmtRp(grandTotal)}</td>
+    <td style="font-family:var(--fm);text-align:right;color:var(--gn)">${fmtRp(grandAct)}</td>
+      <td style="font-family:var(--fm);text-align:right;color:${grandSisa<0?'var(--rd)':'var(--tx)'};font-weight:700">${fmtRp(Math.abs(grandSisa))}${grandSisa<0?' (OVER)':''}</td>
+    <td></td>
+  </tr>
+  </tbody></table>`;
+}
+
+function toggleRabKat(tbodyId){
+  const tb=$(tbodyId);
+  const ico=$(tbodyId+'_ico');
+  if(!tb)return;
+  const hidden=tb.style.display==='none';
+  tb.style.display=hidden?'':'none';
+  if(ico)ico.textContent=hidden?'▼':'▶';
+}
+
+function calcRabTotal(){
+  const vol=+gv('riVolume')||0;
+  const harga=+gv('riHarga')||0;
+  const total=vol*harga;
+  const el=$('riTotal');
+  if(el)el.value=total>0?total:'';
+}
+
+function updateRabKatDropdown(){
+  const projId=gv('rkProj')||gv('rabFiltProj');
+  // no-op for now, can add project-specific logic
+}
+
+function updateRabItemDropdown(){
+  const projId=gv('riProj');
+  const katSel=$('riKat');
+  if(!katSel)return;
+  const kats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(projId)).sort((a,b)=>a.urutan-b.urutan);
+  katSel.innerHTML=kats.length
+    ?kats.map(k=>`<option value="${k.id}">${k.name}</option>`).join('')
+    :'<option value="">— Belum ada kategori —</option>';
+}
+
+function openRabKatModal(id=null){
+  editRabCatId=id?String(id):null;
+  $('rabKatMT').textContent=id?'EDIT KATEGORI RAB':'TAMBAH KATEGORI RAB';
+  $('btnSaveRabKat').textContent=id?'💾 Simpan':'＋ Tambah';
+  $('btnDelRabKat').style.display=id?'block':'none';
+  // Fill project dropdown
+  $('rkProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+  if(id){
+    const k=RAB.find(r=>r.id===id&&r.type==='kat');
+    if(k){
+      sv('rkProj',String(k.projId));
+      sv('rkName',k.name);
+      sv('rkUrutan',k.urutan||1);
+    }
+  } else {
+    sv('rkProj',gv('rabFiltProj')||selId||'');
+    sv('rkName','');sv('rkUrutan',1);
+  }
+  show('ov-addRabKat');
+}
+
+function saveRabKat(){
+  const projId=gv('rkProj');
+  const name=(gv('rkName')||'').trim();
+  if(!projId){toast('Pilih project','error');return;}
+  if(!name){toast('Nama kategori wajib diisi','error');return;}
+  if(editRabCatId){
+    const idx=RAB.findIndex(r=>r.id===editRabCatId);
+    if(idx>=0)RAB[idx]={...RAB[idx],projId,name,urutan:+gv('rkUrutan')||1,isCustom:true};
+  } else {
+    RAB.push({id:String(Date.now()),projId,type:'kat',katId:'',name,deskripsi:'',satuan:'',volume:0,hargaSatuan:0,total:0,notes:'',urutan:+gv('rkUrutan')||1,isCustom:true});
+  }
+  dirty();cm('addRabKat');renderRab();
+  toast(editRabCatId?'Kategori diperbarui ✓':'Kategori ditambahkan ✓');
+  gsSync();
+}
+
+function delRabKat(){
+  if(!editRabCatId)return;
+  const k=RAB.find(r=>r.id===editRabCatId&&r.type==='kat');
+  const hasItems=RAB.some(r=>r.type==='item'&&r.katId===editRabCatId);
+  if(hasItems&&!confirm(`Kategori "${k?.name}" masih memiliki item RAB. Hapus semua item di dalamnya juga?`))return;
+  if(hasItems)RAB=RAB.filter(r=>!(r.type==='item'&&r.katId===editRabCatId));
+  RAB=RAB.filter(r=>r.id!==editRabCatId);
+  dirty();cm('addRabKat');renderRab();toast('Kategori dihapus','warn');gsSync();
+}
+
+function openRabItemModal(id=null,defaultKatId=null){
+  editRabId=id?String(id):null;
+  $('rabItemMT').textContent=id?'EDIT ITEM RAB':'TAMBAH ITEM RAB';
+  $('btnSaveRabItem').textContent=id?'💾 Simpan':'＋ Tambah';
+  $('btnDelRabItem').style.display=id?'block':'none';
+  $('riProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+  if(id){
+    const item=RAB.find(r=>r.id===id&&r.type==='item');
+    if(item){
+      sv('riProj',String(item.projId));
+      updateRabItemDropdown();
+      sv('riKat',String(item.katId));
+      sv('riDesc',item.deskripsi||'');
+      sv('riSatuan',item.satuan||'');
+      $('riVolume').value=item.volume||'';
+      $('riHarga').value=item.hargaSatuan||'';
+      $('riTotal').value=item.total||'';
+      sv('riProcKat',item.procKat||'');
+      sv('riNotes',item.notes||'');
+    }
+  } else {
+    const proj=gv('rabFiltProj')||selId||'';
+    sv('riProj',proj);
+    updateRabItemDropdown();
+    if(defaultKatId)sv('riKat',defaultKatId);
+    sv('riDesc','');sv('riSatuan','');
+    $('riVolume').value='';$('riHarga').value='';$('riTotal').value='';
+    sv('riProcKat','');sv('riNotes','');
+  }
+  show('ov-addRabItem');
+}
+
+function saveRabItem(){
+  const projId=gv('riProj');
+  const katId=gv('riKat');
+  const desc=(gv('riDesc')||'').trim();
+  if(!projId){toast('Pilih project','error');return;}
+  if(!desc){toast('Deskripsi item wajib diisi','error');return;}
+  const vol=+$('riVolume').value||0;
+  const harga=+$('riHarga').value||0;
+  const total=+$('riTotal').value||(vol*harga);
+  const d={projId,type:'item',katId:katId||'',deskripsi:desc,satuan:gv('riSatuan'),volume:vol,hargaSatuan:harga,total,procKat:gv('riProcKat'),notes:gv('riNotes')};
+  if(editRabId){
+    const idx=RAB.findIndex(r=>r.id===editRabId);
+    if(idx>=0)RAB[idx]={...RAB[idx],...d};
+  } else {
+    RAB.push({id:String(Date.now()),urutan:0,isCustom:false,...d});
+  }
+  dirty();cm('addRabItem');renderRab();
+  toast(editRabId?'Item RAB diperbarui ✓':'Item RAB ditambahkan ✓');
+  gsSync();
+}
+
+function delRabItem(){
+  if(!editRabId)return;
+  if(!confirm('Hapus item RAB ini?'))return;
+  RAB=RAB.filter(r=>r.id!==editRabId);
+  dirty();cm('addRabItem');renderRab();toast('Item RAB dihapus','warn');gsSync();
+}
+
+function exportRabCSV(){
+  const projId=gv('rabFiltProj');
+  const proj=P.find(p=>String(p.id)===String(projId));
+  const kats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(projId)).sort((a,b)=>a.urutan-b.urutan);
+  const items=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(projId));
+  const actualByKat=getRabActualByKat(projId);
+  const rows=[['Project','Kategori','Deskripsi','Satuan','Volume','Harga Satuan','Total RAB','Aktual','Sisa','% Terpakai']];
+  kats.forEach(k=>{
+    const katItems=items.filter(i=>i.katId===k.id);
+    const act=actualByKat[k.id]||0;
+    const rabTotal=katItems.reduce((s,i)=>s+(+i.total||0),0);
+    rows.push([proj?.kode||projId,k.name,'(Sub-total)','','','',rabTotal,act,rabTotal-act,rabTotal>0?Math.round(act/rabTotal*100)+'%':'—']);
+    katItems.forEach(item=>{
+      rows.push([proj?.kode||projId,k.name,item.deskripsi,item.satuan,item.volume,item.hargaSatuan,item.total,'','','']);
+    });
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const url=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a');a.href=url;
+  a.download=`RAB_${proj?.kode||projId}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();URL.revokeObjectURL(url);
+  toast('CSV RAB berhasil di-export ✓');
+}
+
+// Patch renderCost to also trigger renderRab
+const _origRenderCost=typeof renderCost==='function'?renderCost:null;
+
+`// ATW Solar Dashboard — Google Apps Script v9 (Multi-User Safe — Full Merge)
 // Deploy sebagai Web App: Execute as Me, Anyone can access
 
 const SHEET_ID = '${gsSheet||'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA'}';
@@ -3234,11 +4111,14 @@ function doPost(e) {
       writeSheet(ss,'PROJECTS',   mergeById(existingProj, d.projects||[]),    ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo']);
       writeSheet(ss,'HISTORY',    mergedHist,     ['projId','kode','date','actual','plan','mp','notes']);
       writeSheet(ss,'ISSUES',     mergeById(existingIss,  d.issues||[]),      ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
-      writeSheet(ss,'PROCUREMENT',mergeById(existingProc, d.procurement||[]), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes']);
+      writeSheet(ss,'PROCUREMENT',mergeById(existingProc, d.procurement||[]), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes','harga']);
       writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,  d.manpowerLogs||[]),['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
       writeSheet(ss,'ACCIDENT_LOG',mergeById(existingAcc, d.accidentLogs||[]),['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
       writeSheet(ss,'SCURVE',d.scurve||[],['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
       writeSheet(ss,'WBS',mergeById(existingWbs,d.wbs||[]),['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
+      // COSTS (OPEX)
+      const existingCosts=readSheet(ss,'COSTS')||[];
+      writeSheet(ss,'COSTS',mergeById(existingCosts,d.costs||[]),['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes']);
 
       const now = Date.now();
       let ms = ss.getSheetByName('_META') || ss.insertSheet('_META');
@@ -3280,6 +4160,7 @@ function doGet(e) {
       procurement:  readSheet(ss,'PROCUREMENT') ||[],
       manpowerLogs: readSheet(ss,'MANPOWER_LOG')||[],
       accidentLogs: readSheet(ss,'ACCIDENT_LOG')||[],
+      costs:        readSheet(ss,'COSTS')||[],
       scurve:       readSheet(ss,'SCURVE')       ||[],
       wbs:          readSheet(ss,'WBS')           ||[],
     });
@@ -3374,7 +4255,7 @@ async function gsSync(){
       // Gunakan ts dari localStorage (waktu data terakhir diubah lokal), bukan Date.now()
       // Ini penting agar conflict detection di server bisa bekerja dengan benar
       const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
-      const body=JSON.stringify({action:'sync',lastSaved:lTs,user,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS});
+      const body=JSON.stringify({action:'sync',lastSaved:lTs,user,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS,costs:COSTS,rab:RAB});
       const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
       if(r.ok){
         const txt=await r.text();
@@ -3395,7 +4276,7 @@ async function gsSync(){
     }catch(e){
       try{
         const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
-        fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
+        fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS,costs:COSTS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
       }catch(e2){}
     }
   },800); // debounce 800ms
@@ -3408,7 +4289,7 @@ async function syncAllGS(){
     const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
     // Gunakan timestamp dari localStorage sebagai lastSaved
     const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
-    const body=JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS});
+    const body=JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS,costs:COSTS,rab:RAB});
     const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
     if(r.ok){
       const txt=await r.text();
@@ -3440,7 +4321,7 @@ async function syncAllGS(){
     try{
       const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
       const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
-      await fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
+      await fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,costs:COSTS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
       toast('📤 Data dikirim (no-cors). Minta tim lain klik Load GSheet untuk update.','warn');
     }catch(e2){
       toast('❌ Gagal sync: '+e.message,'error');
@@ -3480,7 +4361,8 @@ async function loadFromGS(){
       remoteProc.forEach(p=>procMergeMap.set(String(p.id),p));
       PROC=[...procMergeMap.values()];
       MPLOGS=sanitizeMpLogs(d.manpowerLogs);
-      ACCLOGS=sanitizeAccLogs(d.accidentLogs);
+      ACCLOGS=sanitizeAccLogs(d.accidentLogs);COSTS=sanitizeCosts(d.costs||[]);
+      RAB=sanitizeRab(d.rab||[]);
       SCURVE=Array.isArray(d.scurve)?d.scurve.map(s=>({projId:s.projId,week:+s.week||0,wPlan:+s.wPlan||0,wAct:+s.wAct||0,cPlan:s.cPlan!=null&&s.cPlan!==''?+s.cPlan:null,cAct:s.cAct!=null&&s.cAct!==''?+s.cAct:null,dateStart:safeStr(s.dateStart),fromWbs:!!s.fromWbs})):[];
       const parseField=v=>{
         if(!v||v==='[object Object]'||v==='null')return {};
@@ -3540,7 +4422,7 @@ return{...w,projId:match.id};}
       syncAllWbsToProjects();
       if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
       selId=P[0]?.id||null;
-      saveLocal();saveLogosCache();
+      saveLocal(Date.now(),true);saveLogosCache(); // data dari GSheet
       // Apply dash_logo dari GSheet jika ada dan belum ada di localStorage
       if(d.dash_logo&&d.dash_logo.startsWith('data:')){
         try{
@@ -3662,67 +4544,95 @@ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'){
 })();
 
 // ═══════════════════════════════════════════════════════════════
-// STARTUP — localStorage sebagai sumber data utama
-// GSheet sebagai backup/sync sekunder
+// ═══════════════════════════════════════════════════════════════
+// STARTUP — GSheet adalah sumber kebenaran (source of truth)
+// localStorage hanya sebagai cache offline, TIDAK pernah mendahului GSheet
 // ═══════════════════════════════════════════════════════════════
 async function autoLoadOnStart(){
-  // LANGKAH 1: load dari localStorage dulu (instan, tidak butuh internet)
+  // LANGKAH 1: load dari localStorage sebagai tampilan sementara (offline fallback)
   const hasLocal = loadLocal();
   if(hasLocal){
-    loadLogosCache(); // restore logo dari cache terpisah
+    loadLogosCache();
     selId=P[0]?.id||null;
     render();
-    $('smsg').textContent='Data dimuat dari penyimpanan lokal';
-    $('sdot').style.background='var(--gn)';
-    $('sdot').classList.remove('unsaved');
-    const ts=JSON.parse(localStorage.getItem('atw_data')||'{}').ts;
-    $('flabel').textContent='Lokal · '+(ts?new Date(ts).toLocaleString('id-ID'):'');
+    $('smsg').textContent='Memuat cache lokal — menghubungi GSheet...';
+    $('sdot').style.background='var(--yw)';
   }else{
     render();
-    $('smsg').textContent='Belum ada data — tambah project atau load dari GSheet';
+    $('smsg').textContent='Belum ada data — menghubungi GSheet...';
     $('sdot').style.background='var(--mt)';
   }
 
-  // LANGKAH 2: jika GSheet tersambung, coba sync di background
+  // LANGKAH 2: GSheet selalu menjadi sumber kebenaran jika tersambung
   if(gsOk && gsUrl){
-    $('smsg').textContent=(hasLocal?'Data lokal dimuat · ':'')+'Sinkronisasi GSheet...';
     try{
       const res=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-cache'});
       if(!res.ok)throw new Error('HTTP '+res.status);
       const txt=await res.text();
-      // Guard: pastikan response adalah JSON valid sebelum parse
       if(!txt||!txt.trim().startsWith('{'))throw new Error('Response bukan JSON: '+txt.slice(0,50));
       const d=JSON.parse(txt);
       if(d.status==='error')throw new Error(d.msg||'GSheet error');
       if(d.projects&&d.projects.length>0){
-        // Cek apakah data GSheet lebih baru dari lokal
-        const gTs=d.lastSaved||0;
-        const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||0;
-        if(gTs>=lTs||!hasLocal){
-          P=sanitizeProjects(d.projects);
-          try{const lc=JSON.parse(localStorage.getItem('atw_logos')||'{}');P.forEach(p=>{if(!p.logo&&(lc[p.id]||lc[String(p.id)]))p.logo=lc[p.id]||lc[String(p.id)];});}catch(ex){}
-          ISS=sanitizeIssues(d.issues);
-          PROC=sanitizeProc(d.procurement);
-          MPLOGS=sanitizeMpLogs(d.manpowerLogs);
-          ACCLOGS=sanitizeAccLogs(d.accidentLogs);
-          if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
-          selId=P[0]?.id||null;
-          saveLocal();
-          render();
-          $('smsg').textContent='Tersinkronisasi dari Google Sheet';
-          $('sdot').style.background='var(--gn)';
-          $('sdot').classList.remove('unsaved');
-          $('flabel').textContent='Google Sheet · '+new Date().toLocaleTimeString('id-ID');
-        }else{
-          $('smsg').textContent='Data lokal lebih baru · GSheet terhubung';
-          $('sdot').style.background='var(--gn)';
-        }
+        // GSheet selalu menang — tidak perlu cek timestamp
+        // localStorage hanya dipakai saat offline
+        P=sanitizeProjects(d.projects);
+        try{const lc=JSON.parse(localStorage.getItem('atw_logos')||'{}');P.forEach(p=>{if(!p.logo&&(lc[p.id]||lc[String(p.id)]))p.logo=lc[p.id]||lc[String(p.id)];});}catch(ex){}
+        ISS=sanitizeIssues(d.issues);
+        PROC=sanitizeProc(d.procurement);
+        MPLOGS=sanitizeMpLogs(d.manpowerLogs);
+        ACCLOGS=sanitizeAccLogs(d.accidentLogs);COSTS=sanitizeCosts(d.costs||[]);
+        RAB=sanitizeRab(d.rab||[]);
+        if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
+        selId=P[0]?.id||null;
+        saveLocal(d.lastSaved||Date.now(),true); // cache data GSheet — bukan data lokal
+        render();
+        $('smsg').textContent='Tersinkronisasi dari Google Sheet ✓';
+        $('sdot').style.background='var(--gn)';
+        $('sdot').classList.remove('unsaved');
+        $('flabel').textContent='Google Sheet · '+new Date().toLocaleTimeString('id-ID');
+        // Simpan ts dari GSheet agar _rtPoll tidak re-render tanpa perlu
+        try{const lts=JSON.parse(localStorage.getItem('atw_data')||'{}');lts.ts=d.lastSaved||Date.now();localStorage.setItem('atw_data',JSON.stringify(lts));}catch(e){}
+        _rtLastTs=+d.lastSaved||0;
       }else{
-        $('smsg').textContent=hasLocal?'Data lokal dimuat · GSheet kosong':'GSheet kosong — tambah project';
+        // GSheet kosong atau belum ada data — pakai lokal jika ada
+        if(hasLocal){
+          const localMeta=JSON.parse(localStorage.getItem('atw_data')||'{}');
+          if(localMeta.fromGS){
+            // Data lokal berasal dari GSheet sebelumnya — mungkin GSheet baru di-reset
+            $('smsg').textContent='GSheet kosong · data cache lokal dimuat';
+            $('sdot').style.background='var(--yw)';
+          }else{
+            // Data lokal benar-benar dibuat offline — push ke GSheet
+            $('smsg').textContent='GSheet kosong — push data lokal ke GSheet...';
+            $('sdot').style.background='var(--yw)';
+            setTimeout(()=>gsSync(),1000);
+          }
+        }else{
+          $('smsg').textContent='GSheet kosong — tambah project untuk memulai';
+          $('sdot').style.background='var(--mt)';
+        }
+      }
+      // Apply dash_logo dari GSheet
+      if(d.dash_logo&&d.dash_logo.startsWith('data:')){
+        try{localStorage.setItem('atw_dash_logo',d.dash_logo);const img=$('dashLogoImg');if(img)img.src=d.dash_logo;const btn=$('btnResetLogo');if(btn)btn.style.display='flex';}catch(e){}
       }
     }catch(e){
-      $('smsg').textContent=hasLocal?'Data lokal dimuat · GSheet tidak dapat dijangkau':'Tidak dapat terhubung ke GSheet';
-      $('sdot').style.background=hasLocal?'var(--yw)':'var(--rd)';
+      // Offline / GSheet error — tetap pakai lokal sebagai fallback
+      if(hasLocal){
+        $('smsg').textContent='⚠ GSheet tidak terjangkau — menampilkan data cache lokal';
+        $('sdot').style.background='var(--yw)';
+        $('flabel').textContent='Cache Offline';
+      }else{
+        $('smsg').textContent='❌ Tidak dapat terhubung ke GSheet — tidak ada data lokal';
+        $('sdot').style.background='var(--rd)';
+      }
+    }
+  }else{
+    // Tidak ada GSheet — pakai lokal saja
+    if(hasLocal){
+      loadLogosCache();
+      $('smsg').textContent='Mode offline — GSheet belum dikonfigurasi';
+      $('flabel').textContent='Lokal';
     }
   }
 }
@@ -4210,16 +5120,22 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.0.2';
+  const DASH_VER='3.2';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
-      // Simpan config penting
-      const keep=['atw_gs','atw_pw','atw_dash_logo','atw_logos','atw_theme','atw_session'];
-      const saved={};keep.forEach(k=>{const v=localStorage.getItem(k);if(v)saved[k]=v;});
+      // Upgrade versi — hanya hapus cache UI, BUKAN data project
+      // Data akan di-load ulang dari GSheet (source of truth)
+      // Keys yang DIPERTAHANKAN: semua data + config penting
+      const keepKeys=[
+        'atw_gs','atw_pw','atw_dash_logo','atw_logos',
+        'atw_theme','atw_session','atw_data','atw_sb_hidden'
+      ];
+      const saved={};
+      keepKeys.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)saved[k]=v;});
       localStorage.clear();
       Object.entries(saved).forEach(([k,v])=>localStorage.setItem(k,v));
       localStorage.setItem('atw_ver',DASH_VER);
-      console.log('[ATW] Cache data lama dihapus — versi baru terdeteksi');
+      // Tidak perlu log ke console — normal behavior saat upgrade
     }
   }catch(e){}
 })();
@@ -6264,7 +7180,8 @@ function sanitizeProc(arr){
     supplier:safeStr(pr.supplier).slice(0,200),
     due:_trimDate(pr.due),
     status:safeStr(pr.status)||'Waiting Approval',
-    notes:safeStr(pr.notes).slice(0,500)
+    notes:safeStr(pr.notes).slice(0,500),
+    harga:pr.harga!=null&&pr.harga!==''?+pr.harga||0:undefined
   })).filter(pr=>{
     if(seen.has(pr.id))return false;
     seen.add(pr.id);return true;
@@ -6637,7 +7554,8 @@ async function _rtPoll(){
     _rtFailCount=0;
     const gTs=+d.lastSaved||0;
 
-    // Hanya update jika GSheet lebih baru
+    // GSheet adalah source of truth — update jika GSheet punya versi baru
+    // Bandingkan hanya dengan lastTs GSheet sebelumnya, BUKAN dengan localStorage
     if(gTs<=_rtLastTs)return;
     _rtLastTs=gTs;
 
@@ -6661,7 +7579,8 @@ async function _rtPoll(){
     PROC=[...pm.values()];
 
     MPLOGS=sanitizeMpLogs(d.manpowerLogs);
-    ACCLOGS=sanitizeAccLogs(d.accidentLogs);
+    ACCLOGS=sanitizeAccLogs(d.accidentLogs);COSTS=sanitizeCosts(d.costs||[]);
+    RAB=sanitizeRab(d.rab||[]);
 
     if(d.history){
       d.history.forEach(h=>{
@@ -6691,7 +7610,7 @@ async function _rtPoll(){
     }
 
     selId=selId||(P[0]?.id||null);
-    saveLocal();
+    saveLocal(gTs||Date.now(),true); // data dari GSheet poll
 
     // Apply dash_logo dari GSheet jika ada dan berbeda dari yang di localStorage
     if(d.dash_logo&&d.dash_logo.startsWith('data:')){
@@ -6734,6 +7653,7 @@ function _rtSmartRender(){
   else if(activeTab==='manpower')renderMP();
   else if(activeTab==='issues')renderIssues?.();
   else if(activeTab==='procurement')renderProc();
+  else if(activeTab==='cost'){renderCost();renderRab();}
   else if(activeTab==='wbs')renderWBS();
   else if(activeTab==='daily')renderDailyReport();
 }
