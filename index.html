@@ -1056,7 +1056,6 @@ select.fi{color-scheme:dark}
         </div>
 
         <!-- RAB KPI -->
-        <div id="rabUncatInfo" style="display:none;padding:6px 12px;font-size:11px;background:rgba(245,158,11,.08);border-radius:6px;margin-bottom:8px"></div>
         <div id="rabKpiRow" style="display:none">
           <div class="krow" style="grid-template-columns:repeat(4,1fr);margin:10px 0 6px">
             <div class="kpi" style="border-top:3px solid var(--bl)"><div class="kl">Total RAB</div><div class="kv" id="rabK1" style="color:var(--bl);font-size:16px">Rp 0</div><div class="ks" id="rabK1s">—</div></div>
@@ -1348,20 +1347,6 @@ select.fi{color-scheme:dark}
     </div>
     <div class="fg"><label class="fl">Dibayar oleh</label>
       <input class="fi" id="cPaidBy" placeholder="Nama / Jabatan">
-    </div>
-  </div>
-  <div class="f2">
-    <div class="fg"><label class="fl">No. Referensi / Invoice
-      <span style="font-size:9px;color:var(--mt);font-weight:400"> (opsional)</span>
-    </label>
-      <input class="fi" id="cRef" placeholder="INV-001, SPK-2026...">
-    </div>
-    <div class="fg"><label class="fl">Status</label>
-      <select class="fi" id="cStatus">
-        <option value="unpaid">⏳ Belum Dibayar</option>
-        <option value="paid">✅ Sudah Dibayar</option>
-        <option value="partial">🔄 Bayar Sebagian</option>
-      </select>
     </div>
   </div>
   <div class="fg"><label class="fl">Keterangan</label>
@@ -2061,14 +2046,9 @@ let P=[],ISS=[],PROC=[],MPLOGS=[],ACCLOGS=[],SCURVE=[],WBS=[],COSTS=[],RAB=[];
 let selId=null,editProjId=null,editIssId=null,editProcId=null,editRabId=null,editRabCatId=null;
 let isDirty=false,pendImp=null,curFile=null,activeTab='overview';
 let gsUrl='',gsSheet='',gsOk=false;
-
-// Default URL — auto-connect tanpa perlu setup manual
 const _DEFAULT_GS_URL='https://script.google.com/macros/s/AKfycbxTbt9evowelUh1zmsTvbFGQlOL8NY4rlvHdO1IWJobWQ2P8_oo4ebbdn-mnDHFiPRz/exec';
 const _DEFAULT_GS_SHEET='1XeECJqg-yqxitUUAVva-r6oD5-1ETptaolu9H3m_mCs';
-
-// Load GS config — prioritas localStorage, fallback ke default
 try{const c=JSON.parse(localStorage.getItem('atw_gs')||'{}');gsUrl=c.url||_DEFAULT_GS_URL;gsSheet=c.sheet||_DEFAULT_GS_SHEET;if(gsUrl)gsOk=true;}catch(e){}
-// Jika belum ada di localStorage, set default
 if(!gsUrl){gsUrl=_DEFAULT_GS_URL;gsSheet=_DEFAULT_GS_SHEET;gsOk=true;}
 
 // ===============================================================
@@ -2170,9 +2150,21 @@ function syncAllWbsToProjects(){
     if(!all.length)return;
     const leaves=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
     if(!leaves.length)return;
-    // Delegasi ke _syncDailyToProject yang handle qty+pct mode dengan benar
-    _syncDailyToProject(projId);
-    // syncWbsToSCurve sudah dipanggil di dalam _syncDailyToProject
+    const cAct=leaves.reduce((s,n)=>{
+      const wd=n.weeklyData||{};
+      const cum=Math.min(100,Object.keys(wd).reduce((ss,k)=>ss+(+(wd[k].wAct||0)),0));
+      return s+(+n.bobot||0)*cum/100;
+    },0);
+    const cPlan=leaves.reduce((s,n)=>{
+      const wp=n.weeklyPlan||{};
+      const cum=Math.min(100,Object.keys(wp).reduce((ss,k)=>ss+(+(wp[k].wPlan||0)),0));
+      return s+(+n.bobot||0)*cum/100;
+    },0);
+    if(cAct>0||cPlan>0){
+      proj.actual=Math.round(cAct*10)/10;
+      if(cPlan>0)proj.plan=Math.round(cPlan*10)/10;
+      syncWbsToSCurve(projId);
+    }
   });
 }
 
@@ -2287,14 +2279,14 @@ function updateNotif(){
   // 1. Overdue procurement
   const overdue=PROC.filter(i=>i.status==='Overdue'||(() => {
     if(!i.due||i.status==='On Site'||i.status==='Done')return false;
-    const d=new Date(i.due);d.setHours(0,0,0,0);
+    const d=parseLocalDate(i.due);d.setHours(0,0,0,0);
     return d<today;
   })());
   if(overdue.length)items.push({ico:'📦',color:'var(--rd)',title:`${overdue.length} Item Procurement Overdue`,sub:overdue.slice(0,2).map(i=>i.item).join(', ')+(overdue.length>2?` +${overdue.length-2} lagi`:''),tab:'procurement'});
   // 2. Due hari ini / ≤3 hari
   const dueSoon=PROC.filter(i=>{
     if(!i.due||i.status==='On Site'||i.status==='Done'||i.status==='Overdue')return false;
-    const d=new Date(i.due);d.setHours(0,0,0,0);
+    const d=parseLocalDate(i.due);d.setHours(0,0,0,0);
     const diff=Math.ceil((d-today)/86400000);
     return diff>=0&&diff<=3;
   });
@@ -2377,10 +2369,8 @@ function sw(t,el){
   }
   if(t==='daily')renderDailyReport();
   if(t==='cost'){
-    // Reset manual flag agar filter mengikuti sidebar project
     const cfp=$('costFiltProj');if(cfp)cfp._costFiltManual=false;
-    const rfp=$('rabFiltProj');
-    if(rfp&&selId){rfp.value=selId;}
+    const rfp=$('rabFiltProj');if(rfp&&selId)rfp.value=selId;
     renderCost();renderRab();
   }
   if(t==='scurve')renderSCurve();
@@ -2401,7 +2391,6 @@ function render(){
   if(activeTab==='issues')renderIssues();
   if(activeTab==='procurement')renderProc();
   if(activeTab==='cost'){renderCost();renderRab();}
-  if(activeTab==='scurve')renderSCurve();
 }
 function updateBadge(){
   const n=ISS.filter(i=>i.status!=='Closed').length;
@@ -2532,21 +2521,17 @@ function _syncAllProjSelectors(id){
     if(!mpEl._mpFiltManual) mpEl.value=sid;
     if(activeTab==='manpower')renderMpLog?.();
   }
-  // Sync Cost/Finance filters
   const costEl=document.getElementById('costFiltProj');
   if(costEl){
-    if(!costEl.querySelector(`option[value="${sid}"]`))
-      costEl.innerHTML='<option value="">Semua Project</option>'+
-        P.map(p=>`<option value="${String(p.id)}">${p.kode} — ${p.nama}</option>`).join('');
-    costEl._costFiltManual=false;
-    costEl.value=sid;
+    if(!costEl.querySelector('option[value="'+sid+'"]'))
+      costEl.innerHTML='<option value="">Semua Project</option>'+P.map(p=>'<option value="'+String(p.id)+'">'+p.kode+' — '+p.nama+'</option>').join('');
+    costEl._costFiltManual=false;costEl.value=sid;
     if(activeTab==='cost')renderCost();
   }
   const rabEl=document.getElementById('rabFiltProj');
   if(rabEl){
-    if(!rabEl.querySelector(`option[value="${sid}"]`))
-      rabEl.innerHTML='<option value="">— Pilih Project —</option>'+
-        P.map(p=>`<option value="${String(p.id)}">${p.kode} — ${p.nama}</option>`).join('');
+    if(!rabEl.querySelector('option[value="'+sid+'"]'))
+      rabEl.innerHTML='<option value="">— Pilih Project —</option>'+P.map(p=>'<option value="'+String(p.id)+'">'+p.kode+' — '+p.nama+'</option>').join('');
     rabEl.value=sid;
     if(activeTab==='cost')renderRab();
   }
@@ -2868,7 +2853,7 @@ function renderIssues(){
       <td style="color:var(--mt);font-size:10px">${i.kategori}</td>
       <td><span class="pill" style="background:${pc[i.prioritas]||'var(--mt)'}22;color:${pc[i.prioritas]||'var(--mt)'};border:1px solid ${pc[i.prioritas]||'var(--mt)'}44">${i.prioritas}</span></td>
       <td style="color:var(--mt);font-size:10px">${i.pj||'\u2014'}</td>
-      <td style="font-family:var(--fm);font-size:10px;color:${i.status!=='Closed'&&i.due&&new Date(i.due)<new Date()?'var(--rd)':'var(--mt)'}">${i.due||'\u2014'}</td>
+      <td style="font-family:var(--fm);font-size:10px;color:${i.status!=='Closed'&&i.due&&parseLocalDate(i.due)<new Date()?'var(--rd)':'var(--mt)'}">${i.due||'\u2014'}</td>
       <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mt);font-size:10px">${i.action||'\u2014'}</td>
       <td><span style="color:${sc[i.status]||'var(--mt)'};font-weight:600;font-size:10px">${i.status}</span></td>
       <td><button class="btn btn-sm" style="padding:2px 6px" onclick="openModal('editIssue','${i.id}')">✏</button></td>
@@ -2911,7 +2896,7 @@ function renderProc(){
   const dueSoon=filtered.filter(i=>{
     if(i.status==='On Site'||i.status==='Done')return false;
     if(!i.due)return false;
-    const d=new Date(i.due);d.setHours(0,0,0,0);
+    const d=parseLocalDate(i.due);d.setHours(0,0,0,0);
     const days=Math.ceil((d-now2)/86400000);
     return days>0&&days<=3;
   }).length;
@@ -2933,8 +2918,7 @@ function renderProc(){
       const done=stat==='On Site'||stat==='Done';
       // Hitung sisa hari
       const now=new Date();now.setHours(0,0,0,0);
-      const dueDate=i.due?new Date(i.due):null;
-      if(dueDate)dueDate.setHours(0,0,0,0);
+      const dueDate=i.due?parseLocalDate(i.due):null;
       const daysLeft=dueDate?Math.ceil((dueDate-now)/86400000):null;
       const isOverdue=!done&&dueDate&&daysLeft<0;
       const isWarning=!done&&dueDate&&daysLeft>=0&&daysLeft<=3;
@@ -2967,11 +2951,8 @@ function renderProc(){
 function openModal(type,id=null){
   // Auth: change password
   if(type==='wbsAddCat'){
-    if(!P.length){toast('Belum ada project. Tambah project dulu.','warn');return;}
-    $('wbsCatProj').innerHTML=P.map(p=>`<option value="${String(p.id)}">${p.kode} — ${p.nama}</option>`).join('');
-    const cur=String(selId||$('wbsProjSel')?.value||P[0]?.id||'');
-    if(cur)$('wbsCatProj').value=cur;
-    if(!$('wbsCatProj').value)$('wbsCatProj').selectedIndex=0;
+    $('wbsCatProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
+    const cur=selId;if(cur)$('wbsCatProj').value=cur;
     sv('wbsCatName','');sv('wbsCatBobot','');
     show('ov-wbsAddCat');return;
   }
@@ -3397,8 +3378,7 @@ function renderMpLog(){
 function delMpLog(id){
   showConfirm('Hapus log ini?',()=>{_doDelMpLog(id);});return;}
 function _doDelMpLog(id){
-  const idx=MPLOGS.findIndex(m=>m.id===id);
-  if(idx>=0){MPLOGS[idx]._deleted=true;addPendingDeleteMp(id);}
+  MPLOGS=MPLOGS.filter(m=>m.id!==id);
   dirty();renderMP();updateTimeLostKPI();toast('Log dihapus','warn');gsSync();
 }
 
@@ -3520,8 +3500,7 @@ function delAccLog(){
   const proj=P.find(p=>p.id===entry.projId)?.kode||'';
   const ok=window.confirm(`Hapus accident log ini?\n${entry.date} · ${proj} · Time Lost: ${tl} jam`);
   if(!ok)return;
-  const _ai=ACCLOGS.findIndex(x=>String(x.id)===String(id));
-  if(_ai>=0){ACCLOGS[_ai]._deleted=true;addPendingDeleteAcc(id);}
+  ACCLOGS=ACCLOGS.filter(x=>String(x.id)!==String(id));
   dirty();cm('editAcc');updateTimeLostKPI();
   if(activeTab==='overview')renderOV();
   toast('Accident log dihapus','warn');gsSync();
@@ -3539,11 +3518,7 @@ function saveIss(){
   else{d.id=genId();ISS.push(d);toast('Issue ditambahkan ✓');}
   dirty();cm('addIssue');renderIssues();$('pk5').textContent=ISS.filter(i=>i.status!=='Closed').length;gsSync();
 }
-function delIss(){showConfirm('Hapus issue ini?',()=>{
-  const idx=ISS.findIndex(x=>String(x.id)===String(editIssId));
-  if(idx>=0){ISS[idx]._deleted=true;addPendingDeleteIss(editIssId);}
-  dirty();cm('addIssue');renderIssues();toast('Issue dihapus','warn');gsSync();
-});}
+function delIss(){showConfirm('Hapus issue ini?',()=>{ISS=ISS.filter(i=>String(i.id)!==String(editIssId));dirty();cm('addIssue');renderIssues();toast('Issue dihapus','warn');gsSync();});}
 function saveProc(){
   const item=gv('pItem').trim();if(!item){toast('Nama item wajib diisi','error');return;}
   const d={projId:+gv('pProj')||gv('pProj'),item,kategori:gv('pKat'),qty:gv('pQty'),satuan:gv('pSat'),
@@ -3610,10 +3585,10 @@ function renderCost(){
   const fp=$('costFiltProj');
   if(fp){
     const cur=fp.value,wasManual=fp._costFiltManual;
-    fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${String(p.id)}">${p.kode} \u2014 ${p.nama}</option>`).join('');
+    fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
     fp._costFiltManual=wasManual;
-    if(wasManual&&cur!==undefined)fp.value=String(cur);
-    else if(selId)fp.value=String(selId);
+    if(wasManual&&cur!==undefined)fp.value=cur;
+    else if(selId)fp.value=selId;
   }
   const filtProj=gv('costFiltProj')||'';
   const filtType=gv('costFiltType')||'';
@@ -3698,7 +3673,7 @@ function renderCost(){
   }
   const typeLabel=t=>t==='procurement'?`<span class="cost-type-proc">PROC</span>`:t==='opex'?`<span class="cost-type-opex">OPEX</span>`:`<span class="cost-type-other">LAIN</span>`;
   detEl.innerHTML=`<table class="tbl"><thead><tr>
-    <th>Tgl</th><th>Project</th><th>Tipe</th><th>Kategori</th><th>Deskripsi</th><th>Ref</th><th>Dibayar oleh</th><th style="text-align:right">Jumlah</th><th>Status</th><th></th>
+    <th>Tgl</th><th>Project</th><th>Tipe</th><th>Kategori</th><th>Deskripsi</th><th>Dibayar oleh</th><th style="text-align:right">Jumlah</th><th></th>
   </tr></thead><tbody>
   ${filtered.map(c=>{
     const pr=P.find(p=>String(p.id)===String(c.projId));
@@ -3711,7 +3686,6 @@ function renderCost(){
       <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.deskripsi||''}">${c.deskripsi||'\u2014'}</td>
       <td style="color:var(--mt);font-size:11px">${c.paidBy||'\u2014'}</td>
       <td style="font-family:var(--fm);font-weight:700;color:var(--gn);text-align:right;white-space:nowrap">${fmtRp(c.amount)}</td>
-      <td>${(()=>{const st=c.status||'unpaid';return st==='paid'?'<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(16,185,129,.15);color:var(--gn)">✅ Lunas</span>':st==='partial'?'<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(245,158,11,.15);color:var(--yw)">🔄 Sebagian</span>':'<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(239,68,68,.1);color:var(--rd)">⏳ Belum</span>';})()}</td>
       <td>${canEdit?`<button class="btn btn-sm edit-only" style="padding:2px 6px" onclick="openModal('editCost','${c.id}')">✏</button>`:'<span style="font-size:9px;color:var(--mt)">via Proc</span>'}</td>
     </tr>`;}).join('')}
   </tbody></table>`;
@@ -3731,11 +3705,14 @@ function openCostModal(id=null){
     if($('cAmount'))$('cAmount').value=c.amount||'';
     sv('cPaidBy',c.paidBy||'');sv('cNotes',c.notes||'');
     sv('cRef',c.ref||'');sv('cStatus',c.status||'unpaid');
+    _updateCostKatList(c.projId);
   }else{
-    sv('cProj',selId||'');sv('cDate',new Date().toISOString().slice(0,10));
+    const _cp=selId||'';
+    sv('cProj',_cp);sv('cDate',new Date().toISOString().slice(0,10));
     sv('cType','opex');sv('cKat','');sv('cDesc','');
     if($('cAmount'))$('cAmount').value='';
     sv('cPaidBy','');sv('cNotes','');sv('cRef','');sv('cStatus','unpaid');
+    _updateCostKatList(_cp);
   }
   show('ov-addCost');
 }
@@ -3773,8 +3750,7 @@ function saveCost(){
 
 function delCost(){
   showConfirm('Hapus entri pengeluaran ini?',()=>{
-    const _ci=COSTS.findIndex(c=>String(c.id)===String(editCostId));
-    if(_ci>=0){COSTS[_ci]._deleted=true;addPendingDeleteCost(editCostId);}
+    COSTS=COSTS.filter(c=>String(c.id)!==String(editCostId));
     dirty();cm('addCost');renderCost();toast('Pengeluaran dihapus','warn');gsSync();
   });
 }
@@ -3798,7 +3774,7 @@ function exportCostCSV(){
 
 function sanitizeCosts(arr){
   const seen=new Set();
-  return(arr||[]).filter(c=>!c._deleted&&(c.deskripsi||c.amount)).map(c=>({
+  return(arr||[]).filter(c=>c.deskripsi||c.amount).map(c=>({
     id:String(c.id||Date.now()),
     projId:String(c.projId||''),
     date:String(c.date||'').slice(0,10),
@@ -3818,7 +3794,7 @@ const RAB_DEFAULT_CATS=['Material & Equipment','Manpower','Subkontraktor','Trans
 
 function sanitizeRab(arr){
   const seen=new Set();
-  return(arr||[]).filter(r=>!r._deleted&&r.id).map(r=>({
+  return(arr||[]).filter(r=>r.id).map(r=>({
     id:String(r.id||Date.now()),
     projId:String(r.projId||''),
     type:String(r.type||'item'), // 'kat' | 'item'
@@ -3843,7 +3819,7 @@ function sanitizeRab(arr){
 // Helper: get actual spending per RAB kategori for a project
 function getRabActualByKat(projId){
   // Collect all costs for this project
-  const spid=String(projId);const allCosts=getAllCosts().filter(c=>String(c.projId)===spid||_idMatch(c.projId,projId));
+  const allCosts=getAllCosts().filter(c=>String(c.projId)===String(projId));
   const byKat={};
   // Map procurement kategori -> RAB kategori via procKat field on RAB items
   const rabItems=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(projId));
@@ -3852,34 +3828,16 @@ function getRabActualByKat(projId){
   rabItems.forEach(ri=>{
     if(ri.procKat){procKatToRabKat[ri.procKat]=ri.katId;}
   });
-  // Build RAB kat lookup
-  const rabKats=RAB.filter(r=>r.type==='kat'&&(String(r.projId)===spid||_idMatch(r.projId,projId)));
   // Accumulate by kategori
   allCosts.forEach(c=>{
+    // Try to match to a RAB category
     let katId=null;
-    const cKat=(c.kategori||'').toLowerCase().trim();
-    // 1. Exact match via procKat field
     if(c.type==='procurement'&&c.kategori&&procKatToRabKat[c.kategori]){
       katId=procKatToRabKat[c.kategori];
-    }
-    // 2. Exact name match (case-insensitive)
-    if(!katId){
-      const m=rabKats.find(r=>r.name.toLowerCase().trim()===cKat);
-      if(m)katId=m.id;
-    }
-    // 3. Partial match: RAB kat name contains procurement kategori or vice versa
-    if(!katId&&cKat){
-      const m=rabKats.find(r=>{
-        const rn=r.name.toLowerCase();
-        return rn.includes(cKat)||cKat.includes(rn);
-      });
-      if(m)katId=m.id;
-    }
-    // 4. Match by RAB item deskripsi contains cost deskripsi (for PROC items)
-    if(!katId&&c._src==='procurement'&&c.deskripsi){
-      const desc=c.deskripsi.toLowerCase();
-      const matchItem=RAB.find(r=>r.type==='item'&&String(r.projId)===String(projId)&&r.deskripsi&&r.deskripsi.toLowerCase().includes(desc.slice(0,20)));
-      if(matchItem)katId=matchItem.katId;
+    } else {
+      // Try matching by kategori name to RAB kat name
+      const matchKat=RAB.find(r=>r.type==='kat'&&String(r.projId)===String(projId)&&r.name===c.kategori);
+      if(matchKat)katId=matchKat.id;
     }
     if(katId){byKat[katId]=(byKat[katId]||0)+(+c.amount||0);}
     else{byKat['_uncat']=(byKat['_uncat']||0)+(+c.amount||0);}
@@ -3891,11 +3849,9 @@ function renderRab(){
   // Sync project dropdown
   const fp=$('rabFiltProj');
   if(fp){
-    const cur=fp.value||selId;
-    fp.innerHTML='<option value="">\u2014 Pilih Project \u2014</option>'+P.map(p=>`<option value="${String(p.id)}">${p.kode} \u2014 ${p.nama}</option>`).join('');
-    if(cur)fp.value=String(cur);
-    // Auto-follow sidebar selection
-    if(!fp.value&&selId)fp.value=String(selId);
+    const cur=fp.value;
+    fp.innerHTML='<option value="">\u2014 Pilih Project \u2014</option>'+P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
+    if(cur)fp.value=cur;
   }
   const projId=gv('rabFiltProj');
   const btnAdd=$('btnAddRabItem');
@@ -3911,15 +3867,13 @@ function renderRab(){
     return;
   }
 
-  const kats=RAB.filter(r=>r.type==='kat'&&(String(r.projId)===String(projId)||_idMatch(r.projId,projId))).sort((a,b)=>a.urutan-b.urutan||(a.name>b.name?1:-1));
-  const items=RAB.filter(r=>r.type==='item'&&(String(r.projId)===String(projId)||_idMatch(r.projId,projId)));
+  const kats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(projId)).sort((a,b)=>a.urutan-b.urutan||(a.name>b.name?1:-1));
+  const items=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(projId));
   const actualByKat=getRabActualByKat(projId);
 
   // Total RAB
   const totalRab=items.reduce((s,i)=>s+(+i.total||0),0);
   const totalActual=Object.values(actualByKat).reduce((s,v)=>s+v,0);
-  // Uncat spending = procurement/cost yang tidak ter-mapping ke RAB mana pun
-  const uncatSpending=actualByKat['_uncat']||0;
   const sisaAngg=totalRab-totalActual;
   const pctUsed=totalRab>0?Math.round(totalActual/totalRab*100):0;
   const critKats=kats.filter(k=>{
@@ -3939,16 +3893,6 @@ function renderRab(){
   const el3s=$('rabK3s');if(el3s)el3s.textContent=sisaAngg<0?'⚠ MELEBIHI RAB':sisaAngg===0?'Pas RAB':'Tersedia';
   const el4=$('rabK4');if(el4)el4.textContent=critKats;
   const el4s=$('rabK4s');if(el4s)el4s.textContent=`kategori sudah ≥90% terpakai`;
-  // Info: spending tidak ter-mapping
-  const uncatEl=$('rabUncatInfo');
-  if(uncatEl){
-    if(uncatSpending>0){
-      uncatEl.innerHTML=`<span style="color:var(--yw)">⚠ ${fmtRpShort(uncatSpending)} dari Procurement/Cost belum ter-mapping ke kategori RAB mana pun. Set <b>Procurement Kat</b> di item RAB untuk menghubungkan.</span>`;
-      uncatEl.style.display='block';
-    } else {
-      uncatEl.style.display='none';
-    }
-  }
 
   if(!kats.length&&!items.length){
     rabTable.innerHTML=`<div style="text-align:center;color:var(--mt);font-size:12px;padding:24px">
@@ -4105,11 +4049,8 @@ function delRabKat(){
   const k=RAB.find(r=>r.id===editRabCatId&&r.type==='kat');
   const hasItems=RAB.some(r=>r.type==='item'&&r.katId===editRabCatId);
   if(hasItems&&!confirm(`Kategori "${k?.name}" masih memiliki item RAB. Hapus semua item di dalamnya juga?`))return;
-  if(hasItems){
-    RAB.filter(r=>r.type==='item'&&r.katId===editRabCatId).forEach(r=>{r._deleted=true;addPendingDeleteRab(r.id);});
-  }
-  const _rki=RAB.findIndex(r=>r.id===editRabCatId);
-  if(_rki>=0){RAB[_rki]._deleted=true;addPendingDeleteRab(editRabCatId);}
+  if(hasItems)RAB=RAB.filter(r=>!(r.type==='item'&&r.katId===editRabCatId));
+  RAB=RAB.filter(r=>r.id!==editRabCatId);
   dirty();cm('addRabKat');renderRab();toast('Kategori dihapus','warn');gsSync();
 }
 
@@ -4130,16 +4071,7 @@ function openRabItemModal(id=null,defaultKatId=null){
       $('riVolume').value=item.volume||'';
       $('riHarga').value=item.hargaSatuan||'';
       $('riTotal').value=item.total||'';
-      // Populate procKat dropdown dengan kategori dari PROC
-    const procKatSel=$('riProcKat');
-    if(procKatSel&&procKatSel.tagName==='SELECT'){
-      const _riProjId=String(item.projId||gv('riProj')||selId||'');
-      const procKats=[...new Set(PROC.filter(p=>String(p.projId)===_riProjId).map(p=>p.kategori||'').filter(Boolean))];
-      procKatSel.innerHTML='<option value="">— Tidak terhubung —</option>'+procKats.map(k=>`<option value="${k}">${k}</option>`).join('');
-      procKatSel.value=item.procKat||'';
-    } else {
       sv('riProcKat',item.procKat||'');
-    }
       sv('riNotes',item.notes||'');
     }
   } else {
@@ -4165,7 +4097,7 @@ function saveRabItem(){
   const total=+$('riTotal').value||(vol*harga);
   const d={projId,type:'item',katId:katId||'',deskripsi:desc,satuan:gv('riSatuan'),volume:vol,hargaSatuan:harga,total,procKat:gv('riProcKat'),notes:gv('riNotes')};
   if(editRabId){
-    const idx=RAB.findIndex(r=>String(r.id)===String(editRabId));
+    const idx=RAB.findIndex(r=>r.id===editRabId);
     if(idx>=0)RAB[idx]={...RAB[idx],...d};
   } else {
     RAB.push({id:genId(),urutan:0,isCustom:false,...d});
@@ -4178,8 +4110,7 @@ function saveRabItem(){
 function delRabItem(){
   if(!editRabId)return;
   if(!confirm('Hapus item RAB ini?'))return;
-  const _rii=RAB.findIndex(r=>String(r.id)===String(editRabId));
-  if(_rii>=0){RAB[_rii]._deleted=true;addPendingDeleteRab(editRabId);}
+  RAB=RAB.filter(r=>r.id!==editRabId);
   dirty();cm('addRabItem');renderRab();toast('Item RAB dihapus','warn');gsSync();
 }
 
@@ -4187,7 +4118,7 @@ function exportRabCSV(){
   const projId=gv('rabFiltProj');
   const proj=P.find(p=>String(p.id)===String(projId));
   const kats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(projId)).sort((a,b)=>a.urutan-b.urutan);
-  const items=RAB.filter(r=>r.type==='item'&&(String(r.projId)===String(projId)||_idMatch(r.projId,projId)));
+  const items=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(projId));
   const actualByKat=getRabActualByKat(projId);
   const rows=[['Project','Kategori','Deskripsi','Satuan','Volume','Harga Satuan','Total RAB','Aktual','Sisa','% Terpakai']];
   kats.forEach(k=>{
@@ -4210,20 +4141,14 @@ function exportRabCSV(){
 // Patch renderCost to also trigger renderRab
 const _origRenderCost=typeof renderCost==='function'?renderCost:null;
 
-const GS_SCRIPT=`// ATW Solar Dashboard — Google Apps Script v11
-// Deploy: Execute as Me, Anyone can access
+const GS_SCRIPT=`// ATW Solar Dashboard \u2014 Google Apps Script v10 (Multi-User Safe \u2014 Full Merge + RAB)
+// Deploy sebagai Web App: Execute as Me, Anyone can access
 
-const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
+const SHEET_ID = '${gsSheet||"GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA"}';
 
 function getSpreadsheet() {
-  // Coba SHEET_ID dulu (harus sudah di-replace dengan ID yang benar)
-  if (SHEET_ID && SHEET_ID.length > 10 && !SHEET_ID.includes('GANTI') && SHEET_ID !== 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA') {
-    try { return SpreadsheetApp.openById(SHEET_ID); } catch(e) {}
-  }
-  // Fallback: coba ambil dari script properties atau active spreadsheet
   try {
-    const prop = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
-    if (prop && prop.length > 10) return SpreadsheetApp.openById(prop);
+    if (SHEET_ID && SHEET_ID.length > 10) return SpreadsheetApp.openById(SHEET_ID);
   } catch(e) {}
   return SpreadsheetApp.getActiveSpreadsheet();
 }
@@ -4233,8 +4158,11 @@ function doOptions(e) {
 }
 
 function doPost(e) {
+  // LockService \u2014 prevent concurrent writes
   const lock = LockService.getScriptLock();
-  try { lock.waitLock(8000); } catch(err) {
+  try {
+    lock.waitLock(8000); // wait max 8s
+  } catch(err) {
     return makeOutput({status:'error', msg:'Server busy, coba lagi'});
   }
   try {
@@ -4243,15 +4171,18 @@ function doPost(e) {
 
     if (d.action === 'updatePw' || d.action === 'updateConfig') {
       let sh = ss.getSheetByName('_CONFIG') || ss.insertSheet('_CONFIG');
+      // Read existing config first to preserve fields not being updated
       const existing = {};
       if (sh.getLastRow() >= 2) {
         sh.getDataRange().getValues().slice(1).forEach(r => {
           if (r[0]) existing[String(r[0]).trim()] = String(r[1]||'');
         });
       }
+      // Merge incoming fields
       if (d.pw_admin  !== undefined) existing['pw_admin']  = String(d.pw_admin  || 'admin123');
       if (d.pw_editor !== undefined) existing['pw_editor'] = String(d.pw_editor || 'edit123');
       if (d.dash_logo !== undefined) existing['dash_logo'] = String(d.dash_logo || '');
+      // Rewrite sheet
       sh.clearContents();
       sh.appendRow(['key', 'value']);
       Object.entries(existing).forEach(([k,v]) => sh.appendRow([k, v]));
@@ -4264,13 +4195,18 @@ function doPost(e) {
       const currentTs = meta && meta.getLastRow() >= 2 ? +meta.getRange(2,1).getValue() : 0;
       const incomingTs = d.lastSaved || 0;
 
+      // Conflict check \u2014 if server newer, return server data for merge
       if (incomingTs < currentTs - 2000) {
         lock.releaseLock();
-        return makeOutput({status:'conflict', currentTs, incomingTs,
-          msg: 'Data di server lebih baru. Merge dilakukan otomatis.'});
+        return makeOutput({
+          status: 'conflict',
+          currentTs,
+          incomingTs,
+          msg: 'Data di server lebih baru. Merge dilakukan otomatis.'
+        });
       }
 
-      // mergeById v11: support allowDelete flag
+      // Merge all collections by id (never delete, only add/update)
       const mergeById = (existing, incoming, allowDelete=false) => {
         const map = new Map();
         (existing||[]).forEach(r => { if(r.id) map.set(String(r.id), r); });
@@ -4286,32 +4222,33 @@ function doPost(e) {
       const existingAcc  = readSheet(ss,'ACCIDENT_LOG')|| [];
       const existingWbs  = readSheet(ss,'WBS')         || [];
 
+      // Merge HISTORY by projId+date composite key (no id field)
       const existingHist = readSheet(ss,'HISTORY') || [];
       const histMap = new Map();
       existingHist.forEach(h => { const k=String(h.projId||'')+'|'+String(h.date||''); histMap.set(k, h); });
       (d.history||[]).forEach(h => { const k=String(h.projId||'')+'|'+String(h.date||''); histMap.set(k, h); });
       const mergedHist = [...histMap.values()];
 
-      writeSheet(ss,'PROJECTS',    mergeById(existingProj, d.projects||[]),         ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo','picPm','picSm','picEng','picProc']);
-      writeSheet(ss,'HISTORY',     mergedHist,                                       ['projId','kode','date','actual','plan','mp','notes']);
-      writeSheet(ss,'ISSUES',      mergeById(existingIss,  d.issues||[],      true), ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
-      writeSheet(ss,'PROCUREMENT', mergeById(existingProc, d.procurement||[], true), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes','harga']);
-      writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,   d.manpowerLogs||[],true), ['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
-      writeSheet(ss,'ACCIDENT_LOG',mergeById(existingAcc,  d.accidentLogs||[],true), ['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
-      writeSheet(ss,'SCURVE',      d.scurve||[],                                     ['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
-      writeSheet(ss,'WBS',         mergeById(existingWbs,  d.wbs||[],         true), ['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
-
-      const existingCosts = readSheet(ss,'COSTS') || [];
-      writeSheet(ss,'COSTS', mergeById(existingCosts, d.costs||[], true), ['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes','ref','status']);
-
-      const existingRab = readSheet(ss,'RAB') || [];
-      writeSheet(ss,'RAB', mergeById(existingRab, d.rab||[], true), ['id','projId','type','katId','name','deskripsi','satuan','volume','hargaSatuan','total','notes','urutan','isCustom','procKat']);
+      writeSheet(ss,'PROJECTS',   mergeById(existingProj, d.projects||[]),    ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo','picPm','picSm','picEng','picProc']);
+      writeSheet(ss,'HISTORY',    mergedHist,     ['projId','kode','date','actual','plan','mp','notes']);
+      writeSheet(ss,'ISSUES',     mergeById(existingIss,  d.issues||[], true),      ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
+      writeSheet(ss,'PROCUREMENT',mergeById(existingProc, d.procurement||[], true), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes','harga']);
+      writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,  d.manpowerLogs||[], true),['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
+      writeSheet(ss,'ACCIDENT_LOG',mergeById(existingAcc, d.accidentLogs||[], true),['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
+      writeSheet(ss,'SCURVE',d.scurve||[],['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
+      writeSheet(ss,'WBS',mergeById(existingWbs,d.wbs||[]),['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
+      // COSTS (OPEX)
+      const existingCosts=readSheet(ss,'COSTS')||[];
+      writeSheet(ss,'COSTS',mergeById(existingCosts,d.costs||[]),['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes']);
+      // RAB (Rencana Anggaran Biaya)
+      const existingRab=readSheet(ss,'RAB')||[];
+      writeSheet(ss,'RAB',mergeById(existingRab,d.rab||[]),['id','projId','type','katId','name','deskripsi','satuan','volume','hargaSatuan','total','notes','urutan','isCustom','procKat']);
 
       const now = Date.now();
       let ms = ss.getSheetByName('_META') || ss.insertSheet('_META');
       ms.clearContents();
       ms.appendRow(['lastSaved','version','lastUser']);
-      ms.appendRow([now, '11.0', d.user||'unknown']);
+      ms.appendRow([now, '10.0', d.user||'unknown']);
 
       lock.releaseLock();
       return makeOutput({status:'ok', ts: new Date().toISOString(), serverTs: now});
@@ -4338,19 +4275,16 @@ function doGet(e) {
       });
     }
     const meta = readSheet(ss,'_META');
-    // Save SHEET_ID ke Script Properties agar persisten
-    try { PropertiesService.getScriptProperties().setProperty('SHEET_ID', SHEET_ID); } catch(e) {}
     return makeOutput({
       lastSaved:    meta.length ? (+meta[0].lastSaved||0) : 0,
       pw_admin, pw_editor, dash_logo,
-      _sheetId: SHEET_ID,
       projects:     readSheet(ss,'PROJECTS')    ||[],
       history:      readSheet(ss,'HISTORY')     ||[],
       issues:       readSheet(ss,'ISSUES')      ||[],
       procurement:  readSheet(ss,'PROCUREMENT') ||[],
       manpowerLogs: readSheet(ss,'MANPOWER_LOG')||[],
       accidentLogs: readSheet(ss,'ACCIDENT_LOG')||[],
-      costs:        readSheet(ss,'COSTS')        ||[],
+      costs:        readSheet(ss,'COSTS')||[],
       scurve:       readSheet(ss,'SCURVE')       ||[],
       wbs:          readSheet(ss,'WBS')           ||[],
       rab:          readSheet(ss,'RAB')           ||[],
@@ -4365,15 +4299,14 @@ function writeSheet(ss, name, data, cols) {
   sh.clearContents();
   sh.appendRow(cols);
   const dateFields = ['startDate','finishDate','date','mulai','selesai','due'];
-  const idFields   = ['id','projId','parentId','katId'];
   if (data.length > 0) {
+    const idFields = ['id','projId','parentId','katId'];
     const rows = data.map(row => cols.map(c => {
       const v = row[c];
       if (v === null || v === undefined) return '';
       if (typeof v === 'object') return JSON.stringify(v);
       if (dateFields.includes(c) && typeof v === 'string' && v.length >= 10)
         return "'" + String(v).slice(0,10);
-      // Prefix ID fields with apostrophe to prevent GSheet numeric truncation
       if (idFields.includes(c) && String(v) !== '') return "'" + String(v);
       return v;
     }));
@@ -4386,7 +4319,6 @@ function readSheet(ss, name) {
   if (!sh || sh.getLastRow() < 2) return [];
   const [headers, ...rows] = sh.getDataRange().getValues();
   const dateFields = ['due','date','mulai','selesai','startDate','finishDate'];
-  const idFields   = ['id','projId','parentId','katId'];
   return rows.map(r => {
     const obj = Object.fromEntries(headers.map((k,i) => [k, r[i]]));
     ['weeklyData','weeklyPlan','dailyLogs','history'].forEach(field => {
@@ -4402,8 +4334,7 @@ function readSheet(ss, name) {
         else if (s.startsWith("'")) obj[field] = s.slice(1,11);
       }
     });
-    // Strip apostrophe prefix from ID fields
-    idFields.forEach(field => {
+    ['id','projId','parentId','katId'].forEach(field => {
       if (obj[field] && typeof obj[field] === 'string' && obj[field].startsWith("'"))
         obj[field] = obj[field].slice(1);
     });
@@ -4439,14 +4370,8 @@ async function testGS(){
   }
 }
 function copyGsScript(){
-  // Inject SHEET_ID aktual saat copy agar tidak perlu ganti manual
-  const sheetId=gsSheet||(()=>{try{const u=new URL(gsUrl);return '';}catch(e){return '';}})();
-  const scriptToCopy=GS_SCRIPT.replace(
-    /const SHEET_ID = '.*?';/,
-    sheetId ? "const SHEET_ID = '"+sheetId+"';" : "const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';"
-  );
-  navigator.clipboard?.writeText(scriptToCopy).then(()=>toast('Script disalin ✓ (SHEET_ID sudah terisi)')).catch(()=>{
-    const t=document.createElement('textarea');t.value=scriptToCopy;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('Script disalin ✓');
+  navigator.clipboard?.writeText(GS_SCRIPT).then(()=>toast('Script disalin ✓')).catch(()=>{
+    const t=document.createElement('textarea');t.value=GS_SCRIPT;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('Script disalin ✓');
   });
 }
 
@@ -4472,12 +4397,15 @@ function getPendingDeletesRab(){try{return new Set(JSON.parse(localStorage.getIt
 function addPendingDeleteRab(id){const s=getPendingDeletesRab();s.add(String(id));try{localStorage.setItem('atw_deleted_rab',JSON.stringify([...s]));}catch(e){}}
 function clearPendingDeletesRab(){try{localStorage.removeItem('atw_deleted_rab');}catch(e){}}
 function genId(){return String(Date.now())+Math.random().toString(36).slice(2,6);}
-// Match ID yang mungkin di-truncate GSheet (strip alphanumeric suffix, bandingkan numeric prefix)
+function parseLocalDate(s){if(!s)return null;const str=String(s).slice(0,10);const parts=str.split('-');if(parts.length!==3)return new Date(s);const d=new Date(+parts[0],+parts[1]-1,+parts[2],0,0,0,0);return isNaN(d)?null:d;}
 function _numPrefix(id){const s=String(id||'');const m=s.match(/^(\d+)/);return m?m[1]:s;}
-function _idMatch(a,b){
-  if(String(a)===String(b))return true;
-  const na=_numPrefix(a),nb=_numPrefix(b);
-  return na&&nb&&na===nb;
+function _idMatch(a,b){if(String(a)===String(b))return true;const na=_numPrefix(a),nb=_numPrefix(b);return na&&nb&&na===nb;}
+function _updateCostKatList(projId){
+  const dl=$('cKatList');if(!dl)return;
+  const defaults=['Transportasi','Konsumsi / Makan','Sewa Alat','Sewa Kendaraan','Akomodasi','ATK / Perlengkapan Kantor','Komunikasi','Keselamatan / K3','Listrik / Air','Lainnya'];
+  const rabKats=RAB.filter(r=>r.type==='kat'&&(String(r.projId)===String(projId)||_idMatch(r.projId,projId))).map(r=>r.name).filter(Boolean);
+  const allKats=[...new Set([...rabKats,...defaults])];
+  dl.innerHTML=allKats.map(k=>'<option value="'+safeStr(k)+'">').join('');
 }
 async function gsSync(){
   if(!gsOk||!gsUrl)return;
@@ -4589,37 +4517,16 @@ async function loadFromGS(){
         const lv=localLogos[p.id]||localLogos[String(p.id)]||'';
         if(!p.logo&&lv)p.logo=lv;
       });
-      {const _pi=getPendingDeletesIss();ISS=sanitizeIssues(d.issues).filter(i=>!_pi.has(String(i.id)));}
+      ISS=sanitizeIssues(d.issues);
       // Merge procurement: GSheet + lokal, tidak hapus data yang tidak ada di lokal
       const remoteProc=sanitizeProc(d.procurement);
       const procMergeMap=new Map();
       PROC.forEach(p=>procMergeMap.set(String(p.id),p));
       remoteProc.forEach(p=>procMergeMap.set(String(p.id),p));
       PROC=[...procMergeMap.values()];
-      {const _pm=getPendingDeletesMp();MPLOGS=sanitizeMpLogs(d.manpowerLogs).filter(m=>!_pm.has(String(m.id)));}
-      {const _pa=getPendingDeletesAcc();ACCLOGS=sanitizeAccLogs(d.accidentLogs).filter(a=>!_pa.has(String(a.id)));}
-      {const _lc=getPendingDeletesCost();COSTS=sanitizeCosts(d.costs||[]).filter(c=>!_lc.has(String(c.id)));}
-      {const _lr=getPendingDeletesRab();
-      let rawRab=sanitizeRab(d.rab||[]).filter(r=>!_lr.has(String(r.id)));
-      // Normalize RAB projId dan katId (GSheet bisa return number)
-      if(rawRab.length&&P.length){
-        const validProjIds=new Set(P.map(p=>String(p.id)));
-        rawRab=rawRab.map(r=>{
-          if(validProjIds.has(r.projId))return r;
-          // GSheet mungkin strip suffix alphanumeric dari genId — match by numeric prefix
-          const m=P.find(p=>_idMatch(p.id,r.projId));
-          return m?{...r,projId:String(m.id)}:r;
-        });
-        // Juga normalize katId di RAB items
-        const katIds=new Set(rawRab.filter(r=>r.type==='kat').map(r=>String(r.id)));
-        rawRab=rawRab.map(r=>{
-          if(r.type!=='item'||!r.katId)return r;
-          if(katIds.has(String(r.katId)))return r;
-          const matchKat=rawRab.find(k=>k.type==='kat'&&_idMatch(k.id,r.katId));
-          return matchKat?{...r,katId:String(matchKat.id)}:r;
-        });
-      }
-      RAB=rawRab;}
+      MPLOGS=sanitizeMpLogs(d.manpowerLogs);
+      ACCLOGS=sanitizeAccLogs(d.accidentLogs);COSTS=sanitizeCosts(d.costs||[]);
+      RAB=sanitizeRab(d.rab||[]);
       SCURVE=Array.isArray(d.scurve)?d.scurve.map(s=>({projId:s.projId,week:+s.week||0,wPlan:+s.wPlan||0,wAct:+s.wAct||0,cPlan:s.cPlan!=null&&s.cPlan!==''?+s.cPlan:null,cAct:s.cAct!=null&&s.cAct!==''?+s.cAct:null,dateStart:safeStr(s.dateStart),fromWbs:!!s.fromWbs})):[];
       const parseField=v=>{
         if(!v||v==='[object Object]'||v==='null')return {};
@@ -4665,28 +4572,15 @@ async function loadFromGS(){
         parentId:w.parentId!=null&&w.parentId!==''?_toId(w.parentId):null
       }));
 
-      // Match WBS projId — handle genId suffix stripped by GSheet
+      // Match WBS projId to actual project IDs (handle numeric vs string mismatch)
       if(WBS.length&&P.length){
-        const validProjIds=new Set(P.map(p=>String(p.id)));
-        // Build id->id map for WBS node self-normalization (parentId fix)
-        const wbsIdMap={}; // stripped -> full id
-        WBS.forEach(w=>{
-          const np=_numPrefix(w.id);
-          if(np&&np!==w.id)wbsIdMap[np]=w.id;
-        });
+        const validProjIds=new Set(P.map(p=>p.id));
         WBS=WBS.map(w=>{
-          let projId=w.projId;
-          if(!validProjIds.has(projId)){
-            const m=P.find(p=>_idMatch(p.id,projId));
-            if(m)projId=String(m.id);
-          }
-          // Fix parentId jika di-strip GSheet
-          let parentId=w.parentId;
-          if(parentId){
-            const fullParent=wbsIdMap[_numPrefix(parentId)];
-            if(fullParent)parentId=fullParent;
-          }
-          return{...w,projId,parentId};
+          if(validProjIds.has(w.projId))return w;
+          const match=P.find(p=>+p.id===+w.projId);
+          if(match){
+return{...w,projId:match.id};}
+          return w;
         });
       }
       syncAllWbsToProjects();
@@ -4702,9 +4596,7 @@ async function loadFromGS(){
         }catch(e){}
       }
       clean('Google Sheet');render();
-      const _rabCount=RAB.length;const _kostsCount=COSTS.length;
-      const _sid=d._sheetId?(' · SheetID:'+String(d._sheetId).slice(-6)):'';
-      toast('✓ '+P.length+' project · WBS:'+WBS.length+' · RAB:'+_rabCount+' · Cost:'+_kostsCount+_sid+' dimuat dari GSheet');
+      toast('✓ '+P.length+' project dimuat dari Google Sheet');
     }else{
       $('sdot').style.background='var(--mt)';
       $('smsg').textContent='Google Sheet terhubung \u2014 belum ada data';
@@ -4849,9 +4741,9 @@ async function autoLoadOnStart(){
         // localStorage hanya dipakai saat offline
         P=sanitizeProjects(d.projects);
         try{const lc=JSON.parse(localStorage.getItem('atw_logos')||'{}');P.forEach(p=>{if(!p.logo&&(lc[p.id]||lc[String(p.id)]))p.logo=lc[p.id]||lc[String(p.id)];});}catch(ex){}
-        {const _pi=getPendingDeletesIss();ISS=sanitizeIssues(d.issues).filter(i=>!_pi.has(String(i.id)));}
+        ISS=sanitizeIssues(d.issues);
         PROC=sanitizeProc(d.procurement);
-        {const _pm=getPendingDeletesMp();MPLOGS=sanitizeMpLogs(d.manpowerLogs).filter(m=>!_pm.has(String(m.id)));}
+        MPLOGS=sanitizeMpLogs(d.manpowerLogs);
         ACCLOGS=sanitizeAccLogs(d.accidentLogs);COSTS=sanitizeCosts(d.costs||[]);
         RAB=sanitizeRab(d.rab||[]);
         if(d.history){d.history.forEach(h=>{const p=P.find(x=>x.id==h.projId);if(p){if(!p.history)p.history=[];p.history.push(h);}});}
@@ -5397,7 +5289,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.33';
+  const DASH_VER='3.35';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -5605,8 +5497,6 @@ function renderWBS(){
     html+='</tbody></table>';
   }
   $('wbsTable').innerHTML=html;
-  _syncDailyToProject(projId);
-  syncWbsToSCurve(projId);
   renderWbsSCurve(projId);
   if(_ganttView==='gantt')renderGantt();
 }
@@ -5617,7 +5507,7 @@ function calcWbsWeightedPlan(projId){return WBS.filter(w=>String(w.projId)===Str
 
 function populateWbsParents(targetId,projSelId,type){
   const projId=$(projSelId)?.value;const sel=$(targetId);if(!sel)return;
-  sel.innerHTML=WBS.filter(w=>String(w.projId)===String(projId)&&w.type===type).sort((a,b)=>a.order-b.order).map(w=>`<option value="${String(w.id)}">${safeStr(w.name)}</option>`).join('');
+  sel.innerHTML=WBS.filter(w=>String(w.projId)===String(projId)&&w.type===type).sort((a,b)=>a.order-b.order).map(w=>`<option value="${w.id}">${safeStr(w.name)}</option>`).join('');
 }
 function checkWbsBobot(){
   const projId=$('wbsItemProj')?.value;const cur=parseFloat($('wbsItemBobot')?.value)||0;
@@ -5629,13 +5519,9 @@ function checkWbsBobot(){
 }
 function saveWbsCat(){
   const projId=$('wbsCatProj').value;const name=gv('wbsCatName').trim();
-  if(!projId){toast('Pilih project terlebih dahulu','error');return;}
   if(!name){toast('Nama kategori wajib diisi','error');return;}
-  const proj=P.find(p=>String(p.id)===String(projId)||+p.id===+projId);
-  if(!proj){toast('Project tidak ditemukan','error');return;}
-  const pid=String(proj.id);
-  const order=WBS.filter(w=>String(w.projId)===pid&&w.type==='cat').length;
-  WBS.push({id:genId(),projId:pid,type:'cat',parentId:null,name,bobot:parseFloat($('wbsCatBobot')?.value)||0,order,cumPlan:0,cumActual:0});
+  const order=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='cat').length;
+  WBS.push({id:genId(),projId,type:'cat',parentId:null,name,bobot:parseFloat($('wbsCatBobot')?.value)||0,order,cumPlan:0,cumActual:0});
   dirty();cm('wbsAddCat');renderWBS();toast('Kategori ditambahkan ✓');gsSync();
 }
 function saveWbsSub(){
@@ -5673,8 +5559,8 @@ function showConfirm(msg, onYes){
 }
 
 function openEditWbs(id){
-  const node=WBS.find(w=>String(w.id)===String(id));if(!node)return;
-  sv('wbsEditId',String(id));sv('wbsEditName',safeStr(node.name));
+  const node=WBS.find(w=>w.id===id);if(!node)return;
+  sv('wbsEditId',id);sv('wbsEditName',safeStr(node.name));
   sv('wbsEditBobot',+node.bobot||0);
   sv('wbsEditStart',node.startDate||'');
   sv('wbsEditFinish',node.finishDate||'');
@@ -5708,7 +5594,6 @@ function delWbs(id){
   const toRm=new Set([sid,...childIds,...grandIds]);
   const msg=`Hapus "${safeStr(node.name)}"${toRm.size>1?' dan '+(toRm.size-1)+' child-nya':''}?`;
   showConfirm(msg,()=>{
-    toRm.forEach(rid=>addPendingDeleteWbs(rid));
     WBS=WBS.filter(w=>!toRm.has(String(w.id)));
     dirty();renderWBS();toast('Dihapus','warn');gsSync();
   });
@@ -6159,46 +6044,23 @@ function _syncDailyToProject(projId){
   const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
   const proj=P.find(p=>String(p.id)===String(projId));
 
-  // cumActual — support 2 mode: qty-based dan pct-based
+  // Recalculate cumActual dari sum semua dailyLog.pct
   leafNodes.forEach(node=>{
     const dl=node.dailyLogs||[];
-    const qtyPlan=+node.qtyPlan||0;
-    let cumActual=0;
-    if(qtyPlan>0){
-      // Mode qty: sum semua qty / qtyPlan * 100
-      const totalQty=Math.min(qtyPlan,dl.reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0));
-      cumActual=Math.round(totalQty/qtyPlan*10000)/100; // 0-100
-    } else {
-      // Mode pct: ambil nilai terbesar (progress kumulatif)
-      const dailyCum=dl.length&&dl.some(l=>l.pct!=null)?Math.max(...dl.map(l=>+l.pct||0)):0;
-      const wd=node.weeklyData||{};
-      const wdKeys=Object.keys(wd);
-      const weeklyLast=wdKeys.length?+(wd[Math.max(...wdKeys.map(Number))]?.cAct||wd[Math.max(...wdKeys.map(Number))]?.wAct||0):0;
-      cumActual=Math.min(100,Math.max(dailyCum,weeklyLast));
-    }
-    node.cumActual=Math.min(100,Math.max(0,cumActual));
+    const totalDaily=Math.min(100, dl.reduce((s,l)=>s+(+l.pct||0),0));
+    // Juga ambil dari weeklyData jika ada
+    const wd=node.weeklyData||{};
+    const weeklyTotal=Math.min(100, Object.keys(wd).reduce((s,k)=>s+(+(wd[k].wAct||0)),0));
+    // Gunakan yang lebih besar (daily bisa lebih detail)
+    node.cumActual=Math.max(totalDaily, weeklyTotal);
   });
 
-  // Propagate cumActual terbaru ke weeklyData entry terakhir (untuk S-Curve)
-  leafNodes.forEach(node=>{
-    const wd=node.weeklyData||{};
-    const wdKeys=Object.keys(wd).map(Number);
-    if(!wdKeys.length)return;
-    const lastWk=Math.max(...wdKeys);
-    // Update cAct di entry terakhir agar sinkron dengan cumActual
-    if(wd[lastWk]){
-      wd[lastWk].cAct=Math.round(node.cumActual*100)/100;
-    }
-  });
   // Update project actual & status
   if(proj){
     const cWeighted=leafNodes.reduce((s,n)=>(s+(+n.bobot||0)*(+n.cumActual||0)/100),0);
     const cPlanWeighted=leafNodes.reduce((s,n)=>{
       const wp=n.weeklyPlan||{};
-      // Ambil cumPlan dari minggu terakhir weeklyPlan, fallback ke node.cumPlan
-      const wpKeys=Object.keys(wp).map(Number);
-      const lastWk=wpKeys.length?Math.max(...wpKeys):0;
-      const cum=lastWk>0&&wp[lastWk]?.cumPlan!=null?+wp[lastWk].cumPlan:(+n.cumPlan||0);
+      const cum=Math.min(100,Object.keys(wp).reduce((ss,k)=>ss+(+(wp[k].wPlan||0)),0));
       return s+(+n.bobot||0)*cum/100;
     },0);
     proj.actual=Math.round(cWeighted*10)/10;
@@ -6469,59 +6331,23 @@ function syncWbsToSCurve(projId){
   const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)&&+w.bobot>0));
   if(!leafNodes.length)return;
   const proj=P.find(p=>String(p.id)===String(projId));
+  const weekSet=new Set();
+  leafNodes.forEach(node=>{
+    Object.keys(node.weeklyData||{}).forEach(k=>weekSet.add(+k));
+    Object.keys(node.weeklyPlan||{}).forEach(k=>weekSet.add(+k));
+  });
+  if(!weekSet.size)return;
   SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.fromWbs));
-
-  // Kumpulkan semua week yang punya plan
-  const planWeekSet=new Set();
-  leafNodes.forEach(n=>Object.keys(n.weeklyPlan||{}).forEach(k=>planWeekSet.add(+k)));
-
-  if(!planWeekSet.size){
-    // Tidak ada weekly plan — buat 1 entry dari cumActual/cumPlan node langsung
-    const totalCPlan=leafNodes.reduce((s,n)=>s+(+n.bobot||0)*(+n.cumPlan||0)/100,0);
-    const totalCAct=leafNodes.reduce((s,n)=>s+(+n.bobot||0)*(+n.cumActual||0)/100,0);
-    if(totalCPlan===0&&totalCAct===0)return;
-    let dateStart='';
-    if(proj?.mulai){const d=new Date(proj.mulai);dateStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});}
-    SCURVE.push({projId,week:1,wPlan:Math.round(totalCPlan*100)/100,wAct:Math.round(totalCAct*100)/100,
-      cPlan:Math.round(totalCPlan*100)/100,cAct:Math.round(totalCAct*100)/100,dateStart,fromWbs:true});
-    return;
-  }
-
-  // Ada weekly plan → buat entry per minggu
-  // Untuk PLAN: dari weeklyPlan (sudah ada)
-  // Untuk ACTUAL: distribusikan cumActual ke minggu terakhir yang ada data/input
-  //   Deteksi minggu aktif = minggu terbesar yang punya weeklyData ATAU
-  //   jika tidak ada weeklyData sama sekali, pakai minggu terakhir dari weeklyPlan
-  const prevCumPlanByNode={};
-  const sortedPlanWeeks=[...planWeekSet].sort((a,b)=>a-b);
-  const lastPlanWeek=Math.max(...sortedPlanWeeks);
-
-  // Hitung cumActual total untuk project
-  const totalCActProject=leafNodes.reduce((s,n)=>s+(+n.bobot||0)*(+n.cumActual||0)/100,0);
-
-  // Tentukan di minggu mana actual ditempatkan
-  // Cek apakah ada weeklyData yang punya entry
-  const hasWeeklyData=leafNodes.some(n=>Object.keys(n.weeklyData||{}).length>0);
-  let actualWeek=null;
-  if(hasWeeklyData){
-    // Ambil minggu terbesar dari semua weeklyData node
-    leafNodes.forEach(n=>{
-      const wdKeys=Object.keys(n.weeklyData||{}).map(Number);
-      if(wdKeys.length){const mx=Math.max(...wdKeys);if(actualWeek===null||mx>actualWeek)actualWeek=mx;}
-    });
-  }
-  // Jika tidak ada weeklyData atau actualWeek tidak ada di planWeekSet,
-  // gunakan minggu terakhir dari plan sebagai anchor
-  if(actualWeek===null)actualWeek=lastPlanWeek;
-
+  const prevCumByNode={};
   let cumAct=0;
-  sortedPlanWeeks.forEach(week=>{
-    let wPlan=0,cPlanContrib=0;
-    let wActWeek=0;
+  [...weekSet].sort((a,b)=>a-b).forEach(week=>{
+    let wPlan=0,wAct=0,cPlanContrib=0;
     leafNodes.forEach(node=>{
       const bobot=+node.bobot||0;
       const wp=node.weeklyPlan||{};
-      // Plan
+      const wd=node.weeklyData||{};
+      wAct+=bobot*(+(wd[week]?.wAct||0))/100;
+      // Derive cumulative plan \u2014 prefer cumPlan field (new grid), fallback to summing wPlan (legacy)
       let cumPlanNode=null;
       if(wp[week]?.cumPlan!=null){
         cumPlanNode=+wp[week].cumPlan;
@@ -6530,28 +6356,20 @@ function syncWbsToSCurve(projId){
       }
       if(cumPlanNode!=null){
         cPlanContrib+=bobot*cumPlanNode/100;
-        const prevCum=prevCumPlanByNode[node.id]||0;
+        // Weekly increment = difference from previous week's cumulative
+        const prevCum=prevCumByNode[node.id]||0;
         wPlan+=bobot*Math.max(0,cumPlanNode-prevCum)/100;
-        prevCumPlanByNode[node.id]=cumPlanNode;
-      }
-      // Actual: hanya pada minggu actualWeek, taruh semua cumActual
-      if(week===actualWeek){
-        wActWeek+=bobot*(+node.cumActual||0)/100;
+        prevCumByNode[node.id]=cumPlanNode;
       }
     });
-    if(week===actualWeek)cumAct=Math.min(100,wActWeek);
+    cumAct+=wAct;
     let dateStart='';
     if(proj?.mulai){const d=new Date(proj.mulai);d.setDate(d.getDate()+(week-1)*7);dateStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});}
-    SCURVE.push({projId,week,
-      wPlan:Math.round(wPlan*100)/100,
-      wAct:week===actualWeek?Math.round(Math.min(100,wActWeek)*100)/100:0,
-      cPlan:Math.round(cPlanContrib*100)/100,
-      cAct:week>=actualWeek?Math.round(cumAct*100)/100:0,
+    SCURVE.push({projId,week,wPlan:Math.round(wPlan*100)/100,wAct:Math.round(wAct*100)/100,
+      cPlan:Math.round(cPlanContrib*100)/100,cAct:Math.min(100,Math.round(cumAct*100)/100),
       dateStart,fromWbs:true});
   });
 }
-
-
 function resyncScurveFromWbs(){
   const projId=$('scProjSel')?.value;
   if(!projId){toast('Pilih project dulu','error');return;}
@@ -6633,28 +6451,23 @@ function renderDailyReport(){
   if(wb){if(weekNum){wb.textContent='Minggu W'+String(weekNum).padStart(2,'0');wb.style.display='inline-block';}else wb.style.display='none';}
   const all=WBS.filter(w=>String(w.projId)===String(projId));
   const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
-  // Pastikan cumActual node up-to-date
-  _syncDailyToProject(projId);
-  // Semua KPI dalam persen (0-100)
   let dayPct=0,cumAct=0,cumPlan=0;
   leafNodes.forEach(node=>{
-    const bobot=+node.bobot||0;
+    const qtyPlan=+node.qtyPlan||0;const bobot=+node.bobot||0;
     const dl=node.dailyLogs||[];
     const todayLog=dl.find(l=>l.date===date);
-    const todayPct=todayLog?.pct!=null?+todayLog.pct:0;
-    dayPct+=(bobot/100)*todayPct;
-    cumAct+=(bobot/100)*(+node.cumActual||0);
-    if(weekNum&&node.weeklyPlan&&node.weeklyPlan[weekNum]){
-      cumPlan+=(bobot/100)*(+(node.weeklyPlan[weekNum].cPlan||node.weeklyPlan[weekNum].wPlan||0));
-    } else {
-      cumPlan+=(bobot/100)*(+node.cumPlan||0);
-    }
+    const todayQty=todayLog?.qty!=null?+todayLog.qty:0;
+    if(qtyPlan>0&&todayQty>0)dayPct+=(bobot/100)*(todayQty/qtyPlan);
+    const totalQty=Math.min(qtyPlan||999999,dl.filter(l=>l.date<=date).reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0));
+    if(qtyPlan>0)cumAct+=(bobot/100)*(totalQty/qtyPlan);
+    if(weekNum&&node.weeklyPlan&&node.weeklyPlan[weekNum])cumPlan+=bobot*(+(node.weeklyPlan[weekNum].cPlan||node.weeklyPlan[weekNum].wPlan||0))/100;
+    else cumPlan+=bobot*(+node.cumPlan||0)/100;
   });
-  if($('drK1'))$('drK1').textContent=dayPct.toFixed(2)+'%';
-  if($('drK2'))$('drK2').textContent=cumAct.toFixed(2)+'%';
-  if($('drK3'))$('drK3').textContent=cumPlan.toFixed(2)+'%';
+  if($('drK1'))$('drK1').textContent=(dayPct*100).toFixed(2)+'%';
+  if($('drK2'))$('drK2').textContent=(cumAct*100).toFixed(2)+'%';
+  if($('drK3'))$('drK3').textContent=(cumPlan*100).toFixed(2)+'%';
   const variance=cumAct-cumPlan;
-  if($('drK4')){$('drK4').textContent=(variance>=0?'+':'')+variance.toFixed(2)+'%';$('drK4').style.color=variance>=0?'var(--gn)':variance>=-5?'var(--yw)':'var(--rd)';}
+  if($('drK4')){$('drK4').textContent=(variance>=0?'+':'')+(variance*100).toFixed(2)+'%';$('drK4').style.color=variance>=0?'var(--gn)':variance>=-0.0005?'var(--yw)':'var(--rd)';}
   if($('drK5'))$('drK5').textContent=weekNum?'W'+String(weekNum).padStart(2,'0'):'\u2014';
   if($('drDateLabel'))$('drDateLabel').textContent=date;
   renderDrMainTable(projId,date);
@@ -6844,24 +6657,17 @@ function saveDrInput(){
     if(idx>=0)node.dailyLogs[idx]=entry;else node.dailyLogs.push(entry);
     node.dailyLogs.sort((a,b)=>a.date.localeCompare(b.date));
     // Update weeklyData dari qty
-    // Update cumActual dari totalQty
+    if(weekNum&&+node.qtyPlan>0){
+      if(!node.weeklyData)node.weeklyData={};
+      const weekQty=node.dailyLogs.filter(l=>l.week===weekNum).reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0);
+      const wAct=Math.min(100,weekQty/node.qtyPlan*100);
+      node.weeklyData[weekNum]={...(node.weeklyData[weekNum]||{}),wAct:Math.round(wAct*100)/100};
+      const cumAct=Math.min(100,Object.keys(node.weeklyData).filter(k=>+k<=weekNum).reduce((s,k)=>s+(+(node.weeklyData[k].wAct||0)),0));
+      node.weeklyData[weekNum].cAct=Math.round(cumAct*100)/100;
+    }
     if(+node.qtyPlan>0){
       const totalQty=Math.min(+node.qtyPlan,node.dailyLogs.reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0));
-      node.cumActual=Math.min(100,Math.round(totalQty/node.qtyPlan*10000)/100);
-    }
-    // Update weeklyData untuk S-Curve
-    if(weekNum){
-      if(!node.weeklyData)node.weeklyData={};
-      if(!node.weeklyData[weekNum])node.weeklyData[weekNum]={};
-      if(+node.qtyPlan>0){
-        // Qty mode: wAct = % kumulatif s.d. minggu ini (bukan hanya minggu ini)
-        // cAct = sama dengan node.cumActual (total progress)
-        node.weeklyData[weekNum].cAct=Math.round(node.cumActual*100)/100;
-        // wAct = selisih dari minggu sebelumnya
-        const prevWkKeys=Object.keys(node.weeklyData).map(Number).filter(k=>k<weekNum&&node.weeklyData[k]?.cAct!=null);
-        const prevCumAct=prevWkKeys.length?+(node.weeklyData[Math.max(...prevWkKeys)]?.cAct||0):0;
-        node.weeklyData[weekNum].wAct=Math.round(Math.max(0,node.cumActual-prevCumAct)*100)/100;
-      }
+      node.cumActual=Math.round(totalQty/node.qtyPlan*100*100)/100;
     }
     saved++;
   });
@@ -7782,7 +7588,7 @@ function sanitizeProjects(arr){
   }));
 }
 function sanitizeIssues(arr){
-  return (arr||[]).filter(r=>!r._deleted&&r.uraian&&typeof r.uraian==='string'&&r.uraian.trim()!='').map(i=>({
+  return (arr||[]).filter(r=>r.uraian&&typeof r.uraian==='string'&&r.uraian.trim()!='').map(i=>({
     id:i.id||Date.now(),
     projId:i.projId,
     tgl:safeStr(i.tgl).slice(0,30),
@@ -7799,7 +7605,7 @@ function sanitizeIssues(arr){
 function sanitizeProc(arr){
   const _trimDate=v=>{if(!v)return'';const s=String(v).trim();return s.includes('T')?s.slice(0,10):s.slice(0,10);};
   const seen=new Set();
-  return (arr||[]).filter(r=>!r._deleted&&r.item&&typeof r.item==='string'&&r.item.trim()!='').map(pr=>({
+  return (arr||[]).filter(r=>r.item&&typeof r.item==='string'&&r.item.trim()!='').map(pr=>({
     id:String(pr.id||Date.now()),
     projId:String(pr.projId||''),
     item:safeStr(pr.item).slice(0,200),
@@ -7817,7 +7623,7 @@ function sanitizeProc(arr){
   });
 }
 function sanitizeMpLogs(arr){
-  return (arr||[]).filter(r=>!r._deleted&&r.date).map(m=>({
+  return (arr||[]).filter(r=>r.date).map(m=>({
     id:m.id||Date.now(),
     projId:m.projId,
     date:safeStr(m.date).slice(0,30),
@@ -8198,7 +8004,7 @@ async function _rtPoll(){
       P.forEach(p=>{if(!p.logo&&(lc[p.id]||lc[String(p.id)]))p.logo=lc[p.id]||lc[String(p.id)];});
     }catch(ex){}
 
-    {const _pi=getPendingDeletesIss();ISS=sanitizeIssues(d.issues).filter(i=>!_pi.has(String(i.id)));}
+    ISS=sanitizeIssues(d.issues);
 
     // Merge PROC by id
     const remP=sanitizeProc(d.procurement);
@@ -8207,27 +8013,9 @@ async function _rtPoll(){
     remP.forEach(p=>pm.set(String(p.id),p));
     PROC=[...pm.values()];
 
-    {const _pm=getPendingDeletesMp();MPLOGS=sanitizeMpLogs(d.manpowerLogs).filter(m=>!_pm.has(String(m.id)));}
-    {const _lc=getPendingDeletesCost();COSTS=sanitizeCosts(d.costs||[]).filter(c=>!_lc.has(String(c.id)));}
-    {const _lr=getPendingDeletesRab();
-    let rawRab=sanitizeRab(d.rab||[]).filter(r=>!_lr.has(String(r.id)));
-    if(rawRab.length&&P.length){
-      const validProjIds=new Set(P.map(p=>String(p.id)));
-      rawRab=rawRab.map(r=>{
-        if(validProjIds.has(r.projId))return r;
-        const m=P.find(p=>_idMatch(p.id,r.projId));
-        return m?{...r,projId:String(m.id)}:r;
-      });
-      // Normalize katId
-      const katIds=new Set(rawRab.filter(r=>r.type==='kat').map(r=>String(r.id)));
-      rawRab=rawRab.map(r=>{
-        if(r.type!=='item'||!r.katId)return r;
-        if(katIds.has(String(r.katId)))return r;
-        const matchKat=rawRab.find(k=>k.type==='kat'&&_idMatch(k.id,r.katId));
-        return matchKat?{...r,katId:String(matchKat.id)}:r;
-      });
-    }
-    RAB=rawRab;}
+    MPLOGS=sanitizeMpLogs(d.manpowerLogs);
+    ACCLOGS=sanitizeAccLogs(d.accidentLogs);COSTS=sanitizeCosts(d.costs||[]);
+    RAB=sanitizeRab(d.rab||[]);
 
     if(d.history){
       d.history.forEach(h=>{
@@ -8237,51 +8025,12 @@ async function _rtPoll(){
       });
     }
 
-    // Merge WBS by id — parse nested JSON fields (sama seperti loadFromGS)
+    // Merge WBS by id
     if(Array.isArray(d.wbs)&&d.wbs.length){
-      const _pf=v=>{if(!v||v==='[object Object]'||v==='null')return{};if(typeof v==='object')return v;try{return JSON.parse(v);}catch(e){return{};}};
-      const _pa=v=>{if(!v||v==='[object Object]')return[];if(Array.isArray(v))return v;try{const p=JSON.parse(v);return Array.isArray(p)?p:[];}catch(e){return[];}};
-      const _pd=v=>{if(!v)return'';const s=String(v);return s.includes('T')?s.slice(0,10):s.trim();};
-      const _toId=v=>{if(v==null||v==='')return'';if(typeof v==='object')return JSON.stringify(v).replace(/[^0-9]/g,'').slice(0,16)||'';return String(v);};
-      const parsedWbs=d.wbs.map(w=>({
-        ...w,
-        id:_toId(w.id)||String(Date.now()+Math.random()),
-        projId:_toId(w.projId),
-        parentId:w.parentId!=null&&w.parentId!==''?_toId(w.parentId):null,
-        bobot:+w.bobot||0,
-        cumActual:+w.cumActual||0,
-        cumPlan:+w.cumPlan||0,
-        weeklyData:_pf(w.weeklyData),
-        weeklyPlan:_pf(w.weeklyPlan),
-        dailyLogs:_pa(w.dailyLogs),
-        qtyPlan:w.qtyPlan!=null&&w.qtyPlan!==''?+w.qtyPlan:null,
-        qtySatuan:w.qtySatuan||'',
-        startDate:_pd(w.startDate),
-        finishDate:_pd(w.finishDate)
-      }));
-      // Match projId ke P[] — handle genId suffix stripped by GSheet
-      if(P.length){
-        const validProjIds=new Set(P.map(p=>String(p.id)));
-        // Build parentId fix map
-        const wbsIdMap={};
-        parsedWbs.forEach(w=>{const np=_numPrefix(w.id);if(np&&np!==w.id)wbsIdMap[np]=w.id;});
-        parsedWbs.forEach(w=>{
-          if(!validProjIds.has(w.projId)){
-            const m=P.find(p=>_idMatch(p.id,w.projId));
-            if(m)w.projId=String(m.id);
-          }
-          if(w.parentId){
-            const fp=wbsIdMap[_numPrefix(w.parentId)];
-            if(fp)w.parentId=fp;
-          }
-        });
-      }
-      // Apply pending deletes
-      const _pdWbs=getPendingDeletesWbs();
       const wm=new Map();
       WBS.forEach(w=>wm.set(String(w.id),w));
-      parsedWbs.forEach(w=>{if(!_pdWbs.has(String(w.id)))wm.set(String(w.id),w);});
-      WBS=[...wm.values()].filter(w=>!w._deleted&&!_pdWbs.has(String(w.id)));
+      d.wbs.forEach(w=>wm.set(String(w.id),w));
+      WBS=[...wm.values()];
       syncAllWbsToProjects();
     }
 
@@ -8340,9 +8089,8 @@ function _rtSmartRender(){
   else if(activeTab==='issues')renderIssues?.();
   else if(activeTab==='procurement')renderProc();
   else if(activeTab==='cost'){renderCost();renderRab();}
-  else if(activeTab==='wbs'){syncAllWbsToProjects();renderWBS();}
+  else if(activeTab==='wbs')renderWBS();
   else if(activeTab==='daily')renderDailyReport();
-  else if(activeTab==='scurve')renderSCurve();
 }
 
 // Start polling setiap 15 detik
