@@ -4204,8 +4204,8 @@ function exportRabCSV(){
 // Patch renderCost to also trigger renderRab
 const _origRenderCost=typeof renderCost==='function'?renderCost:null;
 
-const GS_SCRIPT=`// ATW Solar Dashboard \u2014 Google Apps Script v10 (Multi-User Safe \u2014 Full Merge + RAB)
-// Deploy sebagai Web App: Execute as Me, Anyone can access
+const GS_SCRIPT=`// ATW Solar Dashboard — Google Apps Script v11
+// Deploy: Execute as Me, Anyone can access
 
 const SHEET_ID = '${gsSheet||"GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA"}';
 
@@ -4221,11 +4221,8 @@ function doOptions(e) {
 }
 
 function doPost(e) {
-  // LockService \u2014 prevent concurrent writes
   const lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(8000); // wait max 8s
-  } catch(err) {
+  try { lock.waitLock(8000); } catch(err) {
     return makeOutput({status:'error', msg:'Server busy, coba lagi'});
   }
   try {
@@ -4234,18 +4231,15 @@ function doPost(e) {
 
     if (d.action === 'updatePw' || d.action === 'updateConfig') {
       let sh = ss.getSheetByName('_CONFIG') || ss.insertSheet('_CONFIG');
-      // Read existing config first to preserve fields not being updated
       const existing = {};
       if (sh.getLastRow() >= 2) {
         sh.getDataRange().getValues().slice(1).forEach(r => {
           if (r[0]) existing[String(r[0]).trim()] = String(r[1]||'');
         });
       }
-      // Merge incoming fields
       if (d.pw_admin  !== undefined) existing['pw_admin']  = String(d.pw_admin  || 'admin123');
       if (d.pw_editor !== undefined) existing['pw_editor'] = String(d.pw_editor || 'edit123');
       if (d.dash_logo !== undefined) existing['dash_logo'] = String(d.dash_logo || '');
-      // Rewrite sheet
       sh.clearContents();
       sh.appendRow(['key', 'value']);
       Object.entries(existing).forEach(([k,v]) => sh.appendRow([k, v]));
@@ -4258,22 +4252,18 @@ function doPost(e) {
       const currentTs = meta && meta.getLastRow() >= 2 ? +meta.getRange(2,1).getValue() : 0;
       const incomingTs = d.lastSaved || 0;
 
-      // Conflict check \u2014 if server newer, return server data for merge
       if (incomingTs < currentTs - 2000) {
         lock.releaseLock();
-        return makeOutput({
-          status: 'conflict',
-          currentTs,
-          incomingTs,
-          msg: 'Data di server lebih baru. Merge dilakukan otomatis.'
-        });
+        return makeOutput({status:'conflict', currentTs, incomingTs,
+          msg: 'Data di server lebih baru. Merge dilakukan otomatis.'});
       }
 
-      // Merge all collections by id (never delete, only add/update)
-      const mergeById = (existing, incoming) => {
+      // mergeById v11: support allowDelete flag
+      const mergeById = (existing, incoming, allowDelete=false) => {
         const map = new Map();
         (existing||[]).forEach(r => { if(r.id) map.set(String(r.id), r); });
         (incoming||[]).forEach(r => { if(r.id) map.set(String(r.id), r); });
+        if(allowDelete) return [...map.values()].filter(r => !r._deleted);
         return [...map.values()];
       };
 
@@ -4284,33 +4274,32 @@ function doPost(e) {
       const existingAcc  = readSheet(ss,'ACCIDENT_LOG')|| [];
       const existingWbs  = readSheet(ss,'WBS')         || [];
 
-      // Merge HISTORY by projId+date composite key (no id field)
       const existingHist = readSheet(ss,'HISTORY') || [];
       const histMap = new Map();
       existingHist.forEach(h => { const k=String(h.projId||'')+'|'+String(h.date||''); histMap.set(k, h); });
       (d.history||[]).forEach(h => { const k=String(h.projId||'')+'|'+String(h.date||''); histMap.set(k, h); });
       const mergedHist = [...histMap.values()];
 
-      writeSheet(ss,'PROJECTS',   mergeById(existingProj, d.projects||[]),    ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo','picPm','picSm','picEng','picProc']);
-      writeSheet(ss,'HISTORY',    mergedHist,     ['projId','kode','date','actual','plan','mp','notes']);
-      writeSheet(ss,'ISSUES',     mergeById(existingIss,  d.issues||[], true),      ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
-      writeSheet(ss,'PROCUREMENT',mergeById(existingProc, d.procurement||[],true), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes','harga']);
-      writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,  d.manpowerLogs||[],true),['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
-      writeSheet(ss,'ACCIDENT_LOG',mergeById(existingAcc, d.accidentLogs||[],true),['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
-      writeSheet(ss,'SCURVE',d.scurve||[],['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
-      writeSheet(ss,'WBS',mergeById(existingWbs,d.wbs||[],true),['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
-      // COSTS (OPEX)
-      const existingCosts=readSheet(ss,'COSTS')||[];
-      writeSheet(ss,'COSTS',mergeById(existingCosts,d.costs||[],true),['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes','ref','status']);
-      // RAB (Rencana Anggaran Biaya)
-      const existingRab=readSheet(ss,'RAB')||[];
-      writeSheet(ss,'RAB',mergeById(existingRab,d.rab||[],true),['id','projId','type','katId','name','deskripsi','satuan','volume','hargaSatuan','total','notes','urutan','isCustom','procKat']);
+      writeSheet(ss,'PROJECTS',    mergeById(existingProj, d.projects||[]),         ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo','picPm','picSm','picEng','picProc']);
+      writeSheet(ss,'HISTORY',     mergedHist,                                       ['projId','kode','date','actual','plan','mp','notes']);
+      writeSheet(ss,'ISSUES',      mergeById(existingIss,  d.issues||[],      true), ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
+      writeSheet(ss,'PROCUREMENT', mergeById(existingProc, d.procurement||[], true), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes','harga']);
+      writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,   d.manpowerLogs||[],true), ['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
+      writeSheet(ss,'ACCIDENT_LOG',mergeById(existingAcc,  d.accidentLogs||[],true), ['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
+      writeSheet(ss,'SCURVE',      d.scurve||[],                                     ['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
+      writeSheet(ss,'WBS',         mergeById(existingWbs,  d.wbs||[],         true), ['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
+
+      const existingCosts = readSheet(ss,'COSTS') || [];
+      writeSheet(ss,'COSTS', mergeById(existingCosts, d.costs||[], true), ['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes','ref','status']);
+
+      const existingRab = readSheet(ss,'RAB') || [];
+      writeSheet(ss,'RAB', mergeById(existingRab, d.rab||[], true), ['id','projId','type','katId','name','deskripsi','satuan','volume','hargaSatuan','total','notes','urutan','isCustom','procKat']);
 
       const now = Date.now();
       let ms = ss.getSheetByName('_META') || ss.insertSheet('_META');
       ms.clearContents();
       ms.appendRow(['lastSaved','version','lastUser']);
-      ms.appendRow([now, '10.0', d.user||'unknown']);
+      ms.appendRow([now, '11.0', d.user||'unknown']);
 
       lock.releaseLock();
       return makeOutput({status:'ok', ts: new Date().toISOString(), serverTs: now});
@@ -4346,7 +4335,7 @@ function doGet(e) {
       procurement:  readSheet(ss,'PROCUREMENT') ||[],
       manpowerLogs: readSheet(ss,'MANPOWER_LOG')||[],
       accidentLogs: readSheet(ss,'ACCIDENT_LOG')||[],
-      costs:        readSheet(ss,'COSTS')||[],
+      costs:        readSheet(ss,'COSTS')        ||[],
       scurve:       readSheet(ss,'SCURVE')       ||[],
       wbs:          readSheet(ss,'WBS')           ||[],
       rab:          readSheet(ss,'RAB')           ||[],
@@ -4361,6 +4350,7 @@ function writeSheet(ss, name, data, cols) {
   sh.clearContents();
   sh.appendRow(cols);
   const dateFields = ['startDate','finishDate','date','mulai','selesai','due'];
+  const idFields   = ['id','projId','parentId','katId'];
   if (data.length > 0) {
     const rows = data.map(row => cols.map(c => {
       const v = row[c];
@@ -4368,6 +4358,8 @@ function writeSheet(ss, name, data, cols) {
       if (typeof v === 'object') return JSON.stringify(v);
       if (dateFields.includes(c) && typeof v === 'string' && v.length >= 10)
         return "'" + String(v).slice(0,10);
+      // Prefix ID fields with apostrophe to prevent GSheet numeric truncation
+      if (idFields.includes(c) && String(v) !== '') return "'" + String(v);
       return v;
     }));
     sh.getRange(2, 1, rows.length, cols.length).setValues(rows);
@@ -4379,6 +4371,7 @@ function readSheet(ss, name) {
   if (!sh || sh.getLastRow() < 2) return [];
   const [headers, ...rows] = sh.getDataRange().getValues();
   const dateFields = ['due','date','mulai','selesai','startDate','finishDate'];
+  const idFields   = ['id','projId','parentId','katId'];
   return rows.map(r => {
     const obj = Object.fromEntries(headers.map((k,i) => [k, r[i]]));
     ['weeklyData','weeklyPlan','dailyLogs','history'].forEach(field => {
@@ -4393,6 +4386,11 @@ function readSheet(ss, name) {
         if (s.includes('T')) obj[field] = s.slice(0,10);
         else if (s.startsWith("'")) obj[field] = s.slice(1,11);
       }
+    });
+    // Strip apostrophe prefix from ID fields
+    idFields.forEach(field => {
+      if (obj[field] && typeof obj[field] === 'string' && obj[field].startsWith("'"))
+        obj[field] = obj[field].slice(1);
     });
     return obj;
   });
@@ -5376,7 +5374,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.26';
+  const DASH_VER='3.28';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
