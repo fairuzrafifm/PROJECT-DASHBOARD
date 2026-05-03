@@ -2107,9 +2107,6 @@ function loadLocal(){
     P=sanitizeProjects(d.P||[]);
     ISS=sanitizeIssues(d.I||[]);
     PROC=sanitizeProc(d.PR||[]);
-    // Re-apply pending deletes (tahan page reload)
-    const _pdel=getPendingDeletes();
-    if(_pdel.size) PROC=PROC.map(p=>_pdel.has(String(p.id))?{...p,_deleted:true}:p);
     MPLOGS=sanitizeMpLogs(d.M||[]);
     ACCLOGS=sanitizeAccLogs(d.A||[]);
     SCURVE=d.SC||[];
@@ -2123,13 +2120,6 @@ function loadLocal(){
     COSTS=sanitizeCosts(d.CO||[]);
     RAB=sanitizeRab(d.RB||[]);
     (d.P||[]).forEach(lp=>{const p=P.find(x=>x.id==lp.id);if(p&&Array.isArray(lp.history))p.history=lp.history;});
-    // Re-apply semua pending deletes (tahan page reload)
-    const _pwbs=getPendingDeletesWbs();if(_pwbs.size)WBS=WBS.filter(w=>!_pwbs.has(String(w.id)));
-    const _piss=getPendingDeletesIss();if(_piss.size)ISS=ISS.filter(i=>!_piss.has(String(i.id)));
-    const _pmp=getPendingDeletesMp();if(_pmp.size)MPLOGS=MPLOGS.filter(m=>!_pmp.has(String(m.id)));
-    const _pacc=getPendingDeletesAcc();if(_pacc.size)ACCLOGS=ACCLOGS.filter(a=>!_pacc.has(String(a.id)));
-    const _pcost=getPendingDeletesCost();if(_pcost.size)COSTS=COSTS.filter(c=>!_pcost.has(String(c.id)));
-    const _prab=getPendingDeletesRab();if(_prab.size)RAB=RAB.filter(r=>!_prab.has(String(r.id)));
     // Re-sync WBS -> project plan/actual
     syncAllWbsToProjects();
     return P.length>0;
@@ -2378,6 +2368,7 @@ function sw(t,el){
   }
   if(t==='daily')renderDailyReport();
   if(t==='cost'){renderCost();renderRab();}
+  if(t==='scurve')renderSCurve();
 }
 
 // ===============================================================
@@ -2395,6 +2386,7 @@ function render(){
   if(activeTab==='issues')renderIssues();
   if(activeTab==='procurement')renderProc();
   if(activeTab==='cost'){renderCost();renderRab();}
+  if(activeTab==='scurve')renderSCurve();
 }
 function updateBadge(){
   const n=ISS.filter(i=>i.status!=='Closed').length;
@@ -2613,7 +2605,7 @@ function renderOV(){
         <span style="color:var(--bl);flex-shrink:0">${pr?.kode||'\u2014'}</span>
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mt)">${a.notes||'Kejadian tercatat'}</span>
         ${a.timeLost>0?`<span style="color:var(--rd);font-family:var(--fm);flex-shrink:0">${a.timeLost}hr</span>`:''}
-        <button class="btn btn-sm" style="padding:1px 5px;font-size:9px;flex-shrink:0" onclick="editAccLog(${a.id})">✏</button>
+        <button class="btn btn-sm" style="padding:1px 5px;font-size:9px;flex-shrink:0" onclick="editAccLog('${a.id}')">✏</button>
       </div>`;
     }).join('')}` : '';
   $('accLog').innerHTML=summaryHtml+recentHtml;
@@ -2846,7 +2838,7 @@ function renderIssues(){
       <td style="font-family:var(--fm);font-size:10px;color:${i.status!=='Closed'&&i.due&&new Date(i.due)<new Date()?'var(--rd)':'var(--mt)'}">${i.due||'\u2014'}</td>
       <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mt);font-size:10px">${i.action||'\u2014'}</td>
       <td><span style="color:${sc[i.status]||'var(--mt)'};font-weight:600;font-size:10px">${i.status}</span></td>
-      <td><button class="btn btn-sm" style="padding:2px 6px" onclick="openModal('editIssue',${i.id})">✏</button></td>
+      <td><button class="btn btn-sm" style="padding:2px 6px" onclick="openModal('editIssue','${i.id}')">✏</button></td>
     </tr>`}).join('')}
   </tbody></table>`;
   updateBadge();
@@ -2871,14 +2863,13 @@ function renderProc(){
   const filtKat=gv('procFiltKat');
   const search=(gv('procSearch')||'').toLowerCase();
   const filtered=PROC.filter(i=>{
-    if(i._deleted)return false;
     if(filtProj&&String(i.projId)!==String(filtProj))return false;
     if(filt&&i.status!==filt)return false;
     if(filtKat&&i.kategori!==filtKat)return false;
     if(search&&!i.item?.toLowerCase().includes(search)&&!i.supplier?.toLowerCase().includes(search))return false;
     return true;
   });
-  const cnt=s=>PROC.filter(i=>!i._deleted&&i.status===s).length;
+  const cnt=s=>PROC.filter(i=>i.status===s).length;
   $('pc1').textContent=cnt('Overdue');$('pc2').textContent=cnt('Due Today');
   $('pc3').textContent=cnt('In Transit');$('pc4').textContent=cnt('On Site');
   $('pc5').textContent=cnt('Waiting Approval')+cnt('PO Issued');
@@ -2932,7 +2923,7 @@ function renderProc(){
       <td style="font-family:var(--fm);font-size:10px;color:${dueColor};white-space:nowrap">${due}${dueLabel}</td>
       <td><span style="color:${sc[stat]||'var(--mt)'};font-weight:600;font-size:10px">${stat}</span></td>
       <td style="color:var(--mt);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${notes}</td>
-      <td><button class="btn btn-sm" style="padding:2px 6px" onclick="openModal('editProc',${i.id})">✏</button></td>
+      <td><button class="btn btn-sm" style="padding:2px 6px" onclick="openModal('editProc','${i.id}')">✏</button></td>
     </tr>`;}).join('')}
   </tbody></table>`;
 }
@@ -2943,8 +2934,11 @@ function renderProc(){
 function openModal(type,id=null){
   // Auth: change password
   if(type==='wbsAddCat'){
-    $('wbsCatProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
-    const cur=selId;if(cur)$('wbsCatProj').value=cur;
+    if(!P.length){toast('Belum ada project. Tambah project dulu.','warn');return;}
+    $('wbsCatProj').innerHTML=P.map(p=>`<option value="${String(p.id)}">${p.kode} — ${p.nama}</option>`).join('');
+    const cur=String(selId||$('wbsProjSel')?.value||P[0]?.id||'');
+    if(cur)$('wbsCatProj').value=cur;
+    if(!$('wbsCatProj').value)$('wbsCatProj').selectedIndex=0;
     sv('wbsCatName','');sv('wbsCatBobot','');
     show('ov-wbsAddCat');return;
   }
@@ -3149,27 +3143,16 @@ function saveProj(){
     picPm:gv('fPicPm').trim(),picSm:gv('fPicSm').trim(),
     picEng:gv('fPicEng').trim(),picProc:gv('fPicProc').trim()};
   if(editProjId){const i=P.findIndex(p=>p.id===editProjId);P[i]={...P[i],...d};toast('Project diupdate ✓');}
-  else{d.id=Date.now();d.history=[];d.mpActual=0;P.push(d);selId=d.id;toast('Project ditambahkan ✓');}
+  else{d.id=genId();d.history=[];d.mpActual=0;P.push(d);selId=d.id;toast('Project ditambahkan ✓');}
   saveLogosCache();
   dirty();cm('addProj');render();gsSync();
 }
 function delProj(){
   showConfirm('Hapus project ini?',()=>{_doDelProj();});return;}
 function _doDelProj(){
-  // Project: filter langsung karena PROJECTS sheet di-overwrite (tidak pakai mergeById)
-  // Tapi ISS, PROC, MPLOGS, ACCLOGS, COSTS, WBS, RAB yang terkait perlu di-soft-delete
-  ISS.filter(i=>i.projId==editProjId).forEach(i=>{i._deleted=true;addPendingDeleteIss(i.id);});
-  PROC.filter(p=>p.projId==editProjId).forEach(p=>{p._deleted=true;addPendingDelete(p.id);});
-  MPLOGS.filter(m=>m.projId==editProjId).forEach(m=>{m._deleted=true;addPendingDeleteMp(m.id);});
-  ACCLOGS.filter(a=>a.projId==editProjId).forEach(a=>{a._deleted=true;addPendingDeleteAcc(a.id);});
-  COSTS.filter(c=>c.projId==editProjId).forEach(c=>{c._deleted=true;addPendingDeleteCost(c.id);});
-  RAB.filter(r=>r.projId==editProjId).forEach(r=>{r._deleted=true;addPendingDeleteRab(r.id);});
-  const wbsIds=WBS.filter(w=>w.projId==editProjId).map(w=>w.id);
-  wbsIds.forEach(id=>addPendingDeleteWbs(id));
-  WBS.filter(w=>w.projId==editProjId).forEach(w=>{w._deleted=true;});
-  P=P.filter(p=>p.id!==editProjId);
+  P=P.filter(p=>p.id!==editProjId);ISS=ISS.filter(i=>i.projId!==editProjId);PROC=PROC.filter(p=>p.projId!==editProjId);
   if(selId===editProjId)selId=P[0]?.id||null;
-  dirty();cm('addProj');render();toast('Project dihapus','warn');gsSync();
+  dirty();cm('addProj');render();toast('Project dihapus','warn');
 }
 function saveUpdate(){
   const p=P.find(x=>x.id===selId);if(!p)return;
@@ -3371,8 +3354,8 @@ function renderMpLog(){
         <td style="color:var(--mt)">${m.mhActual||0}</td>
         <td style="color:${tl>0?'var(--rd)':'var(--mt)'}">${tl>0?tl+'h':'\u2014'}</td>
         <td style="color:var(--mt);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.notes||'\u2014'}</td>
-        <td><button class="btn btn-sm" style="padding:1px 5px;font-size:10px" onclick="openModal('editMpLog',${m.id})">✏</button>
-            <button class="btn btn-sm brd" style="padding:1px 5px;font-size:10px" onclick="delMpLog(${m.id})">🗑</button></td>
+        <td><button class="btn btn-sm" style="padding:1px 5px;font-size:10px" onclick="openModal('editMpLog','${m.id}')">✏</button>
+            <button class="btn btn-sm brd" style="padding:1px 5px;font-size:10px" onclick="delMpLog('${m.id}')">🗑</button></td>
       </tr>`;
     }).join('')}
   </tbody></table>`;
@@ -3411,7 +3394,7 @@ function fillMpPlan(){
 function saveMp(){
   const projId=gv('mpProj');if(!projId){toast('Pilih project','error');return;}
   const tot=(+gv('mpSpv')||0)+(+gv('mpMandor')||0)+(+gv('mpInstaller')||0)+(+gv('mpTukang')||0)+(+gv('mpHelper')||0)+(+gv('mpSafety')||0);
-  const entry={id:Date.now(),projId:+projId||projId,date:gv('mpDate')||new Date().toISOString().slice(0,10),
+  const entry={id:genId(),projId:+projId||projId,date:gv('mpDate')||new Date().toISOString().slice(0,10),
     spv:+gv('mpSpv')||0,mandor:+gv('mpMandor')||0,installer:+gv('mpInstaller')||0,
     tukang:+gv('mpTukang')||0,helper:+gv('mpHelper')||0,safety:+gv('mpSafety')||0,total:tot,
     mhActual:+gv('mpMhAct')||0,timeLost:+gv('mpTL')||0,timeLostReason:gv('mpTLReason'),notes:gv('mpNotes')};
@@ -3423,7 +3406,7 @@ function saveMp(){
 }
 function saveAcc(){
   const projId=gv('accProj');if(!projId){toast('Pilih project','error');return;}
-  const entry={id:Date.now(),projId:+projId||projId,date:gv('accDate')||new Date().toISOString().slice(0,10),
+  const entry={id:genId(),projId:+projId||projId,date:gv('accDate')||new Date().toISOString().slice(0,10),
     fatality:+gv('accFat')||0,lti:+gv('accLti')||0,minorInjury:+gv('accMin')||0,medTreatment:+gv('accMed')||0,
     propertyDamage:+gv('accProp')||0,fire:+gv('accFire')||0,traffic:+gv('accTraf')||0,
     environment:+gv('accEnv')||0,nearMiss:+gv('accNM')||0,timeLost:+gv('accTL')||0,notes:gv('accNotes')};
@@ -3513,14 +3496,14 @@ function delAccLog(){
 
 function saveWeather(){
   P.forEach(p=>{const el=$('wf_'+p.id);if(el)p.weather=el.value;});
-  dirty();cm('editWeather');if(activeTab==='overview')renderOV();else renderSB();toast('Cuaca diupdate ✓');
+  dirty();cm('editWeather');if(activeTab==='overview')renderOV();else renderSB();toast('Cuaca diupdate ✓');gsSync();
 }
 function saveIss(){
   const uraian=gv('iUraian').trim();if(!uraian){toast('Uraian wajib diisi','error');return;}
   const d={projId:+gv('iProj')||gv('iProj'),tgl:gv('iTgl'),uraian,prioritas:gv('iPri'),
     kategori:gv('iKat'),pj:gv('iPJ').trim(),due:gv('iDue'),status:gv('iStat'),done:gv('iDone'),action:gv('iAction').trim()};
   if(editIssId){const i=ISS.findIndex(x=>String(x.id)===String(editIssId));if(i>=0)ISS[i]={...ISS[i],...d};toast('Issue diupdate ✓');}
-  else{d.id=String(Date.now());ISS.push(d);toast('Issue ditambahkan ✓');}
+  else{d.id=genId();ISS.push(d);toast('Issue ditambahkan ✓');}
   dirty();cm('addIssue');renderIssues();$('pk5').textContent=ISS.filter(i=>i.status!=='Closed').length;gsSync();
 }
 function delIss(){showConfirm('Hapus issue ini?',()=>{
@@ -3534,15 +3517,12 @@ function saveProc(){
     due:gv('pDue'),supplier:gv('pSup').trim(),status:gv('pStat'),notes:gv('pNotes').trim(),
     harga:$('pHarga')&&$('pHarga').value?+$('pHarga').value||0:undefined};
   if(editProcId){const i=PROC.findIndex(x=>String(x.id)===String(editProcId));if(i>=0)PROC[i]={...PROC[i],...d};toast('Item diupdate ✓');}
-  else{d.id=String(Date.now());PROC.push(d);toast('Item ditambahkan ✓');}
+  else{d.id=genId();PROC.push(d);toast('Item ditambahkan ✓');}
   dirty();cm('addProc');renderProc();if(activeTab==='overview')renderOV();gsSync();
 }
-function delProc(){showConfirm('Hapus item ini?',()=>{
-  // Soft-delete: tandai _deleted + simpan ke localStorage agar tahan reload
-  const idx=PROC.findIndex(p=>String(p.id)===String(editProcId));
-  if(idx>=0){PROC[idx]._deleted=true;addPendingDelete(editProcId);}
-  dirty();cm('addProc');renderProc();toast('Item dihapus','warn');gsSync();
-});}
+function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>String(p.id)!==String(editProcId));dirty();cm('addProc');renderProc();toast('Item dihapus','warn');gsSync();});}
+
+function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>String(p.id)!==String(editProcId));dirty();cm('addProc');renderProc();toast('Item dihapus','warn');gsSync();});}
 
 // ===============================================================
 // COST / FINANCE
@@ -3745,7 +3725,7 @@ function saveCost(){
     if(i>=0)COSTS[i]={...COSTS[i],...d};
     toast('Pengeluaran diupdate ✓');
   }else{
-    d.id=String(Date.now());
+    d.id=genId();
     COSTS.push(d);
     toast('Pengeluaran ditambahkan ✓');
   }
@@ -4041,7 +4021,7 @@ function saveRabKat(){
     const idx=RAB.findIndex(r=>r.id===editRabCatId);
     if(idx>=0)RAB[idx]={...RAB[idx],projId,name,urutan:+gv('rkUrutan')||1,isCustom:true};
   } else {
-    RAB.push({id:String(Date.now()),projId,type:'kat',katId:'',name,deskripsi:'',satuan:'',volume:0,hargaSatuan:0,total:0,notes:'',urutan:+gv('rkUrutan')||1,isCustom:true});
+    RAB.push({id:genId(),projId,type:'kat',katId:'',name,deskripsi:'',satuan:'',volume:0,hargaSatuan:0,total:0,notes:'',urutan:+gv('rkUrutan')||1,isCustom:true});
   }
   dirty();cm('addRabKat');renderRab();
   toast(editRabCatId?'Kategori diperbarui ✓':'Kategori ditambahkan ✓');
@@ -4107,7 +4087,7 @@ function saveRabItem(){
     const idx=RAB.findIndex(r=>r.id===editRabId);
     if(idx>=0)RAB[idx]={...RAB[idx],...d};
   } else {
-    RAB.push({id:String(Date.now()),urutan:0,isCustom:false,...d});
+    RAB.push({id:genId(),urutan:0,isCustom:false,...d});
   }
   dirty();cm('addRabItem');renderRab();
   toast(editRabId?'Item RAB diperbarui ✓':'Item RAB ditambahkan ✓');
@@ -4149,7 +4129,7 @@ function exportRabCSV(){
 // Patch renderCost to also trigger renderRab
 const _origRenderCost=typeof renderCost==='function'?renderCost:null;
 
-const GS_SCRIPT=`// ATW Solar Dashboard \u2014 Google Apps Script v11 (Multi-User Safe \u2014 Full Merge + Delete Support)
+const GS_SCRIPT=`// ATW Solar Dashboard \u2014 Google Apps Script v10 (Multi-User Safe \u2014 Full Merge + RAB)
 // Deploy sebagai Web App: Execute as Me, Anyone can access
 
 const SHEET_ID = '${gsSheet||"GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA"}';
@@ -4169,7 +4149,7 @@ function doPost(e) {
   // LockService \u2014 prevent concurrent writes
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(8000);
+    lock.waitLock(8000); // wait max 8s
   } catch(err) {
     return makeOutput({status:'error', msg:'Server busy, coba lagi'});
   }
@@ -4179,15 +4159,18 @@ function doPost(e) {
 
     if (d.action === 'updatePw' || d.action === 'updateConfig') {
       let sh = ss.getSheetByName('_CONFIG') || ss.insertSheet('_CONFIG');
+      // Read existing config first to preserve fields not being updated
       const existing = {};
       if (sh.getLastRow() >= 2) {
         sh.getDataRange().getValues().slice(1).forEach(r => {
           if (r[0]) existing[String(r[0]).trim()] = String(r[1]||'');
         });
       }
+      // Merge incoming fields
       if (d.pw_admin  !== undefined) existing['pw_admin']  = String(d.pw_admin  || 'admin123');
       if (d.pw_editor !== undefined) existing['pw_editor'] = String(d.pw_editor || 'edit123');
       if (d.dash_logo !== undefined) existing['dash_logo'] = String(d.dash_logo || '');
+      // Rewrite sheet
       sh.clearContents();
       sh.appendRow(['key', 'value']);
       Object.entries(existing).forEach(([k,v]) => sh.appendRow([k, v]));
@@ -4196,20 +4179,27 @@ function doPost(e) {
     }
 
     if (d.action === 'sync') {
-      // ---- MERGE STRATEGY v11 ----
-      // Always merge incoming WITH existing in GSheet.
-      // No conflict rejection \u2014 incoming wins per-record (last-write-wins by id).
-      // Exception: _deleted=true removes the record from GSheet.
-      // This makes concurrent multi-user edits on DIFFERENT records safe.
-      // Same-record concurrent edits: last sync wins (acceptable for this use case).
+      const meta = ss.getSheetByName('_META');
+      const currentTs = meta && meta.getLastRow() >= 2 ? +meta.getRange(2,1).getValue() : 0;
+      const incomingTs = d.lastSaved || 0;
 
-      const mergeById = (existing, incoming, allowDelete=false) => {
+      // Conflict check \u2014 if server newer, return server data for merge
+      if (incomingTs < currentTs - 2000) {
+        lock.releaseLock();
+        return makeOutput({
+          status: 'conflict',
+          currentTs,
+          incomingTs,
+          msg: 'Data di server lebih baru. Merge dilakukan otomatis.'
+        });
+      }
+
+      // Merge all collections by id (never delete, only add/update)
+      const mergeById = (existing, incoming) => {
         const map = new Map();
         (existing||[]).forEach(r => { if(r.id) map.set(String(r.id), r); });
         (incoming||[]).forEach(r => { if(r.id) map.set(String(r.id), r); });
-        const result = [...map.values()];
-        if (allowDelete) return result.filter(r => !r._deleted);
-        return result;
+        return [...map.values()];
       };
 
       const existingProj = readSheet(ss,'PROJECTS')    || [];
@@ -4219,38 +4209,36 @@ function doPost(e) {
       const existingAcc  = readSheet(ss,'ACCIDENT_LOG')|| [];
       const existingWbs  = readSheet(ss,'WBS')         || [];
 
-      // Merge HISTORY by projId+date composite key
+      // Merge HISTORY by projId+date composite key (no id field)
       const existingHist = readSheet(ss,'HISTORY') || [];
       const histMap = new Map();
       existingHist.forEach(h => { const k=String(h.projId||'')+'|'+String(h.date||''); histMap.set(k, h); });
       (d.history||[]).forEach(h => { const k=String(h.projId||'')+'|'+String(h.date||''); histMap.set(k, h); });
       const mergedHist = [...histMap.values()];
 
-      writeSheet(ss,'PROJECTS',    mergeById(existingProj, d.projects||[]),         ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo','picPm','picSm','picEng','picProc']);
-      writeSheet(ss,'HISTORY',     mergedHist,                                       ['projId','kode','date','actual','plan','mp','notes']);
-      writeSheet(ss,'ISSUES',      mergeById(existingIss,  d.issues||[], true),            ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
-      writeSheet(ss,'PROCUREMENT', mergeById(existingProc, d.procurement||[], true), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes','harga']);
-      writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,   d.manpowerLogs||[], true),      ['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
-      writeSheet(ss,'ACCIDENT_LOG',mergeById(existingAcc,  d.accidentLogs||[], true),      ['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
-      writeSheet(ss,'SCURVE',      d.scurve||[],                                     ['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
-      writeSheet(ss,'WBS',         mergeById(existingWbs,  d.wbs||[], true),           ['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
-
-      const existingCosts = readSheet(ss,'COSTS')||[];
-      writeSheet(ss,'COSTS', mergeById(existingCosts, d.costs||[], true), ['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes']);
-
-      const existingRab = readSheet(ss,'RAB')||[];
-      writeSheet(ss,'RAB', mergeById(existingRab, d.rab||[], true), ['id','projId','type','katId','name','deskripsi','satuan','volume','hargaSatuan','total','notes','urutan','isCustom','procKat']);
+      writeSheet(ss,'PROJECTS',   mergeById(existingProj, d.projects||[]),    ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo','picPm','picSm','picEng','picProc']);
+      writeSheet(ss,'HISTORY',    mergedHist,     ['projId','kode','date','actual','plan','mp','notes']);
+      writeSheet(ss,'ISSUES',     mergeById(existingIss,  d.issues||[], true),      ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
+      writeSheet(ss,'PROCUREMENT',mergeById(existingProc, d.procurement||[],true), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes','harga']);
+      writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,  d.manpowerLogs||[],true),['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
+      writeSheet(ss,'ACCIDENT_LOG',mergeById(existingAcc, d.accidentLogs||[],true),['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
+      writeSheet(ss,'SCURVE',d.scurve||[],['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
+      writeSheet(ss,'WBS',mergeById(existingWbs,d.wbs||[],true),['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
+      // COSTS (OPEX)
+      const existingCosts=readSheet(ss,'COSTS')||[];
+      writeSheet(ss,'COSTS',mergeById(existingCosts,d.costs||[],true),['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes']);
+      // RAB (Rencana Anggaran Biaya)
+      const existingRab=readSheet(ss,'RAB')||[];
+      writeSheet(ss,'RAB',mergeById(existingRab,d.rab||[],true),['id','projId','type','katId','name','deskripsi','satuan','volume','hargaSatuan','total','notes','urutan','isCustom','procKat']);
 
       const now = Date.now();
       let ms = ss.getSheetByName('_META') || ss.insertSheet('_META');
       ms.clearContents();
       ms.appendRow(['lastSaved','version','lastUser']);
-      ms.appendRow([now, '11.0', d.user||'unknown']);
+      ms.appendRow([now, '10.0', d.user||'unknown']);
 
       lock.releaseLock();
-      // Return current GSheet PROC so client can clean up _deleted flags
-      const freshProc = readSheet(ss,'PROCUREMENT')||[];
-      return makeOutput({status:'ok', ts: new Date().toISOString(), serverTs: now, procurement: freshProc});
+      return makeOutput({status:'ok', ts: new Date().toISOString(), serverTs: now});
     }
 
     lock.releaseLock();
@@ -4283,10 +4271,10 @@ function doGet(e) {
       procurement:  readSheet(ss,'PROCUREMENT') ||[],
       manpowerLogs: readSheet(ss,'MANPOWER_LOG')||[],
       accidentLogs: readSheet(ss,'ACCIDENT_LOG')||[],
-      costs:        readSheet(ss,'COSTS')        ||[],
+      costs:        readSheet(ss,'COSTS')||[],
       scurve:       readSheet(ss,'SCURVE')       ||[],
-      wbs:          readSheet(ss,'WBS')          ||[],
-      rab:          readSheet(ss,'RAB')          ||[],
+      wbs:          readSheet(ss,'WBS')           ||[],
+      rab:          readSheet(ss,'RAB')           ||[],
     });
   } catch(err) {
     return makeOutput({status:'error', msg: err.message});
@@ -4367,27 +4355,13 @@ function copyGsScript(){
     const t=document.createElement('textarea');t.value=GS_SCRIPT;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('Script disalin ✓');
   });
 }
-// ---- Deleted IDs management (persistent across reloads) ----
-function getPendingDeletes(){
-  try{return new Set(JSON.parse(localStorage.getItem('atw_deleted_proc')||'[]'));}catch(e){return new Set();}
-}
-function addPendingDelete(id){
-  const ids=getPendingDeletes();ids.add(String(id));
-  try{localStorage.setItem('atw_deleted_proc',JSON.stringify([...ids]));}catch(e){}
-}
-function clearPendingDeletes(){
-  try{localStorage.removeItem('atw_deleted_proc');}catch(e){}
-}
-function getPendingDeletesWbs(){
-  try{return new Set(JSON.parse(localStorage.getItem('atw_deleted_wbs')||'[]'));}catch(e){return new Set();}
-}
-function addPendingDeleteWbs(id){
-  const ids=getPendingDeletesWbs();ids.add(String(id));
-  try{localStorage.setItem('atw_deleted_wbs',JSON.stringify([...ids]));}catch(e){}
-}
-function clearPendingDeletesWbs(){
-  try{localStorage.removeItem('atw_deleted_wbs');}catch(e){}
-}
+
+function getPendingDeletes(){try{return new Set(JSON.parse(localStorage.getItem('atw_deleted_proc')||'[]'));}catch(e){return new Set();}}
+function addPendingDelete(id){const ids=getPendingDeletes();ids.add(String(id));try{localStorage.setItem('atw_deleted_proc',JSON.stringify([...ids]));}catch(e){}}
+function clearPendingDeletes(){try{localStorage.removeItem('atw_deleted_proc');}catch(e){}}
+function getPendingDeletesWbs(){try{return new Set(JSON.parse(localStorage.getItem('atw_deleted_wbs')||'[]'));}catch(e){return new Set();}}
+function addPendingDeleteWbs(id){const ids=getPendingDeletesWbs();ids.add(String(id));try{localStorage.setItem('atw_deleted_wbs',JSON.stringify([...ids]));}catch(e){}}
+function clearPendingDeletesWbs(){try{localStorage.removeItem('atw_deleted_wbs');}catch(e){}}
 function getPendingDeletesIss(){try{return new Set(JSON.parse(localStorage.getItem('atw_deleted_iss')||'[]'));}catch(e){return new Set();}}
 function addPendingDeleteIss(id){const s=getPendingDeletesIss();s.add(String(id));try{localStorage.setItem('atw_deleted_iss',JSON.stringify([...s]));}catch(e){}}
 function clearPendingDeletesIss(){try{localStorage.removeItem('atw_deleted_iss');}catch(e){}}
@@ -4403,50 +4377,33 @@ function clearPendingDeletesCost(){try{localStorage.removeItem('atw_deleted_cost
 function getPendingDeletesRab(){try{return new Set(JSON.parse(localStorage.getItem('atw_deleted_rab')||'[]'));}catch(e){return new Set();}}
 function addPendingDeleteRab(id){const s=getPendingDeletesRab();s.add(String(id));try{localStorage.setItem('atw_deleted_rab',JSON.stringify([...s]));}catch(e){}}
 function clearPendingDeletesRab(){try{localStorage.removeItem('atw_deleted_rab');}catch(e){}}
-
+function genId(){return String(Date.now())+Math.random().toString(36).slice(2,6);}
 async function gsSync(){
   if(!gsOk||!gsUrl)return;
-  // Debounce — jangan sync terlalu sering
+  // Debounce \u2014 jangan sync terlalu sering
   if(gsSync._pending)clearTimeout(gsSync._pending);
   gsSync._pending=setTimeout(async()=>{
     gsSync._pending=null;
     try{
       const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
       const user=localStorage.getItem('atw_user')||'user';
+      // Gunakan ts dari localStorage (waktu data terakhir diubah lokal), bukan Date.now()
+      // Ini penting agar conflict detection di server bisa bekerja dengan benar
       const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
-      // Re-apply pending deletes ke semua collections sebelum kirim (non-mutating)
-      const _pdProc=getPendingDeletes();
-      const procToSync=_pdProc.size?PROC.map(p=>_pdProc.has(String(p.id))?{...p,_deleted:true}:p):PROC;
-      const _pdWbs=getPendingDeletesWbs();
-      const wbsToSync=_pdWbs.size?WBS.map(w=>_pdWbs.has(String(w.id))?{...w,_deleted:true}:w):WBS;
-      const _pdIss=getPendingDeletesIss();
-      const issToSync=_pdIss.size?ISS.map(i=>_pdIss.has(String(i.id))?{...i,_deleted:true}:i):ISS;
-      const _pdMp=getPendingDeletesMp();
-      const mpToSync=_pdMp.size?MPLOGS.map(m=>_pdMp.has(String(m.id))?{...m,_deleted:true}:m):MPLOGS;
-      const _pdAcc=getPendingDeletesAcc();
-      const accToSync=_pdAcc.size?ACCLOGS.map(a=>_pdAcc.has(String(a.id))?{...a,_deleted:true}:a):ACCLOGS;
-      const _pdCost=getPendingDeletesCost();
-      const costToSync=_pdCost.size?COSTS.map(c=>_pdCost.has(String(c.id))?{...c,_deleted:true}:c):COSTS;
-      const _pdRab=getPendingDeletesRab();
-      const rabToSync=_pdRab.size?RAB.map(r=>_pdRab.has(String(r.id))?{...r,_deleted:true}:r):RAB;
-      const body=JSON.stringify({action:'sync',lastSaved:lTs,user,projects:P,history:hist,issues:issToSync,procurement:procToSync,manpowerLogs:mpToSync,accidentLogs:accToSync,scurve:SCURVE,wbs:wbsToSync,costs:costToSync,rab:rabToSync});
+      const body=JSON.stringify({action:'sync',lastSaved:lTs,user,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS,costs:COSTS,rab:RAB});
       const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
       if(r.ok){
         const txt=await r.text();
         try{
           const d=JSON.parse(txt);
           if(d.status==='ok'){
-            // Server confirmed — bersihkan semua _deleted dari arrays lokal
-            PROC=PROC.filter(p=>!p._deleted); clearPendingDeletes();
-            WBS=WBS.filter(w=>!w._deleted); clearPendingDeletesWbs();
-            ISS=ISS.filter(i=>!i._deleted); clearPendingDeletesIss();
-            MPLOGS=MPLOGS.filter(m=>!m._deleted); clearPendingDeletesMp();
-            ACCLOGS=ACCLOGS.filter(a=>!a._deleted); clearPendingDeletesAcc();
-            COSTS=COSTS.filter(c=>!c._deleted); clearPendingDeletesCost();
-            RAB=RAB.filter(r=>!r._deleted); clearPendingDeletesRab();
-            saveLocal(lTs,false);
-            console.log('GS sync OK v11',d.ts);
+            console.log('GS sync OK',d.ts);
+          }else if(d.status==='conflict'){
+            // Server lebih baru \u2014 load ulang dari GSheet lalu sync lagi
+            console.warn('GS conflict detected, reloading...');
+            await loadFromGS();
           }else if(d.status==='error'&&d.msg==='Server busy, coba lagi'){
+            // Retry after 3s
             setTimeout(()=>gsSync(),3000);
           }
         }catch(e){}
@@ -4454,7 +4411,7 @@ async function gsSync(){
     }catch(e){
       try{
         const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
-        fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:issToSync,procurement:procToSync,manpowerLogs:mpToSync,accidentLogs:accToSync,scurve:SCURVE,wbs:wbsToSync,costs:costToSync,rab:rabToSync}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
+        fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:Date.now(),projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS,costs:COSTS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
       }catch(e2){}
     }
   },800); // debounce 800ms
@@ -4467,38 +4424,25 @@ async function syncAllGS(){
     const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
     // Gunakan timestamp dari localStorage sebagai lastSaved
     const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
-    // Re-apply pending deletes ke PROC sebelum kirim
-    const _syncPendDel=getPendingDeletes();
-    const _procToSync=_syncPendDel.size
-      ? PROC.map(p=>_syncPendDel.has(String(p.id))?{...p,_deleted:true}:p)
-      : PROC;
-    const _syncPendDelWbs=getPendingDeletesWbs();
-    const _wbsToSync=_syncPendDelWbs.size?WBS.map(w=>_syncPendDelWbs.has(String(w.id))?{...w,_deleted:true}:w):WBS;
-    const _saIss=getPendingDeletesIss();const _issSync=_saIss.size?ISS.map(i=>_saIss.has(String(i.id))?{...i,_deleted:true}:i):ISS;
-    const _saMp=getPendingDeletesMp();const _mpSync=_saMp.size?MPLOGS.map(m=>_saMp.has(String(m.id))?{...m,_deleted:true}:m):MPLOGS;
-    const _saAcc=getPendingDeletesAcc();const _accSync=_saAcc.size?ACCLOGS.map(a=>_saAcc.has(String(a.id))?{...a,_deleted:true}:a):ACCLOGS;
-    const _saCost=getPendingDeletesCost();const _costSync=_saCost.size?COSTS.map(c=>_saCost.has(String(c.id))?{...c,_deleted:true}:c):COSTS;
-    const _saRab=getPendingDeletesRab();const _rabSync=_saRab.size?RAB.map(r=>_saRab.has(String(r.id))?{...r,_deleted:true}:r):RAB;
-    const body=JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:_issSync,procurement:_procToSync,manpowerLogs:_mpSync,accidentLogs:_accSync,scurve:SCURVE,wbs:_wbsToSync,costs:_costSync,rab:_rabSync});
+    const body=JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,scurve:SCURVE,wbs:WBS,costs:COSTS,rab:RAB});
     const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
     if(r.ok){
       const txt=await r.text();
       try{
         const d=JSON.parse(txt);
         if(d.status==='ok'){
-          // Bersihkan _deleted setelah server confirm
-          PROC=PROC.filter(p=>!p._deleted); clearPendingDeletes();
-          WBS=WBS.filter(w=>!w._deleted); clearPendingDeletesWbs();
-          ISS=ISS.filter(i=>!i._deleted); clearPendingDeletesIss();
-          MPLOGS=MPLOGS.filter(m=>!m._deleted); clearPendingDeletesMp();
-          ACCLOGS=ACCLOGS.filter(a=>!a._deleted); clearPendingDeletesAcc();
-          COSTS=COSTS.filter(c=>!c._deleted); clearPendingDeletesCost();
-          RAB=RAB.filter(r=>!r._deleted); clearPendingDeletesRab();
           toast('✅ Data tersimpan di Google Sheet!');
           $('smsg').textContent='Tersinkronisasi · '+new Date().toLocaleTimeString('id-ID');
           $('sdot').style.background='var(--gn)';$('sdot').classList.remove('unsaved');
           isDirty=false;$('sbar').classList.remove('dirty');
-          if(activeTab==='procurement')renderProc();
+        }else if(d.status==='rejected'){
+          // GSheet punya data lebih baru \u2014 harus load dulu
+          toast('⚠ GSheet punya data lebih baru! Klik ↓ Load GSheet dulu, lalu sync ulang.','warn');
+          $('smsg').textContent='⚠ Conflict: GSheet lebih baru \u2014 klik Load GSheet';
+          // Tawari untuk auto-load
+          if(confirm('Google Sheet punya data yang lebih baru.\n\nLoad data dari GSheet sekarang? (data lokal akan digabung)')){
+            await loadFromGS();
+          }
         }else{
           toast('⚠ GSheet: '+(d.msg||'unknown error'),'warn');
         }
@@ -4512,7 +4456,7 @@ async function syncAllGS(){
     try{
       const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
       const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
-      await fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:_issSync,procurement:_procToSync,manpowerLogs:_mpSync,accidentLogs:_accSync,scurve:SCURVE,wbs:_wbsToSync,costs:_costSync,rab:_rabSync}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
+      await fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,costs:COSTS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
       toast('📤 Data dikirim (no-cors). Minta tim lain klik Load GSheet untuk update.','warn');
     }catch(e2){
       toast('❌ Gagal sync: '+e.message,'error');
@@ -4544,21 +4488,16 @@ async function loadFromGS(){
         const lv=localLogos[p.id]||localLogos[String(p.id)]||'';
         if(!p.logo&&lv)p.logo=lv;
       });
-      const _lgsIss=getPendingDeletesIss();
-      ISS=sanitizeIssues(d.issues).filter(i=>!_lgsIss.has(String(i.id)));
-      // Merge procurement dari GSheet + pending deletes dari localStorage
+      ISS=sanitizeIssues(d.issues);
+      // Merge procurement: GSheet + lokal, tidak hapus data yang tidak ada di lokal
       const remoteProc=sanitizeProc(d.procurement);
-      const localDeletedIds=getPendingDeletes();
-      // Filter item yg masih pending delete agar tidak "zombie" setelah reload
-      PROC=remoteProc.filter(p=>!localDeletedIds.has(String(p.id)));
-      const _lgsMp=getPendingDeletesMp();
-      MPLOGS=sanitizeMpLogs(d.manpowerLogs).filter(m=>!_lgsMp.has(String(m.id)));
-      const _lgsAcc=getPendingDeletesAcc();
-      ACCLOGS=sanitizeAccLogs(d.accidentLogs).filter(a=>!_lgsAcc.has(String(a.id)));
-      const _lgsCost=getPendingDeletesCost();
-      COSTS=sanitizeCosts(d.costs||[]).filter(c=>!_lgsCost.has(String(c.id)));
-      const _lgsRab=getPendingDeletesRab();
-      RAB=sanitizeRab(d.rab||[]).filter(r=>!_lgsRab.has(String(r.id)));
+      const procMergeMap=new Map();
+      PROC.forEach(p=>procMergeMap.set(String(p.id),p));
+      remoteProc.forEach(p=>procMergeMap.set(String(p.id),p));
+      PROC=[...procMergeMap.values()];
+      MPLOGS=sanitizeMpLogs(d.manpowerLogs);
+      ACCLOGS=sanitizeAccLogs(d.accidentLogs);COSTS=sanitizeCosts(d.costs||[]);
+      RAB=sanitizeRab(d.rab||[]);
       SCURVE=Array.isArray(d.scurve)?d.scurve.map(s=>({projId:s.projId,week:+s.week||0,wPlan:+s.wPlan||0,wAct:+s.wAct||0,cPlan:s.cPlan!=null&&s.cPlan!==''?+s.cPlan:null,cAct:s.cAct!=null&&s.cAct!==''?+s.cAct:null,dateStart:safeStr(s.dateStart),fromWbs:!!s.fromWbs})):[];
       const parseField=v=>{
         if(!v||v==='[object Object]'||v==='null')return {};
@@ -4595,9 +4534,6 @@ async function loadFromGS(){
       const wbsMap=new Map();
       WBS.forEach(w=>wbsMap.set(String(w.id),w));
       WBS=[...wbsMap.values()];
-      // Filter WBS yang masih pending delete lokal agar tidak zombie setelah reload
-      const _localDelWbs=getPendingDeletesWbs();
-      if(_localDelWbs.size) WBS=WBS.filter(w=>!_localDelWbs.has(String(w.id)));
 
       // Normalize all IDs to strings for consistent comparison
       const _toId=v=>{if(v==null||v==='')return '';if(typeof v==='object'){const s=JSON.stringify(v);return s.replace(/[^0-9]/g,'').slice(0,16)||'';}return String(v);};
@@ -5324,7 +5260,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.5';
+  const DASH_VER='3.15';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -5532,6 +5468,7 @@ function renderWBS(){
     html+='</tbody></table>';
   }
   $('wbsTable').innerHTML=html;
+  syncWbsToSCurve(projId);
   renderWbsSCurve(projId);
   if(_ganttView==='gantt')renderGantt();
 }
@@ -5542,7 +5479,7 @@ function calcWbsWeightedPlan(projId){return WBS.filter(w=>String(w.projId)===Str
 
 function populateWbsParents(targetId,projSelId,type){
   const projId=$(projSelId)?.value;const sel=$(targetId);if(!sel)return;
-  sel.innerHTML=WBS.filter(w=>String(w.projId)===String(projId)&&w.type===type).sort((a,b)=>a.order-b.order).map(w=>`<option value="${w.id}">${safeStr(w.name)}</option>`).join('');
+  sel.innerHTML=WBS.filter(w=>String(w.projId)===String(projId)&&w.type===type).sort((a,b)=>a.order-b.order).map(w=>`<option value="${String(w.id)}">${safeStr(w.name)}</option>`).join('');
 }
 function checkWbsBobot(){
   const projId=$('wbsItemProj')?.value;const cur=parseFloat($('wbsItemBobot')?.value)||0;
@@ -5554,16 +5491,20 @@ function checkWbsBobot(){
 }
 function saveWbsCat(){
   const projId=$('wbsCatProj').value;const name=gv('wbsCatName').trim();
+  if(!projId){toast('Pilih project terlebih dahulu','error');return;}
   if(!name){toast('Nama kategori wajib diisi','error');return;}
-  const order=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='cat').length;
-  WBS.push({id:Date.now(),projId,type:'cat',parentId:null,name,bobot:parseFloat($('wbsCatBobot')?.value)||0,order,cumPlan:0,cumActual:0});
+  const proj=P.find(p=>String(p.id)===String(projId)||+p.id===+projId);
+  if(!proj){toast('Project tidak ditemukan','error');return;}
+  const pid=String(proj.id);
+  const order=WBS.filter(w=>String(w.projId)===pid&&w.type==='cat').length;
+  WBS.push({id:genId(),projId:pid,type:'cat',parentId:null,name,bobot:parseFloat($('wbsCatBobot')?.value)||0,order,cumPlan:0,cumActual:0});
   dirty();cm('wbsAddCat');renderWBS();toast('Kategori ditambahkan ✓');gsSync();
 }
 function saveWbsSub(){
   const projId=$('wbsSubProj').value;const name=gv('wbsSubName').trim();const parentId=+$('wbsSubParent')?.value;
   if(!name||!parentId){toast('Lengkapi data','error');return;}
   const order=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='subcat'&&w.parentId===parentId).length;
-  WBS.push({id:Date.now(),projId,type:'subcat',parentId,name,
+  WBS.push({id:genId(),projId,type:'subcat',parentId,name,
     bobot:parseFloat($('wbsSubBobot')?.value)||0,order,cumPlan:0,cumActual:0,
     startDate:gv('wbsSubStart')||'',finishDate:gv('wbsSubFinish')||''});
   dirty();cm('wbsAddSub');renderWBS();toast('Sub-kategori ditambahkan ✓');gsSync();
@@ -5576,7 +5517,7 @@ function saveWbsItem(){
   const allItems=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='item').reduce((s,w)=>s+(+w.bobot||0),0);
   if(allItems+bobot>100.05){toast('Total bobot item melebihi 100%','error');return;}
   const order=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='item'&&w.parentId===parentId).length;
-  WBS.push({id:Date.now(),projId,type:'item',parentId,name,bobot,order,cumPlan:0,cumActual:0,
+  WBS.push({id:genId(),projId,type:'item',parentId,name,bobot,order,cumPlan:0,cumActual:0,
     weeklyData:{},weeklyPlan:{},
     startDate:gv('wbsItemStart')||'',finishDate:gv('wbsItemFinish')||''});
   dirty();cm('wbsAddItem');renderWBS();toast('Item ditambahkan ✓');gsSync();
@@ -5594,8 +5535,8 @@ function showConfirm(msg, onYes){
 }
 
 function openEditWbs(id){
-  const node=WBS.find(w=>w.id===id);if(!node)return;
-  sv('wbsEditId',id);sv('wbsEditName',safeStr(node.name));
+  const node=WBS.find(w=>String(w.id)===String(id));if(!node)return;
+  sv('wbsEditId',String(id));sv('wbsEditName',safeStr(node.name));
   sv('wbsEditBobot',+node.bobot||0);
   sv('wbsEditStart',node.startDate||'');
   sv('wbsEditFinish',node.finishDate||'');
@@ -5610,8 +5551,8 @@ function openEditWbs(id){
   show('ov-wbsEdit');
 }
 function saveEditWbs(){
-  const id=+$('wbsEditId')?.value;
-  const node=WBS.find(w=>w.id===id);if(!node)return;
+  const id=String($('wbsEditId')?.value||'');
+  const node=WBS.find(w=>String(w.id)===id);if(!id||!node){toast('Node tidak ditemukan','error');return;}
   const name=gv('wbsEditName').trim();if(!name){toast('Nama wajib diisi','error');return;}
   node.name=name;
   const b=parseFloat($('wbsEditBobot')?.value);
@@ -5629,7 +5570,6 @@ function delWbs(id){
   const toRm=new Set([sid,...childIds,...grandIds]);
   const msg=`Hapus "${safeStr(node.name)}"${toRm.size>1?' dan '+(toRm.size-1)+' child-nya':''}?`;
   showConfirm(msg,()=>{
-    // Soft-delete: tandai semua node sebagai _deleted, simpan ke localStorage
     toRm.forEach(rid=>addPendingDeleteWbs(rid));
     WBS=WBS.filter(w=>!toRm.has(String(w.id)));
     dirty();renderWBS();toast('Dihapus','warn');gsSync();
@@ -6064,7 +6004,7 @@ function renderWbsProgressForm(){
               </div>
               <div>
                 <button class="btn btn-sm" style="padding:3px 8px;font-size:10px;border-color:var(--gn);color:var(--gn);margin-top:10px"
-                  onclick="saveDailyLog(${item.id})">💾</button>
+                  onclick="saveDailyLog('${item.id}')">💾</button>
               </div>
             </div>
           </div>`; 
@@ -6081,23 +6021,46 @@ function _syncDailyToProject(projId){
   const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
   const proj=P.find(p=>String(p.id)===String(projId));
 
-  // Recalculate cumActual dari sum semua dailyLog.pct
+  // cumActual — support 2 mode: qty-based dan pct-based
   leafNodes.forEach(node=>{
     const dl=node.dailyLogs||[];
-    const totalDaily=Math.min(100, dl.reduce((s,l)=>s+(+l.pct||0),0));
-    // Juga ambil dari weeklyData jika ada
-    const wd=node.weeklyData||{};
-    const weeklyTotal=Math.min(100, Object.keys(wd).reduce((s,k)=>s+(+(wd[k].wAct||0)),0));
-    // Gunakan yang lebih besar (daily bisa lebih detail)
-    node.cumActual=Math.max(totalDaily, weeklyTotal);
+    const qtyPlan=+node.qtyPlan||0;
+    let cumActual=0;
+    if(qtyPlan>0){
+      // Mode qty: sum semua qty / qtyPlan * 100
+      const totalQty=Math.min(qtyPlan,dl.reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0));
+      cumActual=Math.round(totalQty/qtyPlan*10000)/100; // 0-100
+    } else {
+      // Mode pct: ambil nilai terbesar (progress kumulatif)
+      const dailyCum=dl.length&&dl.some(l=>l.pct!=null)?Math.max(...dl.map(l=>+l.pct||0)):0;
+      const wd=node.weeklyData||{};
+      const wdKeys=Object.keys(wd);
+      const weeklyLast=wdKeys.length?+(wd[Math.max(...wdKeys.map(Number))]?.cAct||wd[Math.max(...wdKeys.map(Number))]?.wAct||0):0;
+      cumActual=Math.min(100,Math.max(dailyCum,weeklyLast));
+    }
+    node.cumActual=Math.min(100,Math.max(0,cumActual));
   });
 
+  // Propagate cumActual terbaru ke weeklyData entry terakhir (untuk S-Curve)
+  leafNodes.forEach(node=>{
+    const wd=node.weeklyData||{};
+    const wdKeys=Object.keys(wd).map(Number);
+    if(!wdKeys.length)return;
+    const lastWk=Math.max(...wdKeys);
+    // Update cAct di entry terakhir agar sinkron dengan cumActual
+    if(wd[lastWk]){
+      wd[lastWk].cAct=Math.round(node.cumActual*100)/100;
+    }
+  });
   // Update project actual & status
   if(proj){
     const cWeighted=leafNodes.reduce((s,n)=>(s+(+n.bobot||0)*(+n.cumActual||0)/100),0);
     const cPlanWeighted=leafNodes.reduce((s,n)=>{
       const wp=n.weeklyPlan||{};
-      const cum=Math.min(100,Object.keys(wp).reduce((ss,k)=>ss+(+(wp[k].wPlan||0)),0));
+      // Ambil cumPlan dari minggu terakhir weeklyPlan, fallback ke node.cumPlan
+      const wpKeys=Object.keys(wp).map(Number);
+      const lastWk=wpKeys.length?Math.max(...wpKeys):0;
+      const cum=lastWk>0&&wp[lastWk]?.cumPlan!=null?+wp[lastWk].cumPlan:(+n.cumPlan||0);
       return s+(+n.bobot||0)*cum/100;
     },0);
     proj.actual=Math.round(cWeighted*10)/10;
@@ -6207,7 +6170,7 @@ function renderWbsDailyForm(){
 }
 
 function saveSingleDailyLog(nodeId){
-  const node=WBS.find(w=>w.id===nodeId);if(!node)return;
+  const node=WBS.find(w=>String(w.id)===String(nodeId));if(!node)return;
   const date=$('wbsDailyDate')?.value||new Date().toISOString().slice(0,10);
   const pct=parseFloat($('wdl_'+nodeId+'_pct')?.value)||0;
   const notes=($('wdl_'+nodeId+'_notes')?.value||'').trim();
@@ -6274,7 +6237,7 @@ function saveAllDailyLogs(){
 }
 
 function saveDailyLog(itemId){
-  const node=WBS.find(w=>w.id===itemId);if(!node)return;
+  const node=WBS.find(w=>String(w.id)===String(itemId));if(!node)return;
   const date=$('wdi_'+itemId+'_date')?.value||new Date().toISOString().slice(0,10);
   const pct=parseFloat($('wdi_'+itemId+'_pct')?.value)||0;
   const notes=$('wdi_'+itemId+'_notes')?.value?.trim()||'';
@@ -6373,9 +6336,34 @@ function syncWbsToSCurve(projId){
     Object.keys(node.weeklyData||{}).forEach(k=>weekSet.add(+k));
     Object.keys(node.weeklyPlan||{}).forEach(k=>weekSet.add(+k));
   });
-  if(!weekSet.size)return;
+  if(!weekSet.size){
+    const hasCumPlan=leafNodes.some(n=>(+n.cumPlan||0)>0||(+n.cumActual||0)>0);
+    if(!hasCumPlan)return;
+    const totalCPlan=leafNodes.reduce((s,n)=>{
+      const wp=n.weeklyPlan||{};
+      const wpKeys=Object.keys(wp).map(Number);
+      const lastWk=wpKeys.length?Math.max(...wpKeys):0;
+      const cp=lastWk>0&&wp[lastWk]?.cumPlan!=null?+wp[lastWk].cumPlan:(+n.cumPlan||0);
+      return s+(+n.bobot||0)*cp/100;
+    },0);
+    const totalCAct=leafNodes.reduce((s,n)=>s+(+n.bobot||0)*(+n.cumActual||0)/100,0);
+    let dateStart='';
+    if(proj?.mulai){const d=new Date(proj.mulai);dateStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});}
+    SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.fromWbs));
+    SCURVE.push({projId,week:1,wPlan:Math.round(totalCPlan*100)/100,wAct:Math.round(totalCAct*100)/100,
+      cPlan:Math.round(totalCPlan*100)/100,cAct:Math.round(totalCAct*100)/100,dateStart,fromWbs:true});
+    return;
+  }
   SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.fromWbs));
   const prevCumByNode={};
+  // Hitung cumActual per node berdasarkan weeklyData/dailyLogs (sudah up-to-date)
+  // Untuk S-Curve, distribusikan cumActual ke minggu terakhir yang ada datanya
+  const nodeLastWeek={};
+  leafNodes.forEach(node=>{
+    const wd=node.weeklyData||{};
+    const wdKeys=Object.keys(wd).map(Number).filter(k=>+(wd[k]?.wAct||0)>0||+(wd[k]?.cAct||0)>0);
+    if(wdKeys.length)nodeLastWeek[node.id]=Math.max(...wdKeys);
+  });
   let cumAct=0;
   [...weekSet].sort((a,b)=>a-b).forEach(week=>{
     let wPlan=0,wAct=0,cPlanContrib=0;
@@ -6383,7 +6371,22 @@ function syncWbsToSCurve(projId){
       const bobot=+node.bobot||0;
       const wp=node.weeklyPlan||{};
       const wd=node.weeklyData||{};
-      wAct+=bobot*(+(wd[week]?.wAct||0))/100;
+      // wAct untuk minggu ini: gunakan cAct jika ada (kumulatif), atau wAct (incremental)
+      // Selisih dari minggu sebelumnya untuk mendapat weekly increment
+      const thisWeekData=wd[week]||{};
+      const prevWkKeys=Object.keys(wd).map(Number).filter(k=>k<week&&(+(wd[k]?.cAct||0)>0||+(wd[k]?.wAct||0)>0));
+      // Deteksi mode: jika ada cAct field, gunakan selisih cAct (kumulatif mode)
+      // Jika tidak, wAct = incremental langsung
+      let thisActPct, prevActPct;
+      if(thisWeekData.cAct!=null){
+        thisActPct=+thisWeekData.cAct;
+        const prevKey=prevWkKeys.length?Math.max(...prevWkKeys):null;
+        prevActPct=prevKey!=null&&wd[prevKey]?.cAct!=null?+wd[prevKey].cAct:0;
+      } else {
+        thisActPct=+thisWeekData.wAct||0;
+        prevActPct=0; // wAct sudah incremental
+      }
+      wAct+=bobot*Math.max(0,thisActPct-prevActPct)/100;
       // Derive cumulative plan \u2014 prefer cumPlan field (new grid), fallback to summing wPlan (legacy)
       let cumPlanNode=null;
       if(wp[week]?.cumPlan!=null){
@@ -6488,23 +6491,28 @@ function renderDailyReport(){
   if(wb){if(weekNum){wb.textContent='Minggu W'+String(weekNum).padStart(2,'0');wb.style.display='inline-block';}else wb.style.display='none';}
   const all=WBS.filter(w=>String(w.projId)===String(projId));
   const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
+  // Pastikan cumActual node up-to-date
+  _syncDailyToProject(projId);
+  // Semua KPI dalam persen (0-100)
   let dayPct=0,cumAct=0,cumPlan=0;
   leafNodes.forEach(node=>{
-    const qtyPlan=+node.qtyPlan||0;const bobot=+node.bobot||0;
+    const bobot=+node.bobot||0;
     const dl=node.dailyLogs||[];
     const todayLog=dl.find(l=>l.date===date);
-    const todayQty=todayLog?.qty!=null?+todayLog.qty:0;
-    if(qtyPlan>0&&todayQty>0)dayPct+=(bobot/100)*(todayQty/qtyPlan);
-    const totalQty=Math.min(qtyPlan||999999,dl.filter(l=>l.date<=date).reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0));
-    if(qtyPlan>0)cumAct+=(bobot/100)*(totalQty/qtyPlan);
-    if(weekNum&&node.weeklyPlan&&node.weeklyPlan[weekNum])cumPlan+=bobot*(+(node.weeklyPlan[weekNum].cPlan||node.weeklyPlan[weekNum].wPlan||0))/100;
-    else cumPlan+=bobot*(+node.cumPlan||0)/100;
+    const todayPct=todayLog?.pct!=null?+todayLog.pct:0;
+    dayPct+=(bobot/100)*todayPct;
+    cumAct+=(bobot/100)*(+node.cumActual||0);
+    if(weekNum&&node.weeklyPlan&&node.weeklyPlan[weekNum]){
+      cumPlan+=(bobot/100)*(+(node.weeklyPlan[weekNum].cPlan||node.weeklyPlan[weekNum].wPlan||0));
+    } else {
+      cumPlan+=(bobot/100)*(+node.cumPlan||0);
+    }
   });
-  if($('drK1'))$('drK1').textContent=(dayPct*100).toFixed(2)+'%';
-  if($('drK2'))$('drK2').textContent=(cumAct*100).toFixed(2)+'%';
-  if($('drK3'))$('drK3').textContent=(cumPlan*100).toFixed(2)+'%';
+  if($('drK1'))$('drK1').textContent=dayPct.toFixed(2)+'%';
+  if($('drK2'))$('drK2').textContent=cumAct.toFixed(2)+'%';
+  if($('drK3'))$('drK3').textContent=cumPlan.toFixed(2)+'%';
   const variance=cumAct-cumPlan;
-  if($('drK4')){$('drK4').textContent=(variance>=0?'+':'')+(variance*100).toFixed(2)+'%';$('drK4').style.color=variance>=0?'var(--gn)':variance>=-0.0005?'var(--yw)':'var(--rd)';}
+  if($('drK4')){$('drK4').textContent=(variance>=0?'+':'')+variance.toFixed(2)+'%';$('drK4').style.color=variance>=0?'var(--gn)':variance>=-5?'var(--yw)':'var(--rd)';}
   if($('drK5'))$('drK5').textContent=weekNum?'W'+String(weekNum).padStart(2,'0'):'\u2014';
   if($('drDateLabel'))$('drDateLabel').textContent=date;
   renderDrMainTable(projId,date);
@@ -6694,17 +6702,24 @@ function saveDrInput(){
     if(idx>=0)node.dailyLogs[idx]=entry;else node.dailyLogs.push(entry);
     node.dailyLogs.sort((a,b)=>a.date.localeCompare(b.date));
     // Update weeklyData dari qty
-    if(weekNum&&+node.qtyPlan>0){
-      if(!node.weeklyData)node.weeklyData={};
-      const weekQty=node.dailyLogs.filter(l=>l.week===weekNum).reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0);
-      const wAct=Math.min(100,weekQty/node.qtyPlan*100);
-      node.weeklyData[weekNum]={...(node.weeklyData[weekNum]||{}),wAct:Math.round(wAct*100)/100};
-      const cumAct=Math.min(100,Object.keys(node.weeklyData).filter(k=>+k<=weekNum).reduce((s,k)=>s+(+(node.weeklyData[k].wAct||0)),0));
-      node.weeklyData[weekNum].cAct=Math.round(cumAct*100)/100;
-    }
+    // Update cumActual dari totalQty
     if(+node.qtyPlan>0){
       const totalQty=Math.min(+node.qtyPlan,node.dailyLogs.reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0));
-      node.cumActual=Math.round(totalQty/node.qtyPlan*100*100)/100;
+      node.cumActual=Math.min(100,Math.round(totalQty/node.qtyPlan*10000)/100);
+    }
+    // Update weeklyData untuk S-Curve
+    if(weekNum){
+      if(!node.weeklyData)node.weeklyData={};
+      if(!node.weeklyData[weekNum])node.weeklyData[weekNum]={};
+      if(+node.qtyPlan>0){
+        // Qty mode: wAct = % kumulatif s.d. minggu ini (bukan hanya minggu ini)
+        // cAct = sama dengan node.cumActual (total progress)
+        node.weeklyData[weekNum].cAct=Math.round(node.cumActual*100)/100;
+        // wAct = selisih dari minggu sebelumnya
+        const prevWkKeys=Object.keys(node.weeklyData).map(Number).filter(k=>k<weekNum&&node.weeklyData[k]?.cAct!=null);
+        const prevCumAct=prevWkKeys.length?+(node.weeklyData[Math.max(...prevWkKeys)]?.cAct||0):0;
+        node.weeklyData[weekNum].wAct=Math.round(Math.max(0,node.cumActual-prevCumAct)*100)/100;
+      }
     }
     saved++;
   });
@@ -6769,7 +6784,7 @@ function renderDailyHistoryTable(projId){
   $('drHistTable').innerHTML=html;
 }
 function delDailyLog(nodeId,date){
-  const node=WBS.find(w=>w.id==nodeId);if(!node)return;
+  const node=WBS.find(w=>String(w.id)===String(nodeId));if(!node)return;
   showConfirm(`Hapus log ${date}?`,()=>{
     node.dailyLogs=(node.dailyLogs||[]).filter(l=>l.date!==date);
     _syncDailyToProject(node.projId);
@@ -7673,7 +7688,7 @@ function sanitizeMpLogs(arr){
   }));
 }
 function sanitizeAccLogs(arr){
-  return (arr||[]).filter(r=>!r._deleted&&r.date).map(a=>({
+  return (arr||[]).filter(r=>r.date).map(a=>({
     id:a.id||Date.now(),
     projId:a.projId,
     date:safeStr(a.date).slice(0,30),
@@ -8041,45 +8056,18 @@ async function _rtPoll(){
       P.forEach(p=>{if(!p.logo&&(lc[p.id]||lc[String(p.id)]))p.logo=lc[p.id]||lc[String(p.id)];});
     }catch(ex){}
 
-    // Merge ISS by id — remote wins, tapi jangan resurrect pending deletes
-    const _rtIss=getPendingDeletesIss();
-    {const im=new Map();ISS.forEach(i=>im.set(String(i.id),i));
-    sanitizeIssues(d.issues).forEach(i=>{if(!_rtIss.has(String(i.id)))im.set(String(i.id),i);});
-    ISS=[...im.values()].filter(i=>!i._deleted&&!_rtIss.has(String(i.id)));}
+    ISS=sanitizeIssues(d.issues);
 
-    // Merge PROC by id — remote wins, tapi jangan resurrect pending deletes
+    // Merge PROC by id
     const remP=sanitizeProc(d.procurement);
-    const _pendDel=getPendingDeletes();
     const pm=new Map();
     PROC.forEach(p=>pm.set(String(p.id),p));
-    remP.forEach(p=>{
-      // Jika item ini masih pending delete lokal, skip remote version
-      if(!_pendDel.has(String(p.id))) pm.set(String(p.id),p);
-    });
-    // Pastikan item pending delete tetap ada di map dengan flag _deleted (untuk dikirim ke GSheet)
-    _pendDel.forEach(id=>{
-      const existing=pm.get(id);
-      if(existing&&!existing._deleted) pm.set(id,{...existing,_deleted:true});
-    });
-    PROC=[...pm.values()].filter(p=>!p._deleted);
+    remP.forEach(p=>pm.set(String(p.id),p));
+    PROC=[...pm.values()];
 
-    // Merge MP, ACC, COST, RAB by id — remote wins, respect pending deletes
-    const _rtMp=getPendingDeletesMp();
-    {const mm=new Map();MPLOGS.forEach(m=>mm.set(String(m.id),m));
-    sanitizeMpLogs(d.manpowerLogs).forEach(m=>{if(!_rtMp.has(String(m.id)))mm.set(String(m.id),m);});
-    MPLOGS=[...mm.values()].filter(m=>!m._deleted&&!_rtMp.has(String(m.id)));}
-    const _rtAcc=getPendingDeletesAcc();
-    {const am=new Map();ACCLOGS.forEach(a=>am.set(String(a.id),a));
-    sanitizeAccLogs(d.accidentLogs).forEach(a=>{if(!_rtAcc.has(String(a.id)))am.set(String(a.id),a);});
-    ACCLOGS=[...am.values()].filter(a=>!a._deleted&&!_rtAcc.has(String(a.id)));}
-    const _rtCost=getPendingDeletesCost();
-    {const cm=new Map();COSTS.forEach(c=>cm.set(String(c.id),c));
-    sanitizeCosts(d.costs||[]).forEach(c=>{if(!_rtCost.has(String(c.id)))cm.set(String(c.id),c);});
-    COSTS=[...cm.values()].filter(c=>!c._deleted&&!_rtCost.has(String(c.id)));}
-    const _rtRab=getPendingDeletesRab();
-    {const rm=new Map();RAB.forEach(r=>rm.set(String(r.id),r));
-    sanitizeRab(d.rab||[]).forEach(r=>{if(!_rtRab.has(String(r.id)))rm.set(String(r.id),r);});
-    RAB=[...rm.values()].filter(r=>!r._deleted&&!_rtRab.has(String(r.id)));}
+    MPLOGS=sanitizeMpLogs(d.manpowerLogs);
+    ACCLOGS=sanitizeAccLogs(d.accidentLogs);COSTS=sanitizeCosts(d.costs||[]);
+    RAB=sanitizeRab(d.rab||[]);
 
     if(d.history){
       d.history.forEach(h=>{
@@ -8089,19 +8077,12 @@ async function _rtPoll(){
       });
     }
 
-    // Merge WBS by id — respect pending deletes agar tidak zombie
+    // Merge WBS by id
     if(Array.isArray(d.wbs)&&d.wbs.length){
-      const _pendDelWbs=getPendingDeletesWbs();
       const wm=new Map();
       WBS.forEach(w=>wm.set(String(w.id),w));
-      d.wbs.forEach(w=>{
-        if(!_pendDelWbs.has(String(w.id))) wm.set(String(w.id),w);
-      });
-      _pendDelWbs.forEach(id=>{
-        const ex=wm.get(id);
-        if(ex&&!ex._deleted) wm.set(id,{...ex,_deleted:true});
-      });
-      WBS=[...wm.values()].filter(w=>!w._deleted);
+      d.wbs.forEach(w=>wm.set(String(w.id),w));
+      WBS=[...wm.values()];
       syncAllWbsToProjects();
     }
 
@@ -8160,8 +8141,9 @@ function _rtSmartRender(){
   else if(activeTab==='issues')renderIssues?.();
   else if(activeTab==='procurement')renderProc();
   else if(activeTab==='cost'){renderCost();renderRab();}
-  else if(activeTab==='wbs')renderWBS();
+  else if(activeTab==='wbs'){syncAllWbsToProjects();renderWBS();}
   else if(activeTab==='daily')renderDailyReport();
+  else if(activeTab==='scurve')renderSCurve();
 }
 
 // Start polling setiap 15 detik
