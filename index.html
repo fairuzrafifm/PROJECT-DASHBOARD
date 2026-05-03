@@ -4681,7 +4681,8 @@ async function loadFromGS(){
         }catch(e){}
       }
       clean('Google Sheet');render();
-      toast('✓ '+P.length+' project dimuat dari Google Sheet');
+      const _rabCount=RAB.length;const _kostsCount=COSTS.length;
+      toast('✓ '+P.length+' project · WBS:'+WBS.length+' · RAB:'+_rabCount+' · Cost:'+_kostsCount+' dimuat dari GSheet');
     }else{
       $('sdot').style.background='var(--mt)';
       $('smsg').textContent='Google Sheet terhubung \u2014 belum ada data';
@@ -5374,7 +5375,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.28';
+  const DASH_VER='3.29';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
