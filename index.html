@@ -2062,8 +2062,14 @@ let selId=null,editProjId=null,editIssId=null,editProcId=null,editRabId=null,edi
 let isDirty=false,pendImp=null,curFile=null,activeTab='overview';
 let gsUrl='',gsSheet='',gsOk=false;
 
-// Load GS config
-try{const c=JSON.parse(localStorage.getItem('atw_gs')||'{}');gsUrl=c.url||'';gsSheet=c.sheet||'';if(gsUrl)gsOk=true;}catch(e){}
+// Default URL — auto-connect tanpa perlu setup manual
+const _DEFAULT_GS_URL='https://script.google.com/macros/s/AKfycbxTbt9evowelUh1zmsTvbFGQlOL8NY4rlvHdO1IWJobWQ2P8_oo4ebbdn-mnDHFiPRz/exec';
+const _DEFAULT_GS_SHEET='1XeECJqg-yqxitUUAVva-r6oD5-1ETptaolu9H3m_mCs';
+
+// Load GS config — prioritas localStorage, fallback ke default
+try{const c=JSON.parse(localStorage.getItem('atw_gs')||'{}');gsUrl=c.url||_DEFAULT_GS_URL;gsSheet=c.sheet||_DEFAULT_GS_SHEET;if(gsUrl)gsOk=true;}catch(e){}
+// Jika belum ada di localStorage, set default
+if(!gsUrl){gsUrl=_DEFAULT_GS_URL;gsSheet=_DEFAULT_GS_SHEET;gsOk=true;}
 
 // ===============================================================
 // UTILS
@@ -4210,8 +4216,14 @@ const GS_SCRIPT=`// ATW Solar Dashboard — Google Apps Script v11
 const SHEET_ID = '${gsSheet||"GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA"}';
 
 function getSpreadsheet() {
+  // Coba SHEET_ID dulu (harus sudah di-replace dengan ID yang benar)
+  if (SHEET_ID && SHEET_ID.length > 10 && !SHEET_ID.includes('${') && !SHEET_ID.includes('GANTI')) {
+    try { return SpreadsheetApp.openById(SHEET_ID); } catch(e) {}
+  }
+  // Fallback: coba ambil dari script properties atau active spreadsheet
   try {
-    if (SHEET_ID && SHEET_ID.length > 10) return SpreadsheetApp.openById(SHEET_ID);
+    const prop = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+    if (prop && prop.length > 10) return SpreadsheetApp.openById(prop);
   } catch(e) {}
   return SpreadsheetApp.getActiveSpreadsheet();
 }
@@ -4326,9 +4338,12 @@ function doGet(e) {
       });
     }
     const meta = readSheet(ss,'_META');
+    // Save SHEET_ID ke Script Properties agar persisten
+    try { PropertiesService.getScriptProperties().setProperty('SHEET_ID', SHEET_ID); } catch(e) {}
     return makeOutput({
       lastSaved:    meta.length ? (+meta[0].lastSaved||0) : 0,
       pw_admin, pw_editor, dash_logo,
+      _sheetId: SHEET_ID,
       projects:     readSheet(ss,'PROJECTS')    ||[],
       history:      readSheet(ss,'HISTORY')     ||[],
       issues:       readSheet(ss,'ISSUES')      ||[],
@@ -4424,8 +4439,14 @@ async function testGS(){
   }
 }
 function copyGsScript(){
-  navigator.clipboard?.writeText(GS_SCRIPT).then(()=>toast('Script disalin ✓')).catch(()=>{
-    const t=document.createElement('textarea');t.value=GS_SCRIPT;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('Script disalin ✓');
+  // Inject SHEET_ID aktual saat copy agar tidak perlu ganti manual
+  const sheetId=gsSheet||(()=>{try{const u=new URL(gsUrl);return '';}catch(e){return '';}})();
+  const scriptToCopy=GS_SCRIPT.replace(
+    /const SHEET_ID = '.*?';/,
+    sheetId ? "const SHEET_ID = '"+sheetId+"';" : "const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';"
+  );
+  navigator.clipboard?.writeText(scriptToCopy).then(()=>toast('Script disalin ✓ (SHEET_ID sudah terisi)')).catch(()=>{
+    const t=document.createElement('textarea');t.value=scriptToCopy;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('Script disalin ✓');
   });
 }
 
@@ -4682,7 +4703,8 @@ async function loadFromGS(){
       }
       clean('Google Sheet');render();
       const _rabCount=RAB.length;const _kostsCount=COSTS.length;
-      toast('✓ '+P.length+' project · WBS:'+WBS.length+' · RAB:'+_rabCount+' · Cost:'+_kostsCount+' dimuat dari GSheet');
+      const _sid=d._sheetId?(' · SheetID:'+String(d._sheetId).slice(-6)):'';
+      toast('✓ '+P.length+' project · WBS:'+WBS.length+' · RAB:'+_rabCount+' · Cost:'+_kostsCount+_sid+' dimuat dari GSheet');
     }else{
       $('sdot').style.background='var(--mt)';
       $('smsg').textContent='Google Sheet terhubung \u2014 belum ada data';
@@ -5375,7 +5397,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.29';
+  const DASH_VER='3.31';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
