@@ -4213,11 +4213,11 @@ const _origRenderCost=typeof renderCost==='function'?renderCost:null;
 const GS_SCRIPT=`// ATW Solar Dashboard — Google Apps Script v11
 // Deploy: Execute as Me, Anyone can access
 
-const SHEET_ID = '${gsSheet||"GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA"}';
+const SHEET_ID = 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA';
 
 function getSpreadsheet() {
   // Coba SHEET_ID dulu (harus sudah di-replace dengan ID yang benar)
-  if (SHEET_ID && SHEET_ID.length > 10 && !SHEET_ID.includes('${') && !SHEET_ID.includes('GANTI')) {
+  if (SHEET_ID && SHEET_ID.length > 10 && !SHEET_ID.includes('GANTI') && SHEET_ID !== 'GANTI_DENGAN_ID_GOOGLE_SHEET_ANDA') {
     try { return SpreadsheetApp.openById(SHEET_ID); } catch(e) {}
   }
   // Fallback: coba ambil dari script properties atau active spreadsheet
@@ -5397,7 +5397,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.31';
+  const DASH_VER='3.33';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
