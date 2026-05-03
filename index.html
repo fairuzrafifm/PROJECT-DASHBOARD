@@ -3837,7 +3837,7 @@ function sanitizeRab(arr){
 // Helper: get actual spending per RAB kategori for a project
 function getRabActualByKat(projId){
   // Collect all costs for this project
-  const spid=String(projId);const allCosts=getAllCosts().filter(c=>String(c.projId)===spid||+c.projId===+spid);
+  const spid=String(projId);const allCosts=getAllCosts().filter(c=>String(c.projId)===spid||_idMatch(c.projId,projId));
   const byKat={};
   // Map procurement kategori -> RAB kategori via procKat field on RAB items
   const rabItems=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(projId));
@@ -3847,7 +3847,7 @@ function getRabActualByKat(projId){
     if(ri.procKat){procKatToRabKat[ri.procKat]=ri.katId;}
   });
   // Build RAB kat lookup
-  const rabKats=RAB.filter(r=>r.type==='kat'&&(String(r.projId)===spid||+r.projId===+spid));
+  const rabKats=RAB.filter(r=>r.type==='kat'&&(String(r.projId)===spid||_idMatch(r.projId,projId)));
   // Accumulate by kategori
   allCosts.forEach(c=>{
     let katId=null;
@@ -3905,8 +3905,8 @@ function renderRab(){
     return;
   }
 
-  const kats=RAB.filter(r=>r.type==='kat'&&(String(r.projId)===String(projId)||+r.projId===+projId)).sort((a,b)=>a.urutan-b.urutan||(a.name>b.name?1:-1));
-  const items=RAB.filter(r=>r.type==='item'&&(String(r.projId)===String(projId)||+r.projId===+projId));
+  const kats=RAB.filter(r=>r.type==='kat'&&(String(r.projId)===String(projId)||_idMatch(r.projId,projId))).sort((a,b)=>a.urutan-b.urutan||(a.name>b.name?1:-1));
+  const items=RAB.filter(r=>r.type==='item'&&(String(r.projId)===String(projId)||_idMatch(r.projId,projId)));
   const actualByKat=getRabActualByKat(projId);
 
   // Total RAB
@@ -4181,7 +4181,7 @@ function exportRabCSV(){
   const projId=gv('rabFiltProj');
   const proj=P.find(p=>String(p.id)===String(projId));
   const kats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(projId)).sort((a,b)=>a.urutan-b.urutan);
-  const items=RAB.filter(r=>r.type==='item'&&(String(r.projId)===String(projId)||+r.projId===+projId));
+  const items=RAB.filter(r=>r.type==='item'&&(String(r.projId)===String(projId)||_idMatch(r.projId,projId)));
   const actualByKat=getRabActualByKat(projId);
   const rows=[['Project','Kategori','Deskripsi','Satuan','Volume','Harga Satuan','Total RAB','Aktual','Sisa','% Terpakai']];
   kats.forEach(k=>{
@@ -4453,6 +4453,13 @@ function getPendingDeletesRab(){try{return new Set(JSON.parse(localStorage.getIt
 function addPendingDeleteRab(id){const s=getPendingDeletesRab();s.add(String(id));try{localStorage.setItem('atw_deleted_rab',JSON.stringify([...s]));}catch(e){}}
 function clearPendingDeletesRab(){try{localStorage.removeItem('atw_deleted_rab');}catch(e){}}
 function genId(){return String(Date.now())+Math.random().toString(36).slice(2,6);}
+// Match ID yang mungkin di-truncate GSheet (strip alphanumeric suffix, bandingkan numeric prefix)
+function _numPrefix(id){const s=String(id||'');const m=s.match(/^(\d+)/);return m?m[1]:s;}
+function _idMatch(a,b){
+  if(String(a)===String(b))return true;
+  const na=_numPrefix(a),nb=_numPrefix(b);
+  return na&&nb&&na===nb;
+}
 async function gsSync(){
   if(!gsOk||!gsUrl)return;
   // Debounce \u2014 jangan sync terlalu sering
@@ -4580,8 +4587,17 @@ async function loadFromGS(){
         const validProjIds=new Set(P.map(p=>String(p.id)));
         rawRab=rawRab.map(r=>{
           if(validProjIds.has(r.projId))return r;
-          const m=P.find(p=>+p.id===+r.projId);
+          // GSheet mungkin strip suffix alphanumeric dari genId — match by numeric prefix
+          const m=P.find(p=>_idMatch(p.id,r.projId));
           return m?{...r,projId:String(m.id)}:r;
+        });
+        // Juga normalize katId di RAB items
+        const katIds=new Set(rawRab.filter(r=>r.type==='kat').map(r=>String(r.id)));
+        rawRab=rawRab.map(r=>{
+          if(r.type!=='item'||!r.katId)return r;
+          if(katIds.has(String(r.katId)))return r;
+          const matchKat=rawRab.find(k=>k.type==='kat'&&_idMatch(k.id,r.katId));
+          return matchKat?{...r,katId:String(matchKat.id)}:r;
         });
       }
       RAB=rawRab;}
@@ -4630,15 +4646,28 @@ async function loadFromGS(){
         parentId:w.parentId!=null&&w.parentId!==''?_toId(w.parentId):null
       }));
 
-      // Match WBS projId to actual project IDs (handle numeric vs string mismatch)
+      // Match WBS projId — handle genId suffix stripped by GSheet
       if(WBS.length&&P.length){
-        const validProjIds=new Set(P.map(p=>p.id));
+        const validProjIds=new Set(P.map(p=>String(p.id)));
+        // Build id->id map for WBS node self-normalization (parentId fix)
+        const wbsIdMap={}; // stripped -> full id
+        WBS.forEach(w=>{
+          const np=_numPrefix(w.id);
+          if(np&&np!==w.id)wbsIdMap[np]=w.id;
+        });
         WBS=WBS.map(w=>{
-          if(validProjIds.has(w.projId))return w;
-          const match=P.find(p=>+p.id===+w.projId);
-          if(match){
-return{...w,projId:match.id};}
-          return w;
+          let projId=w.projId;
+          if(!validProjIds.has(projId)){
+            const m=P.find(p=>_idMatch(p.id,projId));
+            if(m)projId=String(m.id);
+          }
+          // Fix parentId jika di-strip GSheet
+          let parentId=w.parentId;
+          if(parentId){
+            const fullParent=wbsIdMap[_numPrefix(parentId)];
+            if(fullParent)parentId=fullParent;
+          }
+          return{...w,projId,parentId};
         });
       }
       syncAllWbsToProjects();
@@ -5347,7 +5376,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.25';
+  const DASH_VER='3.26';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -8161,7 +8190,22 @@ async function _rtPoll(){
     {const _lc=getPendingDeletesCost();COSTS=sanitizeCosts(d.costs||[]).filter(c=>!_lc.has(String(c.id)));}
     {const _lr=getPendingDeletesRab();
     let rawRab=sanitizeRab(d.rab||[]).filter(r=>!_lr.has(String(r.id)));
-    if(rawRab.length&&P.length){const validProjIds=new Set(P.map(p=>String(p.id)));rawRab=rawRab.map(r=>{if(validProjIds.has(r.projId))return r;const m=P.find(p=>+p.id===+r.projId);return m?{...r,projId:String(m.id)}:r;});}
+    if(rawRab.length&&P.length){
+      const validProjIds=new Set(P.map(p=>String(p.id)));
+      rawRab=rawRab.map(r=>{
+        if(validProjIds.has(r.projId))return r;
+        const m=P.find(p=>_idMatch(p.id,r.projId));
+        return m?{...r,projId:String(m.id)}:r;
+      });
+      // Normalize katId
+      const katIds=new Set(rawRab.filter(r=>r.type==='kat').map(r=>String(r.id)));
+      rawRab=rawRab.map(r=>{
+        if(r.type!=='item'||!r.katId)return r;
+        if(katIds.has(String(r.katId)))return r;
+        const matchKat=rawRab.find(k=>k.type==='kat'&&_idMatch(k.id,r.katId));
+        return matchKat?{...r,katId:String(matchKat.id)}:r;
+      });
+    }
     RAB=rawRab;}
 
     if(d.history){
@@ -8194,13 +8238,20 @@ async function _rtPoll(){
         startDate:_pd(w.startDate),
         finishDate:_pd(w.finishDate)
       }));
-      // Match projId ke P[]
+      // Match projId ke P[] — handle genId suffix stripped by GSheet
       if(P.length){
         const validProjIds=new Set(P.map(p=>String(p.id)));
+        // Build parentId fix map
+        const wbsIdMap={};
+        parsedWbs.forEach(w=>{const np=_numPrefix(w.id);if(np&&np!==w.id)wbsIdMap[np]=w.id;});
         parsedWbs.forEach(w=>{
           if(!validProjIds.has(w.projId)){
-            const m=P.find(p=>+p.id===+w.projId);
+            const m=P.find(p=>_idMatch(p.id,w.projId));
             if(m)w.projId=String(m.id);
+          }
+          if(w.parentId){
+            const fp=wbsIdMap[_numPrefix(w.parentId)];
+            if(fp)w.parentId=fp;
           }
         });
       }
