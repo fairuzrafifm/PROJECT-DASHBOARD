@@ -1056,6 +1056,7 @@ select.fi{color-scheme:dark}
         </div>
 
         <!-- RAB KPI -->
+        <div id="rabUncatInfo" style="display:none;padding:6px 12px;font-size:11px;background:rgba(245,158,11,.08);border-radius:6px;margin-bottom:8px"></div>
         <div id="rabKpiRow" style="display:none">
           <div class="krow" style="grid-template-columns:repeat(4,1fr);margin:10px 0 6px">
             <div class="kpi" style="border-top:3px solid var(--bl)"><div class="kl">Total RAB</div><div class="kv" id="rabK1" style="color:var(--bl);font-size:16px">Rp 0</div><div class="ks" id="rabK1s">—</div></div>
@@ -1347,6 +1348,20 @@ select.fi{color-scheme:dark}
     </div>
     <div class="fg"><label class="fl">Dibayar oleh</label>
       <input class="fi" id="cPaidBy" placeholder="Nama / Jabatan">
+    </div>
+  </div>
+  <div class="f2">
+    <div class="fg"><label class="fl">No. Referensi / Invoice
+      <span style="font-size:9px;color:var(--mt);font-weight:400"> (opsional)</span>
+    </label>
+      <input class="fi" id="cRef" placeholder="INV-001, SPK-2026...">
+    </div>
+    <div class="fg"><label class="fl">Status</label>
+      <select class="fi" id="cStatus">
+        <option value="unpaid">⏳ Belum Dibayar</option>
+        <option value="paid">✅ Sudah Dibayar</option>
+        <option value="partial">🔄 Bayar Sebagian</option>
+      </select>
     </div>
   </div>
   <div class="fg"><label class="fl">Keterangan</label>
@@ -2149,21 +2164,9 @@ function syncAllWbsToProjects(){
     if(!all.length)return;
     const leaves=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
     if(!leaves.length)return;
-    const cAct=leaves.reduce((s,n)=>{
-      const wd=n.weeklyData||{};
-      const cum=Math.min(100,Object.keys(wd).reduce((ss,k)=>ss+(+(wd[k].wAct||0)),0));
-      return s+(+n.bobot||0)*cum/100;
-    },0);
-    const cPlan=leaves.reduce((s,n)=>{
-      const wp=n.weeklyPlan||{};
-      const cum=Math.min(100,Object.keys(wp).reduce((ss,k)=>ss+(+(wp[k].wPlan||0)),0));
-      return s+(+n.bobot||0)*cum/100;
-    },0);
-    if(cAct>0||cPlan>0){
-      proj.actual=Math.round(cAct*10)/10;
-      if(cPlan>0)proj.plan=Math.round(cPlan*10)/10;
-      syncWbsToSCurve(projId);
-    }
+    // Delegasi ke _syncDailyToProject yang handle qty+pct mode dengan benar
+    _syncDailyToProject(projId);
+    // syncWbsToSCurve sudah dipanggil di dalam _syncDailyToProject
   });
 }
 
@@ -3665,7 +3668,7 @@ function renderCost(){
   }
   const typeLabel=t=>t==='procurement'?`<span class="cost-type-proc">PROC</span>`:t==='opex'?`<span class="cost-type-opex">OPEX</span>`:`<span class="cost-type-other">LAIN</span>`;
   detEl.innerHTML=`<table class="tbl"><thead><tr>
-    <th>Tgl</th><th>Project</th><th>Tipe</th><th>Kategori</th><th>Deskripsi</th><th>Dibayar oleh</th><th style="text-align:right">Jumlah</th><th></th>
+    <th>Tgl</th><th>Project</th><th>Tipe</th><th>Kategori</th><th>Deskripsi</th><th>Ref</th><th>Dibayar oleh</th><th style="text-align:right">Jumlah</th><th>Status</th><th></th>
   </tr></thead><tbody>
   ${filtered.map(c=>{
     const pr=P.find(p=>String(p.id)===String(c.projId));
@@ -3678,6 +3681,7 @@ function renderCost(){
       <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.deskripsi||''}">${c.deskripsi||'\u2014'}</td>
       <td style="color:var(--mt);font-size:11px">${c.paidBy||'\u2014'}</td>
       <td style="font-family:var(--fm);font-weight:700;color:var(--gn);text-align:right;white-space:nowrap">${fmtRp(c.amount)}</td>
+      <td>${(()=>{const st=c.status||'unpaid';return st==='paid'?'<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(16,185,129,.15);color:var(--gn)">✅ Lunas</span>':st==='partial'?'<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(245,158,11,.15);color:var(--yw)">🔄 Sebagian</span>':'<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:rgba(239,68,68,.1);color:var(--rd)">⏳ Belum</span>';})()}</td>
       <td>${canEdit?`<button class="btn btn-sm edit-only" style="padding:2px 6px" onclick="openModal('editCost','${c.id}')">✏</button>`:'<span style="font-size:9px;color:var(--mt)">via Proc</span>'}</td>
     </tr>`;}).join('')}
   </tbody></table>`;
@@ -3696,11 +3700,12 @@ function openCostModal(id=null){
     sv('cDesc',c.deskripsi||'');
     if($('cAmount'))$('cAmount').value=c.amount||'';
     sv('cPaidBy',c.paidBy||'');sv('cNotes',c.notes||'');
+    sv('cRef',c.ref||'');sv('cStatus',c.status||'unpaid');
   }else{
     sv('cProj',selId||'');sv('cDate',new Date().toISOString().slice(0,10));
     sv('cType','opex');sv('cKat','');sv('cDesc','');
     if($('cAmount'))$('cAmount').value='';
-    sv('cPaidBy','');sv('cNotes','');
+    sv('cPaidBy','');sv('cNotes','');sv('cRef','');sv('cStatus','unpaid');
   }
   show('ov-addCost');
 }
@@ -3718,7 +3723,9 @@ function saveCost(){
     deskripsi:desc,
     amount:amt,
     paidBy:(gv('cPaidBy')||'').trim(),
-    notes:(gv('cNotes')||'').trim()
+    notes:(gv('cNotes')||'').trim(),
+    ref:(gv('cRef')||'').trim(),
+    status:gv('cStatus')||'unpaid'
   };
   if(editCostId){
     const i=COSTS.findIndex(x=>String(x.id)===String(editCostId));
@@ -3770,7 +3777,9 @@ function sanitizeCosts(arr){
     deskripsi:String(c.deskripsi||'').slice(0,300),
     amount:+c.amount||0,
     paidBy:String(c.paidBy||'').slice(0,100),
-    notes:String(c.notes||'').slice(0,300)
+    notes:String(c.notes||'').slice(0,300),
+    ref:String(c.ref||'').slice(0,100),
+    status:['paid','unpaid','partial'].includes(c.status)?c.status:'unpaid'
   })).filter(c=>{if(seen.has(c.id))return false;seen.add(c.id);return true;});
 }
 
@@ -3812,16 +3821,34 @@ function getRabActualByKat(projId){
   rabItems.forEach(ri=>{
     if(ri.procKat){procKatToRabKat[ri.procKat]=ri.katId;}
   });
+  // Build RAB kat lookup
+  const rabKats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(projId));
   // Accumulate by kategori
   allCosts.forEach(c=>{
-    // Try to match to a RAB category
     let katId=null;
+    const cKat=(c.kategori||'').toLowerCase().trim();
+    // 1. Exact match via procKat field
     if(c.type==='procurement'&&c.kategori&&procKatToRabKat[c.kategori]){
       katId=procKatToRabKat[c.kategori];
-    } else {
-      // Try matching by kategori name to RAB kat name
-      const matchKat=RAB.find(r=>r.type==='kat'&&String(r.projId)===String(projId)&&r.name===c.kategori);
-      if(matchKat)katId=matchKat.id;
+    }
+    // 2. Exact name match (case-insensitive)
+    if(!katId){
+      const m=rabKats.find(r=>r.name.toLowerCase().trim()===cKat);
+      if(m)katId=m.id;
+    }
+    // 3. Partial match: RAB kat name contains procurement kategori or vice versa
+    if(!katId&&cKat){
+      const m=rabKats.find(r=>{
+        const rn=r.name.toLowerCase();
+        return rn.includes(cKat)||cKat.includes(rn);
+      });
+      if(m)katId=m.id;
+    }
+    // 4. Match by RAB item deskripsi contains cost deskripsi (for PROC items)
+    if(!katId&&c._src==='procurement'&&c.deskripsi){
+      const desc=c.deskripsi.toLowerCase();
+      const matchItem=RAB.find(r=>r.type==='item'&&String(r.projId)===String(projId)&&r.deskripsi&&r.deskripsi.toLowerCase().includes(desc.slice(0,20)));
+      if(matchItem)katId=matchItem.katId;
     }
     if(katId){byKat[katId]=(byKat[katId]||0)+(+c.amount||0);}
     else{byKat['_uncat']=(byKat['_uncat']||0)+(+c.amount||0);}
@@ -3858,6 +3885,8 @@ function renderRab(){
   // Total RAB
   const totalRab=items.reduce((s,i)=>s+(+i.total||0),0);
   const totalActual=Object.values(actualByKat).reduce((s,v)=>s+v,0);
+  // Uncat spending = procurement/cost yang tidak ter-mapping ke RAB mana pun
+  const uncatSpending=actualByKat['_uncat']||0;
   const sisaAngg=totalRab-totalActual;
   const pctUsed=totalRab>0?Math.round(totalActual/totalRab*100):0;
   const critKats=kats.filter(k=>{
@@ -3877,6 +3906,16 @@ function renderRab(){
   const el3s=$('rabK3s');if(el3s)el3s.textContent=sisaAngg<0?'⚠ MELEBIHI RAB':sisaAngg===0?'Pas RAB':'Tersedia';
   const el4=$('rabK4');if(el4)el4.textContent=critKats;
   const el4s=$('rabK4s');if(el4s)el4s.textContent=`kategori sudah ≥90% terpakai`;
+  // Info: spending tidak ter-mapping
+  const uncatEl=$('rabUncatInfo');
+  if(uncatEl){
+    if(uncatSpending>0){
+      uncatEl.innerHTML=`<span style="color:var(--yw)">⚠ ${fmtRpShort(uncatSpending)} dari Procurement/Cost belum ter-mapping ke kategori RAB mana pun. Set <b>Procurement Kat</b> di item RAB untuk menghubungkan.</span>`;
+      uncatEl.style.display='block';
+    } else {
+      uncatEl.style.display='none';
+    }
+  }
 
   if(!kats.length&&!items.length){
     rabTable.innerHTML=`<div style="text-align:center;color:var(--mt);font-size:12px;padding:24px">
@@ -4058,7 +4097,15 @@ function openRabItemModal(id=null,defaultKatId=null){
       $('riVolume').value=item.volume||'';
       $('riHarga').value=item.hargaSatuan||'';
       $('riTotal').value=item.total||'';
+      // Populate procKat dropdown dengan kategori dari PROC
+    const procKatSel=$('riProcKat');
+    if(procKatSel&&procKatSel.tagName==='SELECT'){
+      const procKats=[...new Set(PROC.filter(p=>String(p.projId)===String(projId)).map(p=>p.kategori||'').filter(Boolean))];
+      procKatSel.innerHTML='<option value="">— Tidak terhubung —</option>'+procKats.map(k=>`<option value="${k}">${k}</option>`).join('');
+      procKatSel.value=item.procKat||'';
+    } else {
       sv('riProcKat',item.procKat||'');
+    }
       sv('riNotes',item.notes||'');
     }
   } else {
@@ -4226,7 +4273,7 @@ function doPost(e) {
       writeSheet(ss,'WBS',mergeById(existingWbs,d.wbs||[],true),['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
       // COSTS (OPEX)
       const existingCosts=readSheet(ss,'COSTS')||[];
-      writeSheet(ss,'COSTS',mergeById(existingCosts,d.costs||[],true),['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes']);
+      writeSheet(ss,'COSTS',mergeById(existingCosts,d.costs||[],true),['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes','ref','status']);
       // RAB (Rencana Anggaran Biaya)
       const existingRab=readSheet(ss,'RAB')||[];
       writeSheet(ss,'RAB',mergeById(existingRab,d.rab||[],true),['id','projId','type','katId','name','deskripsi','satuan','volume','hargaSatuan','total','notes','urutan','isCustom','procKat']);
@@ -5260,7 +5307,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.15';
+  const DASH_VER='3.20';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -5468,6 +5515,7 @@ function renderWBS(){
     html+='</tbody></table>';
   }
   $('wbsTable').innerHTML=html;
+  _syncDailyToProject(projId);
   syncWbsToSCurve(projId);
   renderWbsSCurve(projId);
   if(_ganttView==='gantt')renderGantt();
@@ -6331,63 +6379,59 @@ function syncWbsToSCurve(projId){
   const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)&&+w.bobot>0));
   if(!leafNodes.length)return;
   const proj=P.find(p=>String(p.id)===String(projId));
-  const weekSet=new Set();
-  leafNodes.forEach(node=>{
-    Object.keys(node.weeklyData||{}).forEach(k=>weekSet.add(+k));
-    Object.keys(node.weeklyPlan||{}).forEach(k=>weekSet.add(+k));
-  });
-  if(!weekSet.size){
-    const hasCumPlan=leafNodes.some(n=>(+n.cumPlan||0)>0||(+n.cumActual||0)>0);
-    if(!hasCumPlan)return;
-    const totalCPlan=leafNodes.reduce((s,n)=>{
-      const wp=n.weeklyPlan||{};
-      const wpKeys=Object.keys(wp).map(Number);
-      const lastWk=wpKeys.length?Math.max(...wpKeys):0;
-      const cp=lastWk>0&&wp[lastWk]?.cumPlan!=null?+wp[lastWk].cumPlan:(+n.cumPlan||0);
-      return s+(+n.bobot||0)*cp/100;
-    },0);
+  SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.fromWbs));
+
+  // Kumpulkan semua week yang punya plan
+  const planWeekSet=new Set();
+  leafNodes.forEach(n=>Object.keys(n.weeklyPlan||{}).forEach(k=>planWeekSet.add(+k)));
+
+  if(!planWeekSet.size){
+    // Tidak ada weekly plan — buat 1 entry dari cumActual/cumPlan node langsung
+    const totalCPlan=leafNodes.reduce((s,n)=>s+(+n.bobot||0)*(+n.cumPlan||0)/100,0);
     const totalCAct=leafNodes.reduce((s,n)=>s+(+n.bobot||0)*(+n.cumActual||0)/100,0);
+    if(totalCPlan===0&&totalCAct===0)return;
     let dateStart='';
     if(proj?.mulai){const d=new Date(proj.mulai);dateStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});}
-    SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.fromWbs));
     SCURVE.push({projId,week:1,wPlan:Math.round(totalCPlan*100)/100,wAct:Math.round(totalCAct*100)/100,
       cPlan:Math.round(totalCPlan*100)/100,cAct:Math.round(totalCAct*100)/100,dateStart,fromWbs:true});
     return;
   }
-  SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.fromWbs));
-  const prevCumByNode={};
-  // Hitung cumActual per node berdasarkan weeklyData/dailyLogs (sudah up-to-date)
-  // Untuk S-Curve, distribusikan cumActual ke minggu terakhir yang ada datanya
-  const nodeLastWeek={};
-  leafNodes.forEach(node=>{
-    const wd=node.weeklyData||{};
-    const wdKeys=Object.keys(wd).map(Number).filter(k=>+(wd[k]?.wAct||0)>0||+(wd[k]?.cAct||0)>0);
-    if(wdKeys.length)nodeLastWeek[node.id]=Math.max(...wdKeys);
-  });
+
+  // Ada weekly plan → buat entry per minggu
+  // Untuk PLAN: dari weeklyPlan (sudah ada)
+  // Untuk ACTUAL: distribusikan cumActual ke minggu terakhir yang ada data/input
+  //   Deteksi minggu aktif = minggu terbesar yang punya weeklyData ATAU
+  //   jika tidak ada weeklyData sama sekali, pakai minggu terakhir dari weeklyPlan
+  const prevCumPlanByNode={};
+  const sortedPlanWeeks=[...planWeekSet].sort((a,b)=>a-b);
+  const lastPlanWeek=Math.max(...sortedPlanWeeks);
+
+  // Hitung cumActual total untuk project
+  const totalCActProject=leafNodes.reduce((s,n)=>s+(+n.bobot||0)*(+n.cumActual||0)/100,0);
+
+  // Tentukan di minggu mana actual ditempatkan
+  // Cek apakah ada weeklyData yang punya entry
+  const hasWeeklyData=leafNodes.some(n=>Object.keys(n.weeklyData||{}).length>0);
+  let actualWeek=null;
+  if(hasWeeklyData){
+    // Ambil minggu terbesar dari semua weeklyData node
+    leafNodes.forEach(n=>{
+      const wdKeys=Object.keys(n.weeklyData||{}).map(Number);
+      if(wdKeys.length){const mx=Math.max(...wdKeys);if(actualWeek===null||mx>actualWeek)actualWeek=mx;}
+    });
+  }
+  // Jika tidak ada weeklyData atau actualWeek tidak ada di planWeekSet,
+  // gunakan minggu terakhir dari plan sebagai anchor
+  if(actualWeek===null)actualWeek=lastPlanWeek;
+
   let cumAct=0;
-  [...weekSet].sort((a,b)=>a-b).forEach(week=>{
-    let wPlan=0,wAct=0,cPlanContrib=0;
+  sortedPlanWeeks.forEach(week=>{
+    let wPlan=0,cPlanContrib=0;
+    let wActWeek=0;
     leafNodes.forEach(node=>{
       const bobot=+node.bobot||0;
       const wp=node.weeklyPlan||{};
-      const wd=node.weeklyData||{};
-      // wAct untuk minggu ini: gunakan cAct jika ada (kumulatif), atau wAct (incremental)
-      // Selisih dari minggu sebelumnya untuk mendapat weekly increment
-      const thisWeekData=wd[week]||{};
-      const prevWkKeys=Object.keys(wd).map(Number).filter(k=>k<week&&(+(wd[k]?.cAct||0)>0||+(wd[k]?.wAct||0)>0));
-      // Deteksi mode: jika ada cAct field, gunakan selisih cAct (kumulatif mode)
-      // Jika tidak, wAct = incremental langsung
-      let thisActPct, prevActPct;
-      if(thisWeekData.cAct!=null){
-        thisActPct=+thisWeekData.cAct;
-        const prevKey=prevWkKeys.length?Math.max(...prevWkKeys):null;
-        prevActPct=prevKey!=null&&wd[prevKey]?.cAct!=null?+wd[prevKey].cAct:0;
-      } else {
-        thisActPct=+thisWeekData.wAct||0;
-        prevActPct=0; // wAct sudah incremental
-      }
-      wAct+=bobot*Math.max(0,thisActPct-prevActPct)/100;
-      // Derive cumulative plan \u2014 prefer cumPlan field (new grid), fallback to summing wPlan (legacy)
+      // Plan
       let cumPlanNode=null;
       if(wp[week]?.cumPlan!=null){
         cumPlanNode=+wp[week].cumPlan;
@@ -6396,20 +6440,28 @@ function syncWbsToSCurve(projId){
       }
       if(cumPlanNode!=null){
         cPlanContrib+=bobot*cumPlanNode/100;
-        // Weekly increment = difference from previous week's cumulative
-        const prevCum=prevCumByNode[node.id]||0;
+        const prevCum=prevCumPlanByNode[node.id]||0;
         wPlan+=bobot*Math.max(0,cumPlanNode-prevCum)/100;
-        prevCumByNode[node.id]=cumPlanNode;
+        prevCumPlanByNode[node.id]=cumPlanNode;
+      }
+      // Actual: hanya pada minggu actualWeek, taruh semua cumActual
+      if(week===actualWeek){
+        wActWeek+=bobot*(+node.cumActual||0)/100;
       }
     });
-    cumAct+=wAct;
+    if(week===actualWeek)cumAct=Math.min(100,wActWeek);
     let dateStart='';
     if(proj?.mulai){const d=new Date(proj.mulai);d.setDate(d.getDate()+(week-1)*7);dateStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});}
-    SCURVE.push({projId,week,wPlan:Math.round(wPlan*100)/100,wAct:Math.round(wAct*100)/100,
-      cPlan:Math.round(cPlanContrib*100)/100,cAct:Math.min(100,Math.round(cumAct*100)/100),
+    SCURVE.push({projId,week,
+      wPlan:Math.round(wPlan*100)/100,
+      wAct:week===actualWeek?Math.round(Math.min(100,wActWeek)*100)/100:0,
+      cPlan:Math.round(cPlanContrib*100)/100,
+      cAct:week>=actualWeek?Math.round(cumAct*100)/100:0,
       dateStart,fromWbs:true});
   });
 }
+
+
 function resyncScurveFromWbs(){
   const projId=$('scProjSel')?.value;
   if(!projId){toast('Pilih project dulu','error');return;}
