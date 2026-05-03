@@ -2370,7 +2370,13 @@ function sw(t,el){
     },100);
   }
   if(t==='daily')renderDailyReport();
-  if(t==='cost'){renderCost();renderRab();}
+  if(t==='cost'){
+    // Reset manual flag agar filter mengikuti sidebar project
+    const cfp=$('costFiltProj');if(cfp)cfp._costFiltManual=false;
+    const rfp=$('rabFiltProj');
+    if(rfp&&selId){rfp.value=selId;}
+    renderCost();renderRab();
+  }
   if(t==='scurve')renderSCurve();
 }
 
@@ -2519,6 +2525,24 @@ function _syncAllProjSelectors(id){
         P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
     if(!mpEl._mpFiltManual) mpEl.value=sid;
     if(activeTab==='manpower')renderMpLog?.();
+  }
+  // Sync Cost/Finance filters
+  const costEl=document.getElementById('costFiltProj');
+  if(costEl){
+    if(!costEl.querySelector(`option[value="${sid}"]`))
+      costEl.innerHTML='<option value="">Semua Project</option>'+
+        P.map(p=>`<option value="${String(p.id)}">${p.kode} — ${p.nama}</option>`).join('');
+    costEl._costFiltManual=false;
+    costEl.value=sid;
+    if(activeTab==='cost')renderCost();
+  }
+  const rabEl=document.getElementById('rabFiltProj');
+  if(rabEl){
+    if(!rabEl.querySelector(`option[value="${sid}"]`))
+      rabEl.innerHTML='<option value="">— Pilih Project —</option>'+
+        P.map(p=>`<option value="${String(p.id)}">${p.kode} — ${p.nama}</option>`).join('');
+    rabEl.value=sid;
+    if(activeTab==='cost')renderRab();
   }
 }
 
@@ -3580,10 +3604,10 @@ function renderCost(){
   const fp=$('costFiltProj');
   if(fp){
     const cur=fp.value,wasManual=fp._costFiltManual;
-    fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
+    fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${String(p.id)}">${p.kode} \u2014 ${p.nama}</option>`).join('');
     fp._costFiltManual=wasManual;
-    if(wasManual&&cur!==undefined)fp.value=cur;
-    else if(selId)fp.value=selId;
+    if(wasManual&&cur!==undefined)fp.value=String(cur);
+    else if(selId)fp.value=String(selId);
   }
   const filtProj=gv('costFiltProj')||'';
   const filtType=gv('costFiltType')||'';
@@ -3801,7 +3825,8 @@ function sanitizeRab(arr){
     total:+r.total||0,
     notes:String(r.notes||'').slice(0,300),
     urutan:+r.urutan||0,
-    isCustom:!!r.isCustom
+    isCustom:!!r.isCustom,
+    procKat:String(r.procKat||'')
   })).filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
 }
 
@@ -3812,7 +3837,7 @@ function sanitizeRab(arr){
 // Helper: get actual spending per RAB kategori for a project
 function getRabActualByKat(projId){
   // Collect all costs for this project
-  const allCosts=getAllCosts().filter(c=>String(c.projId)===String(projId));
+  const spid=String(projId);const allCosts=getAllCosts().filter(c=>String(c.projId)===spid||+c.projId===+spid);
   const byKat={};
   // Map procurement kategori -> RAB kategori via procKat field on RAB items
   const rabItems=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(projId));
@@ -3822,7 +3847,7 @@ function getRabActualByKat(projId){
     if(ri.procKat){procKatToRabKat[ri.procKat]=ri.katId;}
   });
   // Build RAB kat lookup
-  const rabKats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(projId));
+  const rabKats=RAB.filter(r=>r.type==='kat'&&(String(r.projId)===spid||+r.projId===+spid));
   // Accumulate by kategori
   allCosts.forEach(c=>{
     let katId=null;
@@ -3860,9 +3885,11 @@ function renderRab(){
   // Sync project dropdown
   const fp=$('rabFiltProj');
   if(fp){
-    const cur=fp.value;
-    fp.innerHTML='<option value="">\u2014 Pilih Project \u2014</option>'+P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
-    if(cur)fp.value=cur;
+    const cur=fp.value||selId;
+    fp.innerHTML='<option value="">\u2014 Pilih Project \u2014</option>'+P.map(p=>`<option value="${String(p.id)}">${p.kode} \u2014 ${p.nama}</option>`).join('');
+    if(cur)fp.value=String(cur);
+    // Auto-follow sidebar selection
+    if(!fp.value&&selId)fp.value=String(selId);
   }
   const projId=gv('rabFiltProj');
   const btnAdd=$('btnAddRabItem');
@@ -3878,8 +3905,8 @@ function renderRab(){
     return;
   }
 
-  const kats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(projId)).sort((a,b)=>a.urutan-b.urutan||(a.name>b.name?1:-1));
-  const items=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(projId));
+  const kats=RAB.filter(r=>r.type==='kat'&&(String(r.projId)===String(projId)||+r.projId===+projId)).sort((a,b)=>a.urutan-b.urutan||(a.name>b.name?1:-1));
+  const items=RAB.filter(r=>r.type==='item'&&(String(r.projId)===String(projId)||+r.projId===+projId));
   const actualByKat=getRabActualByKat(projId);
 
   // Total RAB
@@ -4153,7 +4180,7 @@ function exportRabCSV(){
   const projId=gv('rabFiltProj');
   const proj=P.find(p=>String(p.id)===String(projId));
   const kats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(projId)).sort((a,b)=>a.urutan-b.urutan);
-  const items=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(projId));
+  const items=RAB.filter(r=>r.type==='item'&&(String(r.projId)===String(projId)||+r.projId===+projId));
   const actualByKat=getRabActualByKat(projId);
   const rows=[['Project','Kategori','Deskripsi','Satuan','Volume','Harga Satuan','Total RAB','Aktual','Sisa','% Terpakai']];
   kats.forEach(k=>{
@@ -4543,8 +4570,20 @@ async function loadFromGS(){
       remoteProc.forEach(p=>procMergeMap.set(String(p.id),p));
       PROC=[...procMergeMap.values()];
       MPLOGS=sanitizeMpLogs(d.manpowerLogs);
-      ACCLOGS=sanitizeAccLogs(d.accidentLogs);COSTS=sanitizeCosts(d.costs||[]);
-      RAB=sanitizeRab(d.rab||[]);
+      ACCLOGS=sanitizeAccLogs(d.accidentLogs);
+      {const _lc=getPendingDeletesCost();COSTS=sanitizeCosts(d.costs||[]).filter(c=>!_lc.has(String(c.id)));}
+      {const _lr=getPendingDeletesRab();
+      let rawRab=sanitizeRab(d.rab||[]).filter(r=>!_lr.has(String(r.id)));
+      // Normalize RAB projId dan katId (GSheet bisa return number)
+      if(rawRab.length&&P.length){
+        const validProjIds=new Set(P.map(p=>String(p.id)));
+        rawRab=rawRab.map(r=>{
+          if(validProjIds.has(r.projId))return r;
+          const m=P.find(p=>+p.id===+r.projId);
+          return m?{...r,projId:String(m.id)}:r;
+        });
+      }
+      RAB=rawRab;}
       SCURVE=Array.isArray(d.scurve)?d.scurve.map(s=>({projId:s.projId,week:+s.week||0,wPlan:+s.wPlan||0,wAct:+s.wAct||0,cPlan:s.cPlan!=null&&s.cPlan!==''?+s.cPlan:null,cAct:s.cAct!=null&&s.cAct!==''?+s.cAct:null,dateStart:safeStr(s.dateStart),fromWbs:!!s.fromWbs})):[];
       const parseField=v=>{
         if(!v||v==='[object Object]'||v==='null')return {};
@@ -5307,7 +5346,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.20';
+  const DASH_VER='3.23';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -8118,8 +8157,11 @@ async function _rtPoll(){
     PROC=[...pm.values()];
 
     MPLOGS=sanitizeMpLogs(d.manpowerLogs);
-    ACCLOGS=sanitizeAccLogs(d.accidentLogs);COSTS=sanitizeCosts(d.costs||[]);
-    RAB=sanitizeRab(d.rab||[]);
+    {const _lc=getPendingDeletesCost();COSTS=sanitizeCosts(d.costs||[]).filter(c=>!_lc.has(String(c.id)));}
+    {const _lr=getPendingDeletesRab();
+    let rawRab=sanitizeRab(d.rab||[]).filter(r=>!_lr.has(String(r.id)));
+    if(rawRab.length&&P.length){const validProjIds=new Set(P.map(p=>String(p.id)));rawRab=rawRab.map(r=>{if(validProjIds.has(r.projId))return r;const m=P.find(p=>+p.id===+r.projId);return m?{...r,projId:String(m.id)}:r;});}
+    RAB=rawRab;}
 
     if(d.history){
       d.history.forEach(h=>{
