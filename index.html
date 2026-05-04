@@ -1450,26 +1450,39 @@ select.fi{color-scheme:dark}
 <div class="ov" id="ov-gsConfig" onclick="if(event.target===this)cm('gsConfig')">
 <div class="modal wide">
   <div class="mtitle">⚙ GOOGLE SHEET INTEGRATION<button class="mclose" onclick="cm('gsConfig')">✕</button></div>
-  <div class="gs-info">
-    <b style="color:var(--tx)">Cara setup (1 kali saja):</b><br>
-    1. Buka <b style="color:var(--bl)">script.google.com</b> → New Project<br>
-    2. Paste script Google Apps dengan klik <b>"Salin Script"</b> di bawah<br>
-    3. Ganti <b>SHEET_ID</b> di baris pertama dengan ID Google Sheet Anda<br>
-    4. Klik <b>Deploy → New Deployment → Web App</b> → Access: <b>Anyone</b> → Deploy<br>
-    5. Copy URL deployment → paste di field URL di bawah
+
+  <!-- Status saat ini -->
+  <div id="gsCurrentStatus" style="border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:11px;font-family:var(--fm);display:flex;align-items:center;gap:8px;background:rgba(100,116,139,.1);border:1px solid var(--bd)">
+    <span id="gsStatusDot" style="width:8px;height:8px;border-radius:50%;background:var(--mt);flex-shrink:0"></span>
+    <span id="gsStatusMsg" style="color:var(--mt)">Belum dicek</span>
   </div>
-  <div class="fg"><label class="fl">Google Sheet URL (untuk referensi)</label>
-    <input class="fi" id="gsSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/YOUR_ID/edit">
+
+  <div style="font-size:11px;color:var(--mt);background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:7px;padding:10px 12px;margin-bottom:12px;line-height:1.7">
+    <b style="color:var(--bl)">📋 Cara setup Apps Script (1 kali):</b><br>
+    1. Buka <b style="color:var(--bl)">script.google.com</b> → New Project → paste kode Apps Script v11<br>
+    2. Pastikan <b>SHEET_ID</b> di baris 4 = ID Google Sheet Anda<br>
+    3. <b>Deploy → New Deployment → Web App</b><br>
+    &nbsp;&nbsp;&nbsp;· Execute as: <b style="color:var(--gn)">Me</b> &nbsp;·&nbsp; Access: <b style="color:var(--gn)">Anyone</b><br>
+    4. Copy URL <code style="background:var(--sf2);padding:1px 5px;border-radius:3px">.../exec</code> → paste di bawah<br>
+    <span style="color:var(--yw)">⚠ Setiap edit kode Apps Script → harus <b>New Deployment</b> (bukan edit lama)</span>
   </div>
-  <div class="fg"><label class="fl">Google Apps Script Web App URL *</label>
-    <input class="fi" id="gsScriptUrl" placeholder="https://script.google.com/macros/s/XXXX/exec">
+
+  <div class="fg"><label class="fl">Apps Script Web App URL *</label>
+    <input class="fi" id="gsScriptUrl" placeholder="https://script.google.com/macros/s/AKfy.../exec" oninput="_gsUrlHint(this.value)">
+    <div id="gsUrlHint" style="font-size:10px;margin-top:3px;color:var(--mt)"></div>
   </div>
-  <div style="display:flex;gap:8px;margin-bottom:10px">
-    <button class="btn bb" onclick="testGS()" style="flex:1;justify-content:center">🔗 Test Koneksi</button>
-    <button class="btn bgs" onclick="copyGsScript()" style="flex:1;justify-content:center">📋 Salin Script</button>
+  <div class="fg"><label class="fl">Google Sheet ID (opsional, untuk referensi)</label>
+    <input class="fi" id="gsSheetUrl" placeholder="1XeECJqg-...">
   </div>
-  <button class="btn" onclick="copyShareUrl()" style="width:100%;justify-content:center;margin-bottom:10px;border-color:var(--pu);color:var(--pu)">🔗 Salin Link Share untuk Tim</button>
-  <div id="gsTestRes" style="font-size:11px;margin-bottom:10px;padding:7px 10px;border-radius:6px;display:none"></div>
+
+  <!-- Test result -->
+  <div id="gsTestRes" style="font-size:11px;margin-bottom:10px;padding:9px 12px;border-radius:6px;display:none;white-space:pre-line;line-height:1.6"></div>
+
+  <div style="display:flex;gap:8px;margin-bottom:8px">
+    <button class="btn bb" onclick="testGS()" style="flex:1;justify-content:center;font-weight:600">🔍 Test Koneksi</button>
+    <button class="btn bgs" onclick="copyGsScript()" style="flex:1;justify-content:center">📋 Salin Script v11</button>
+  </div>
+  <button class="btn" onclick="copyShareUrl()" style="width:100%;justify-content:center;margin-bottom:12px;border-color:var(--pu);color:var(--pu)">🔗 Salin Link Share untuk Tim</button>
   <div class="mfoot">
     <button class="btn" onclick="cm('gsConfig')">Batal</button>
     <button class="btn bp" onclick="saveGS()">💾 Simpan & Sambungkan</button>
@@ -3137,7 +3150,24 @@ function openModal(type,id=null){
     show('ov-addProc');
   }
   if(type==='addCost'||type==='editCost'){openCostModal(id);return;}
-  if(type==='gsConfig'){sv('gsSheetUrl',gsSheet);sv('gsScriptUrl',gsUrl);$('gsTestRes').style.display='none';show('ov-gsConfig');}
+  if(type==='gsConfig'){
+    sv('gsSheetUrl',gsSheet||'');
+    sv('gsScriptUrl',gsUrl||'');
+    $('gsTestRes').style.display='none';
+    _gsUrlHint(gsUrl||'');
+    // Tampilkan status koneksi saat ini
+    const dot=$('gsStatusDot'),msg=$('gsStatusMsg');
+    if(gsOk&&gsUrl){
+      const lts=_rtLastTs>0?(' · sync: '+new Date(_rtLastTs).toLocaleTimeString('id-ID')):'';
+      if(dot){dot.style.background=_rtFailCount>=2?'var(--yw)':'var(--gn)';}
+      if(msg){msg.style.color=_rtFailCount>=2?'var(--yw)':'var(--gn)';
+        msg.textContent=_rtFailCount>=2?'⚠ GSheet tidak terjangkau saat ini — coba Test Koneksi':'✓ Terhubung'+lts;}
+    }else{
+      if(dot)dot.style.background='var(--mt)';
+      if(msg){msg.style.color='var(--mt)';msg.textContent='Belum dikonfigurasi';}
+    }
+    show('ov-gsConfig');return;
+  }
 }
 
 // ===============================================================
@@ -4358,15 +4388,81 @@ function saveGS(){
   if(P.length)gsSync();
 }
 async function testGS(){
-  const url=gv('gsScriptUrl').trim();if(!url){toast('Isi URL dulu','error');return;}
-  const r=$('gsTestRes');r.style.display='block';r.style.background='rgba(100,116,139,.1)';r.style.border='1px solid var(--bd)';r.textContent='⏳ Testing...';
+  const url=gv('gsScriptUrl').trim();
+  if(!url){toast('Isi URL dulu','error');return;}
+  if(!url.includes('script.google.com/macros/s/')){
+    _gsTestShow('error','✗ URL tidak valid. Harus berformat: https://script.google.com/macros/s/XXX/exec');return;
+  }
+  _gsTestShow('loading','⏳ Menghubungi Apps Script...');
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),12000);
   try{
-    await fetch(url,{mode:'no-cors'});
-    r.style.background='rgba(16,185,129,.1)';r.style.border='1px solid var(--gn)';r.style.color='var(--gn)';
-    r.textContent='✓ URL dapat dijangkau. Pastikan sudah di-deploy sebagai Web App dengan akses Anyone.';
+    const r=await fetch(url+'?t='+Date.now(),{cache:'no-store',signal:controller.signal});
+    clearTimeout(timer);
+    const txt=await r.text();
+    let diag='';
+    try{
+      const d=JSON.parse(txt);
+      if(d.status==='error'){
+        _gsTestShow('error','✗ Apps Script error: '+d.msg+'
+→ Cek SHEET_ID di Apps Script sudah benar?');return;
+      }
+      const projCount=(d.projects||[]).length;
+      const ver=d.scriptVersion||'?';
+      diag='✓ Terhubung! '+projCount+' project ditemukan.';
+      if(d.lastSaved&&d.lastSaved>0)diag+='
+Sync terakhir: '+new Date(d.lastSaved).toLocaleString('id-ID');
+      _gsTestShow('ok',diag);
+    }catch(je){
+      // Response bukan JSON — cek apakah HTML error dari Google
+      if(txt.includes('Execution failed')||txt.includes('Script function')){
+        _gsTestShow('error','✗ Apps Script gagal dijalankan. Cek:
+1. Script sudah di-deploy sebagai Web App?
+2. Execute as: Me | Access: Anyone?
+3. SHEET_ID sudah benar?');
+      }else if(txt.includes('<!DOCTYPE')){
+        _gsTestShow('warn','⚠ Apps Script mengembalikan HTML, bukan JSON.
+Kemungkinan: belum di-deploy, atau deployment sudah kadaluarsa.
+Buat New Deployment ulang.');
+      }else{
+        _gsTestShow('warn','⚠ Response tidak dikenali (bukan JSON).
+Teks: '+txt.slice(0,120));
+      }
+    }
   }catch(e){
-    r.style.background='rgba(239,68,68,.1)';r.style.border='1px solid var(--rd)';r.style.color='var(--rd)';
-    r.textContent='✗ Tidak dapat terhubung. Periksa URL dan pastikan sudah di-deploy.';
+    clearTimeout(timer);
+    if(e.name==='AbortError'){
+      _gsTestShow('error','✗ Timeout (12 detik). Apps Script terlalu lambat atau tidak merespons.');
+    }else{
+      _gsTestShow('error','✗ Tidak dapat terhubung: '+e.message+'
+→ Cek apakah URL sudah benar dan Apps Script sudah di-deploy.');
+    }
+  }
+}
+function _gsTestShow(type,msg){
+  const r=$('gsTestRes');if(!r)return;
+  r.style.display='block';
+  r.style.whiteSpace='pre-line';
+  r.style.lineHeight='1.6';
+  const styles={
+    ok:    {bg:'rgba(16,185,129,.1)', bd:'var(--gn)', cl:'var(--gn)'},
+    warn:  {bg:'rgba(245,158,11,.1)', bd:'var(--yw)', cl:'var(--yw)'},
+    error: {bg:'rgba(239,68,68,.1)',  bd:'var(--rd)', cl:'var(--rd)'},
+    loading:{bg:'rgba(100,116,139,.1)',bd:'var(--bd)',cl:'var(--mt)'}
+  };
+  const s=styles[type]||styles.loading;
+  r.style.background=s.bg;r.style.border='1px solid '+s.bd;r.style.color=s.cl;
+  r.textContent=msg;
+}
+function _gsUrlHint(val){
+  const h=$('gsUrlHint');if(!h)return;
+  if(!val){h.textContent='';return;}
+  if(!val.startsWith('https://script.google.com/macros/s/')){
+    h.style.color='var(--rd)';h.textContent='✗ URL harus diawali: https://script.google.com/macros/s/';
+  }else if(!val.endsWith('/exec')){
+    h.style.color='var(--yw)';h.textContent='⚠ URL harus diakhiri /exec';
+  }else{
+    h.style.color='var(--gn)';h.textContent='✓ Format URL valid';
   }
 }
 function copyGsScript(){
