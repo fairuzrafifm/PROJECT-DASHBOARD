@@ -4391,7 +4391,7 @@ async function testGS(){
   const url=gv('gsScriptUrl').trim();
   if(!url){toast('Isi URL dulu','error');return;}
   if(!url.includes('script.google.com/macros/s/')){
-    _gsTestShow('error','✗ URL tidak valid. Harus berformat: https://script.google.com/macros/s/XXX/exec');return;
+    _gsTestShow('error','✗ URL tidak valid.\nHarus berformat: https://script.google.com/macros/s/XXX/exec');return;
   }
   _gsTestShow('loading','⏳ Menghubungi Apps Script...');
   const controller=new AbortController();
@@ -4404,50 +4404,37 @@ async function testGS(){
     try{
       const d=JSON.parse(txt);
       if(d.status==='error'){
-        _gsTestShow('error','✗ Apps Script error: '+d.msg+'
-→ Cek SHEET_ID di Apps Script sudah benar?');return;
+        _gsTestShow('error','✗ Apps Script error: '+d.msg+'\n→ Cek SHEET_ID di Apps Script sudah benar?');return;
       }
       const projCount=(d.projects||[]).length;
-      const ver=d.scriptVersion||'?';
       diag='✓ Terhubung! '+projCount+' project ditemukan.';
-      if(d.lastSaved&&d.lastSaved>0)diag+='
-Sync terakhir: '+new Date(d.lastSaved).toLocaleString('id-ID');
+      if(d.lastSaved&&d.lastSaved>0)diag+='\nSync terakhir: '+new Date(d.lastSaved).toLocaleString('id-ID');
       _gsTestShow('ok',diag);
     }catch(je){
-      // Response bukan JSON — cek apakah HTML error dari Google
       if(txt.includes('Execution failed')||txt.includes('Script function')){
-        _gsTestShow('error','✗ Apps Script gagal dijalankan. Cek:
-1. Script sudah di-deploy sebagai Web App?
-2. Execute as: Me | Access: Anyone?
-3. SHEET_ID sudah benar?');
+        _gsTestShow('error','✗ Apps Script gagal dijalankan. Cek:\n1. Script sudah di-deploy sebagai Web App?\n2. Execute as: Me | Access: Anyone?\n3. SHEET_ID sudah benar?');
       }else if(txt.includes('<!DOCTYPE')){
-        _gsTestShow('warn','⚠ Apps Script mengembalikan HTML, bukan JSON.
-Kemungkinan: belum di-deploy, atau deployment sudah kadaluarsa.
-Buat New Deployment ulang.');
+        _gsTestShow('warn','⚠ Apps Script mengembalikan HTML bukan JSON.\nKemungkinan belum di-deploy atau deployment kadaluarsa.\nBuat New Deployment ulang.');
       }else{
-        _gsTestShow('warn','⚠ Response tidak dikenali (bukan JSON).
-Teks: '+txt.slice(0,120));
+        _gsTestShow('warn','⚠ Response tidak dikenali (bukan JSON).\nTeks: '+txt.slice(0,120));
       }
     }
   }catch(e){
     clearTimeout(timer);
     if(e.name==='AbortError'){
-      _gsTestShow('error','✗ Timeout (12 detik). Apps Script terlalu lambat atau tidak merespons.');
+      _gsTestShow('error','✗ Timeout (12 detik).\nApps Script terlalu lambat atau tidak merespons.');
     }else{
-      _gsTestShow('error','✗ Tidak dapat terhubung: '+e.message+'
-→ Cek apakah URL sudah benar dan Apps Script sudah di-deploy.');
+      _gsTestShow('error','✗ Tidak dapat terhubung: '+e.message+'\n→ Cek URL sudah benar dan Apps Script sudah di-deploy.');
     }
   }
 }
 function _gsTestShow(type,msg){
   const r=$('gsTestRes');if(!r)return;
-  r.style.display='block';
-  r.style.whiteSpace='pre-line';
-  r.style.lineHeight='1.6';
+  r.style.display='block';r.style.whiteSpace='pre-line';r.style.lineHeight='1.6';
   const styles={
-    ok:    {bg:'rgba(16,185,129,.1)', bd:'var(--gn)', cl:'var(--gn)'},
-    warn:  {bg:'rgba(245,158,11,.1)', bd:'var(--yw)', cl:'var(--yw)'},
-    error: {bg:'rgba(239,68,68,.1)',  bd:'var(--rd)', cl:'var(--rd)'},
+    ok:    {bg:'rgba(16,185,129,.1)',bd:'var(--gn)',cl:'var(--gn)'},
+    warn:  {bg:'rgba(245,158,11,.1)',bd:'var(--yw)',cl:'var(--yw)'},
+    error: {bg:'rgba(239,68,68,.1)', bd:'var(--rd)',cl:'var(--rd)'},
     loading:{bg:'rgba(100,116,139,.1)',bd:'var(--bd)',cl:'var(--mt)'}
   };
   const s=styles[type]||styles.loading;
