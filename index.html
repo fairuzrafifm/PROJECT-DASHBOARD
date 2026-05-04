@@ -1310,45 +1310,73 @@ select.fi{color-scheme:dark}
 <div class="modal">
   <div class="mtitle"><span id="costMT">TAMBAH PENGELUARAN</span><button class="mclose" onclick="cm('addCost')">✕</button></div>
   <div class="f2">
-    <div class="fg"><label class="fl">Project *</label><select class="fi" id="cProj"></select></div>
+    <div class="fg"><label class="fl">Project *</label>
+      <select class="fi" id="cProj" onchange="_onCostProjChange()"></select>
+    </div>
     <div class="fg"><label class="fl">Tanggal *</label><input class="fi" type="date" id="cDate"></div>
   </div>
   <div class="f2">
     <div class="fg"><label class="fl">Tipe</label>
-      <select class="fi" id="cType">
+      <select class="fi" id="cType" onchange="_onCostTypeChange()">
         <option value="opex">Operasional (OPEX)</option>
         <option value="other">Lainnya</option>
       </select>
     </div>
-    <div class="fg"><label class="fl">Kategori *
-      <span style="font-size:9px;color:var(--mt);font-weight:400"> (bebas isi)</span>
-    </label>
-      <input class="fi" id="cKat" list="cKatList" placeholder="Transportasi, Konsumsi, Sewa Alat...">
-      <datalist id="cKatList">
-        <option value="Transportasi">
-        <option value="Konsumsi / Makan">
-        <option value="Sewa Alat">
-        <option value="Sewa Kendaraan">
-        <option value="Akomodasi">
-        <option value="ATK / Perlengkapan Kantor">
-        <option value="Komunikasi">
-        <option value="Keselamatan / K3">
-        <option value="Listrik / Air">
-        <option value="Lainnya">
-      </datalist>
+    <div class="fg"><label class="fl">Kategori *</label>
+      <input class="fi" id="cKat" list="cKatList" placeholder="Pilih atau ketik kategori...">
+      <datalist id="cKatList"></datalist>
     </div>
   </div>
+
+  <!-- RAB Linking Section -->
+  <div id="cRabLinkWrap" style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+    <div style="font-size:10px;font-weight:700;color:var(--bl);letter-spacing:.5px;margin-bottom:6px">📋 ALOKASI KE RAB <span style="font-weight:400;color:var(--mt)">(opsional)</span></div>
+    <div class="f2">
+      <div class="fg" style="margin-bottom:6px"><label class="fl">Kategori RAB</label>
+        <select class="fi" id="cRabKat" onchange="_onCostRabKatChange()">
+          <option value="">— Tidak dialokasikan —</option>
+        </select>
+      </div>
+      <div class="fg" style="margin-bottom:6px"><label class="fl">Sub-Item RAB</label>
+        <select class="fi" id="cRabItem" onchange="_onCostRabItemChange()">
+          <option value="">— Pilih sub-item —</option>
+        </select>
+      </div>
+    </div>
+    <!-- Budget info bar -->
+    <div id="cRabBudgetInfo" style="display:none;font-size:10px;font-family:var(--fm);padding:6px 8px;border-radius:5px;background:var(--sf2);border:1px solid var(--bd)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span id="cRabBudgetLabel" style="color:var(--mt)">Budget item:</span>
+        <span id="cRabBudgetAmt" style="color:var(--bl);font-weight:600"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+        <span style="color:var(--mt)">Terpakai:</span>
+        <span id="cRabUsedAmt" style="color:var(--or);font-weight:600"></span>
+      </div>
+      <div style="height:6px;background:var(--sf);border-radius:3px;overflow:hidden;border:1px solid var(--bd)">
+        <div id="cRabBar" style="height:100%;border-radius:3px;transition:width .3s;background:linear-gradient(90deg,var(--gn),#34d399)"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <span style="color:var(--mt)">Sisa budget:</span>
+        <span id="cRabSisaAmt" style="font-weight:700"></span>
+      </div>
+    </div>
+    <div id="cRabNoRab" style="font-size:10px;color:var(--yw);display:none;padding:4px 0">⚠ Project ini belum memiliki RAB. Tambahkan RAB terlebih dahulu.</div>
+  </div>
+
   <div class="fg"><label class="fl">Deskripsi *</label>
     <input class="fi" id="cDesc" placeholder="Misal: Transport tim survey ke lokasi proyek">
   </div>
   <div class="f2">
     <div class="fg"><label class="fl">💰 Jumlah (Rp) *</label>
-      <input class="fi" type="number" id="cAmount" min="0" placeholder="0">
+      <input class="fi" type="number" id="cAmount" min="0" placeholder="0" oninput="_onCostAmountInput()">
     </div>
     <div class="fg"><label class="fl">Dibayar oleh</label>
       <input class="fi" id="cPaidBy" placeholder="Nama / Jabatan">
     </div>
   </div>
+  <!-- Budget sisa preview -->
+  <div id="cBudgetPreview" style="display:none;font-size:11px;font-family:var(--fm);padding:6px 10px;border-radius:6px;margin-bottom:8px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2)"></div>
   <div class="fg"><label class="fl">Keterangan</label>
     <input class="fi" id="cNotes" placeholder="Keterangan tambahan (opsional)">
   </div>
@@ -3703,20 +3731,30 @@ function renderCost(){
   }
   const typeLabel=t=>t==='procurement'?`<span class="cost-type-proc">PROC</span>`:t==='opex'?`<span class="cost-type-opex">OPEX</span>`:`<span class="cost-type-other">LAIN</span>`;
   detEl.innerHTML=`<table class="tbl"><thead><tr>
-    <th>Tgl</th><th>Project</th><th>Tipe</th><th>Kategori</th><th>Deskripsi</th><th>Dibayar oleh</th><th style="text-align:right">Jumlah</th><th></th>
+    <th>Tgl</th><th>Project</th><th>Tipe</th><th>Kategori</th><th>Deskripsi</th>
+    <th title="Alokasi RAB" style="white-space:nowrap">RAB Link</th><th>Dibayar oleh</th><th style="text-align:right">Jumlah</th><th></th>
   </tr></thead><tbody>
-  ${filtered.map(c=>{
-    const pr=P.find(p=>String(p.id)===String(c.projId));
-    const canEdit=c._src==='opex'||c._src==='other';
+  ${filtered.map(co=>{
+    const pr=P.find(p=>String(p.id)===String(co.projId));
+    const canEdit=co._src==='opex'||co._src==='other';
+    let rabTag='<span style="font-size:9px;color:var(--bd)">—</span>';
+    if(co.rabItemId){
+      const ri=RAB.find(r=>String(r.id)===String(co.rabItemId));
+      if(ri)rabTag='<span style="font-size:9px;background:rgba(59,130,246,.12);color:var(--bl);padding:1px 5px;border-radius:3px;white-space:nowrap;display:inline-block" title="'+(ri.deskripsi||ri.name||'')+'">'+(ri.deskripsi||ri.name||'').slice(0,20)+'</span>';
+    }else if(co.rabKatId){
+      const rk=RAB.find(r=>String(r.id)===String(co.rabKatId));
+      if(rk)rabTag='<span style="font-size:9px;background:rgba(139,92,246,.1);color:var(--pu);padding:1px 5px;border-radius:3px;white-space:nowrap;display:inline-block" title="'+(rk.name||'')+'">'+( rk.name||'').slice(0,20)+'</span>';
+    }
     return`<tr>
-      <td style="font-family:var(--fm);font-size:10px;white-space:nowrap">${c.date||'\u2014'}</td>
-      <td style="font-family:var(--fm);font-size:10px;color:var(--bl)">${pr?.kode||'\u2014'}</td>
-      <td>${typeLabel(c.type)}</td>
-      <td style="color:var(--mt);font-size:11px">${c.kategori||'\u2014'}</td>
-      <td style="font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.deskripsi||''}">${c.deskripsi||'\u2014'}</td>
-      <td style="color:var(--mt);font-size:11px">${c.paidBy||'\u2014'}</td>
-      <td style="font-family:var(--fm);font-weight:700;color:var(--gn);text-align:right;white-space:nowrap">${fmtRp(c.amount)}</td>
-      <td>${canEdit?`<button class="btn btn-sm edit-only" style="padding:2px 6px" onclick="openModal('editCost','${c.id}')">✏</button>`:'<span style="font-size:9px;color:var(--mt)">via Proc</span>'}</td>
+      <td style="font-family:var(--fm);font-size:10px;white-space:nowrap">${co.date||'—'}</td>
+      <td style="font-family:var(--fm);font-size:10px;color:var(--bl)">${pr?.kode||'—'}</td>
+      <td>${typeLabel(co.type)}</td>
+      <td style="color:var(--mt);font-size:11px">${co.kategori||'—'}</td>
+      <td style="font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${co.deskripsi||''}">${co.deskripsi||'—'}</td>
+      <td>${rabTag}</td>
+      <td style="color:var(--mt);font-size:11px">${co.paidBy||'—'}</td>
+      <td style="font-family:var(--fm);font-weight:700;color:var(--gn);text-align:right;white-space:nowrap">${fmtRp(co.amount)}</td>
+      <td>${canEdit?`<button class="btn btn-sm edit-only" style="padding:2px 6px" onclick="openModal('editCost','${co.id}')">&#x270F;</button>`:'<span style="font-size:9px;color:var(--mt)">via Proc</span>'}</td>
     </tr>`;}).join('')}
   </tbody></table>`;
 }
@@ -3727,23 +3765,26 @@ function openCostModal(id=null){
   $('btnSaveCost').textContent=id?'💾 Simpan':'＋ Tambah';
   $('btnDelCost').style.display=id?'block':'none';
   $('cProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
-  const c=id?COSTS.find(x=>String(x.id)===String(id)):null;
-  if(c){
-    sv('cProj',String(c.projId));sv('cDate',c.date||'');
-    sv('cType',c.type||'opex');sv('cKat',c.kategori||'');
-    sv('cDesc',c.deskripsi||'');
-    if($('cAmount'))$('cAmount').value=c.amount||'';
-    sv('cPaidBy',c.paidBy||'');sv('cNotes',c.notes||'');
-    sv('cRef',c.ref||'');sv('cStatus',c.status||'unpaid');
-    _updateCostKatList(c.projId);
+  const entry=id?COSTS.find(x=>String(x.id)===String(id)):null;
+  if(entry){
+    sv('cProj',String(entry.projId));sv('cDate',entry.date||'');
+    sv('cType',entry.type||'opex');sv('cKat',entry.kategori||'');
+    sv('cDesc',entry.deskripsi||'');
+    if($('cAmount'))$('cAmount').value=entry.amount||'';
+    sv('cPaidBy',entry.paidBy||'');sv('cNotes',entry.notes||'');
+    sv('cRef',entry.ref||'');sv('cStatus',entry.status||'unpaid');
+    _updateCostKatList(entry.projId);
+    _populateCostRab(String(entry.projId), entry.rabKatId||'', entry.rabItemId||'');
   }else{
-    const _cp=selId||'';
+    const _cp=String(selId||P[0]?.id||'');
     sv('cProj',_cp);sv('cDate',new Date().toISOString().slice(0,10));
     sv('cType','opex');sv('cKat','');sv('cDesc','');
     if($('cAmount'))$('cAmount').value='';
     sv('cPaidBy','');sv('cNotes','');sv('cRef','');sv('cStatus','unpaid');
     _updateCostKatList(_cp);
+    _populateCostRab(_cp,'','');
   }
+  $('cBudgetPreview').style.display='none';
   show('ov-addCost');
 }
 
@@ -3752,17 +3793,31 @@ function saveCost(){
   const amt=+gv('cAmount')||0;
   if(!desc){toast('Deskripsi wajib diisi','error');return;}
   if(!amt){toast('Jumlah wajib diisi','error');return;}
+  const rabKatId=gv('cRabKat')||'';
+  const rabItemId=gv('cRabItem')||'';
+  // Auto-isi kategori dari nama RAB item jika dipilih
+  let katVal=(gv('cKat')||'').trim();
+  if(!katVal&&rabItemId){
+    const ri=RAB.find(r=>String(r.id)===rabItemId);
+    if(ri)katVal=(ri.deskripsi||ri.name||'').slice(0,60);
+  }
+  if(!katVal&&rabKatId){
+    const rk=RAB.find(r=>String(r.id)===rabKatId);
+    if(rk)katVal=rk.name||'Lainnya';
+  }
   const d={
     projId:String(gv('cProj')||selId||''),
     date:gv('cDate')||new Date().toISOString().slice(0,10),
     type:gv('cType')||'opex',
-    kategori:(gv('cKat')||'Lainnya').trim(),
+    kategori:(katVal||'Lainnya'),
     deskripsi:desc,
     amount:amt,
     paidBy:(gv('cPaidBy')||'').trim(),
     notes:(gv('cNotes')||'').trim(),
     ref:(gv('cRef')||'').trim(),
-    status:gv('cStatus')||'unpaid'
+    status:gv('cStatus')||'unpaid',
+    rabKatId:rabKatId||null,
+    rabItemId:rabItemId||null
   };
   if(editCostId){
     const i=COSTS.findIndex(x=>String(x.id)===String(editCostId));
@@ -3776,6 +3831,155 @@ function saveCost(){
   dirty();cm('addCost');renderCost();
   if(activeTab==='overview')renderOV();
   gsSync();
+}
+
+// ── RAB COST LINK HELPERS ────────────────────────────────────────────────────
+
+// Hitung total pengeluaran yang ter-link ke sebuah RAB item
+function _getRabItemUsed(rabItemId, excludeCostId){
+  return COSTS.filter(c=>
+    String(c.rabItemId)===String(rabItemId) &&
+    (!excludeCostId||String(c.id)!==String(excludeCostId))
+  ).reduce((s,c)=>s+(+c.amount||0),0);
+}
+function _getRabKatUsed(rabKatId, excludeCostId){
+  return COSTS.filter(c=>
+    String(c.rabKatId)===String(rabKatId) &&
+    (!excludeCostId||String(c.id)!==String(excludeCostId))
+  ).reduce((s,c)=>s+(+c.amount||0),0);
+}
+
+// Populate RAB dropdowns berdasarkan projId, restore selection jika ada
+function _populateCostRab(projId, selKatId, selItemId){
+  const kats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(projId))
+    .sort((a,b)=>(+a.urutan||0)-(+b.urutan||0)||(a.name>b.name?1:-1));
+  const rabKatSel=$('cRabKat');
+  if(!rabKatSel)return;
+
+  if(!kats.length){
+    rabKatSel.innerHTML='<option value="">— Tidak dialokasikan —</option>';
+    const ni=$('cRabNoRab');if(ni)ni.style.display='block';
+    const bi=$('cRabBudgetInfo');if(bi)bi.style.display='none';
+    const ri=$('cRabItem');if(ri)ri.innerHTML='<option value="">— Pilih sub-item —</option>';
+    return;
+  }
+  const ni=$('cRabNoRab');if(ni)ni.style.display='none';
+  rabKatSel.innerHTML='<option value="">— Tidak dialokasikan —</option>'+
+    kats.map(k=>`<option value="${k.id}">${k.name}</option>`).join('');
+  if(selKatId)rabKatSel.value=selKatId;
+  _populateCostRabItems(projId, rabKatSel.value, selItemId);
+  _updateCostRabBudget();
+}
+
+// Populate sub-item dropdown berdasarkan kategori RAB yang dipilih
+function _populateCostRabItems(projId, katId, selItemId){
+  const itemSel=$('cRabItem');if(!itemSel)return;
+  if(!katId){
+    itemSel.innerHTML='<option value="">— Pilih sub-item —</option>';
+    const bi=$('cRabBudgetInfo');if(bi)bi.style.display='none';
+    return;
+  }
+  const items=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(projId)&&String(r.katId)===String(katId))
+    .sort((a,b)=>(+a.urutan||0)-(+b.urutan||0));
+  itemSel.innerHTML='<option value="">— Pilih sub-item —</option>'+
+    items.map(it=>{
+      const budget=+it.total||0;
+      const used=_getRabItemUsed(it.id, editCostId||'');
+      const sisa=budget-used;
+      const pct=budget>0?Math.round(used/budget*100):0;
+      const warn=pct>=90?'⚠ ':'';
+      const budgetStr=budget>0?` — Rp ${(+sisa).toLocaleString('id-ID')} sisa`:'';
+      return`<option value="${it.id}">${warn}${it.deskripsi||it.name||'Item'}${budgetStr}</option>`;
+    }).join('');
+  if(selItemId)itemSel.value=selItemId;
+  _updateCostRabBudget();
+}
+
+// Update budget info bar
+function _updateCostRabBudget(){
+  const bi=$('cRabBudgetInfo');if(!bi)return;
+  const itemId=gv('cRabItem')||'';
+  const katId=gv('cRabKat')||'';
+  const amount=+($('cAmount')?.value||0);
+
+  if(itemId){
+    const ri=RAB.find(r=>String(r.id)===itemId);
+    if(!ri){bi.style.display='none';return;}
+    const budget=+ri.total||0;
+    const used=_getRabItemUsed(itemId, editCostId||'');
+    const afterThis=used+amount;
+    const sisa=budget-afterThis;
+    const pct=budget>0?Math.min(100,Math.round(afterThis/budget*100)):0;
+    bi.style.display='block';
+    const lbl=$('cRabBudgetLabel');const bAmt=$('cRabBudgetAmt');
+    const uAmt=$('cRabUsedAmt');const bar=$('cRabBar');const sAmt=$('cRabSisaAmt');
+    if(lbl)lbl.textContent=(ri.deskripsi||ri.name||'Item')+':';
+    if(bAmt)bAmt.textContent=budget>0?'Rp '+budget.toLocaleString('id-ID'):'Tidak diset';
+    if(uAmt)uAmt.textContent='Rp '+afterThis.toLocaleString('id-ID')+' ('+pct+'%)';
+    if(bar){
+      bar.style.width=pct+'%';
+      bar.style.background=pct>=100?'var(--rd)':pct>=85?'var(--yw)':'linear-gradient(90deg,var(--gn),#34d399)';
+    }
+    if(sAmt){
+      sAmt.textContent='Rp '+Math.abs(sisa).toLocaleString('id-ID')+(sisa<0?' (OVER!)':'');
+      sAmt.style.color=sisa<0?'var(--rd)':sisa<budget*0.1?'var(--yw)':'var(--gn)';
+    }
+  }else if(katId){
+    // Tampilkan info level kategori
+    const rk=RAB.find(r=>String(r.id)===katId);
+    const katItems=RAB.filter(r=>r.type==='item'&&String(r.katId)===katId);
+    const totalBudget=katItems.reduce((s,r)=>s+(+r.total||0),0);
+    const totalUsed=_getRabKatUsed(katId, editCostId||'')+amount;
+    const pct=totalBudget>0?Math.min(100,Math.round(totalUsed/totalBudget*100)):0;
+    const sisa=totalBudget-totalUsed;
+    bi.style.display='block';
+    const lbl=$('cRabBudgetLabel');const bAmt=$('cRabBudgetAmt');
+    const uAmt=$('cRabUsedAmt');const bar=$('cRabBar');const sAmt=$('cRabSisaAmt');
+    if(lbl)lbl.textContent=(rk?.name||'Kategori')+' (total):';
+    if(bAmt)bAmt.textContent=totalBudget>0?'Rp '+totalBudget.toLocaleString('id-ID'):'Tidak diset';
+    if(uAmt)uAmt.textContent='Rp '+totalUsed.toLocaleString('id-ID')+(totalBudget>0?' ('+pct+'%)':'');
+    if(bar){bar.style.width=pct+'%';bar.style.background=pct>=100?'var(--rd)':pct>=85?'var(--yw)':'linear-gradient(90deg,var(--gn),#34d399)';}
+    if(sAmt){
+      sAmt.textContent=totalBudget>0?'Rp '+Math.abs(sisa).toLocaleString('id-ID')+(sisa<0?' (OVER!)':''):'\u2014';
+      sAmt.style.color=sisa<0?'var(--rd)':sisa<totalBudget*0.1?'var(--yw)':'var(--gn)';
+    }
+  }else{
+    bi.style.display='none';
+  }
+}
+
+// Event handlers
+function _onCostProjChange(){
+  const projId=gv('cProj')||'';
+  _updateCostKatList(projId);
+  _populateCostRab(projId,'','');
+  $('cBudgetPreview').style.display='none';
+}
+function _onCostTypeChange(){
+  // bisa dipakai untuk logika khusus per tipe
+}
+function _onCostRabKatChange(){
+  const projId=gv('cProj')||'';
+  const katId=gv('cRabKat')||'';
+  _populateCostRabItems(projId, katId, '');
+  // Auto-isi field Kategori dengan nama RAB kategori
+  if(katId&&!gv('cKat')){
+    const rk=RAB.find(r=>String(r.id)===katId);
+    if(rk)sv('cKat',rk.name||'');
+  }
+  _updateCostRabBudget();
+}
+function _onCostRabItemChange(){
+  const itemId=gv('cRabItem')||'';
+  // Auto-isi field Kategori dengan nama RAB item
+  if(itemId&&!gv('cKat')){
+    const ri=RAB.find(r=>String(r.id)===itemId);
+    if(ri)sv('cKat',(ri.deskripsi||ri.name||'').slice(0,60));
+  }
+  _updateCostRabBudget();
+}
+function _onCostAmountInput(){
+  _updateCostRabBudget();
 }
 
 function delCost(){
@@ -3965,17 +4169,32 @@ function renderRab(){
     // Items under this kategori
     rows+=`<tbody id="rkat_${k.id}">`;
     if(katItems.length){
-      katItems.sort((a,b)=>a.deskripsi>b.deskripsi?1:-1).forEach(item=>{
-        const itemPct=item.total>0?Math.round((actualByKat[k.id]||0)/item.total*100):0;
-        rows+=`<tr class="rab-item-row">
+      katItems.sort((a,b)=>(+a.urutan||0)-(+b.urutan||0)||(a.deskripsi>b.deskripsi?1:-1)).forEach(item=>{
+        const itemBudget=+item.total||0;
+        const itemActual=COSTS.filter(co=>String(co.rabItemId)===String(item.id)).reduce((s,co)=>s+(+co.amount||0),0);
+        const itemSisa=itemBudget-itemActual;
+        const itemPct=itemBudget>0?Math.min(100,Math.round(itemActual/itemBudget*100)):0;
+        const itemFillClass=itemPct>=100?'rab-pct-danger':itemPct>=85?'rab-pct-warn':'rab-pct-ok';
+        const itemBadge=itemActual>0?(itemPct>=100?`<span class="rab-badge-over">OVER</span>`:itemPct>=85?`<span class="rab-badge-warn">${itemPct}%</span>`:`<span class="rab-badge-ok">${itemPct}%</span>`):'';
+        rows+=`<tr class="rab-item-row" onclick="openCostFilteredByRabItem('${item.id}','${item.deskripsi||item.name||''}')" style="cursor:pointer" title="Klik untuk lihat pengeluaran item ini">
           <td style="padding-left:28px;color:var(--mt);font-size:10px">└</td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${item.deskripsi}">${item.deskripsi}</td>
+          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            <span title="${item.deskripsi}">${item.deskripsi}</span>
+            ${itemBadge}
+          </td>
           <td style="color:var(--mt);font-size:10px;text-align:center">${item.volume||'\u2014'} ${item.satuan||''}</td>
           <td style="font-family:var(--fm);text-align:right;font-size:10px;color:var(--mt)">${fmtRp(item.hargaSatuan)}</td>
-          <td style="font-family:var(--fm);text-align:right;color:var(--bl)">${fmtRp(item.total)}</td>
-          <td style="color:var(--mt);font-size:10px;text-align:right">\u2014</td>
-          <td></td>
-          <td class="edit-only"><button class="btn btn-sm" style="padding:2px 6px;font-size:10px" onclick="openRabItemModal('${item.id}')">✏</button></td>
+          <td style="font-family:var(--fm);text-align:right;color:var(--bl)">${fmtRp(itemBudget)}</td>
+          <td style="font-family:var(--fm);text-align:right;color:${itemActual>0?'var(--or)':'var(--mt)'}">
+            ${itemActual>0?fmtRp(itemActual):'<span style="font-size:10px">\u2014</span>'}
+            ${itemActual>0?`<div class="rab-progress-bar" style="min-width:60px;margin-top:3px"><div class="rab-progress-fill ${itemFillClass}" style="width:${itemPct}%"></div></div>`:''}
+          </td>
+          <td style="font-family:var(--fm);text-align:right;color:${itemSisa<0?'var(--rd)':itemActual===0?'var(--mt)':itemSisa/itemBudget<0.1&&itemBudget>0?'var(--yw)':'var(--gn)'};font-weight:${itemActual>0?'700':'400'}">
+            ${itemActual>0?fmtRp(Math.abs(itemSisa))+(itemSisa<0?' \u26A0':''):'<span style="font-size:10px">\u2014</span>'}
+          </td>
+          <td class="edit-only" style="white-space:nowrap">
+            <button class="btn btn-sm" style="padding:2px 6px;font-size:10px" onclick="event.stopPropagation();openRabItemModal('${item.id}')">✏</button>
+          </td>
         </tr>`;
       });
     } else {
@@ -4003,6 +4222,19 @@ function renderRab(){
     <td></td>
   </tr>
   </tbody></table>`;
+}
+
+// Drill-down: klik RAB item → pindah ke tab Cost dengan filter item tersebut
+function openCostFilteredByRabItem(rabItemId, itemName){
+  // Pindah ke tab Cost
+  const costTab=document.querySelector('.tab[onclick*="cost"]');
+  if(costTab)costTab.click();
+  // Set search filter
+  setTimeout(()=>{
+    const s=$('costSearch');
+    if(s){s.value=itemName||'';renderCost();}
+    toast('Menampilkan pengeluaran untuk: '+(itemName||'item ini'));
+  },100);
 }
 
 function toggleRabKat(tbodyId){
