@@ -5525,9 +5525,9 @@ function saveWbsCat(){
   dirty();cm('wbsAddCat');renderWBS();toast('Kategori ditambahkan ✓');gsSync();
 }
 function saveWbsSub(){
-  const projId=$('wbsSubProj').value;const name=gv('wbsSubName').trim();const parentId=+$('wbsSubParent')?.value;
+  const projId=$('wbsSubProj').value;const name=gv('wbsSubName').trim();const parentId=String($('wbsSubParent')?.value||'');
   if(!name||!parentId){toast('Lengkapi data','error');return;}
-  const order=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='subcat'&&w.parentId===parentId).length;
+  const order=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='subcat'&&String(w.parentId)===parentId).length;
   WBS.push({id:genId(),projId,type:'subcat',parentId,name,
     bobot:parseFloat($('wbsSubBobot')?.value)||0,order,cumPlan:0,cumActual:0,
     startDate:gv('wbsSubStart')||'',finishDate:gv('wbsSubFinish')||''});
@@ -5535,12 +5535,12 @@ function saveWbsSub(){
 }
 function saveWbsItem(){
   const projId=$('wbsItemProj').value;const name=gv('wbsItemName').trim();
-  const parentId=+$('wbsItemParent')?.value;const bobot=parseFloat($('wbsItemBobot')?.value)||0;
+  const parentId=String($('wbsItemParent')?.value||'');const bobot=parseFloat($('wbsItemBobot')?.value)||0;
   if(!name||!parentId||!bobot){toast('Lengkapi nama, induk, dan bobot item','error');return;}
   // Total = semua item level 3 (bobot subcat induk dikecualikan karena akan digantikan item anaknya)
   const allItems=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='item').reduce((s,w)=>s+(+w.bobot||0),0);
   if(allItems+bobot>100.05){toast('Total bobot item melebihi 100%','error');return;}
-  const order=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='item'&&w.parentId===parentId).length;
+  const order=WBS.filter(w=>String(w.projId)===String(projId)&&w.type==='item'&&String(w.parentId)===parentId).length;
   WBS.push({id:genId(),projId,type:'item',parentId,name,bobot,order,cumPlan:0,cumActual:0,
     weeklyData:{},weeklyPlan:{},
     startDate:gv('wbsItemStart')||'',finishDate:gv('wbsItemFinish')||''});
@@ -7959,9 +7959,10 @@ initAuth();
 let _rtLastTs=0;
 let _rtOnline=true;
 let _rtFailCount=0;
+let _rtConnected=false;
 
 // Online/offline indicator
-window.addEventListener('online',  ()=>{ _rtOnline=true; _rtSetStatus('online'); });
+window.addEventListener('online',  ()=>{ _rtOnline=true; _rtSetStatus('online'); setTimeout(_rtPoll,500); });
 window.addEventListener('offline', ()=>{ _rtOnline=false; _rtSetStatus('offline'); });
 
 function _rtSetStatus(s){
@@ -7970,28 +7971,64 @@ function _rtSetStatus(s){
   if(s==='offline') { if(dot)dot.style.background='var(--rd)'; if(msg)msg.textContent='Offline \u2014 data terakhir ditampilkan'; }
   if(s==='syncing') { if(dot)dot.style.background='var(--yw)'; if(msg)msg.textContent='Sinkronisasi...'; }
   if(s==='synced')  { if(dot){dot.style.background='var(--gn)';dot.classList.remove('unsaved');} }
+  if(s==='error')   { if(dot)dot.style.background='var(--yw)'; }
 }
+
+// Tombol retry manual yang muncul saat GSheet gagal
+function _rtShowRetryBtn(){
+  if($('rtRetryBtn'))return;
+  const sbar=$('sbar');if(!sbar)return;
+  const btn=document.createElement('button');
+  btn.id='rtRetryBtn';btn.className='btn btn-sm';
+  btn.style.cssText='border-color:var(--yw);color:var(--yw);animation:pulse 2s infinite';
+  btn.textContent='\u21bb Coba Lagi';
+  btn.onclick=()=>{
+    btn.remove();_rtFailCount=0;
+    if($('smsg'))$('smsg').textContent='Mencoba koneksi ulang...';
+    if($('sdot'))$('sdot').style.background='var(--yw)';
+    _rtPoll();
+  };
+  const btns=sbar.querySelector('.sbar-btns');
+  if(btns)btns.insertBefore(btn,btns.firstChild);
+}
+function _rtHideRetryBtn(){ const b=$('rtRetryBtn');if(b)b.remove(); }
 
 async function _rtPoll(){
   if(!gsOk||!gsUrl||!_rtOnline)return;
-  // Jika user sedang edit (isDirty), tetap poll tapi jangan re-render tab aktif
-  // agar data user lain tetap masuk ke memory tanpa ganggu form yang sedang diisi
   const silentMode=isDirty;
+  // Timeout manual — kompatibel semua browser & webview
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),10000);
   try{
-    const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(8000)});
+    const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-store',signal:controller.signal});
+    clearTimeout(timer);
     if(!r.ok)throw new Error('HTTP '+r.status);
     const txt=await r.text();
-    if(!txt||!txt.trim().startsWith('{'))throw new Error('Invalid JSON');
+    if(!txt||!txt.trim().startsWith('{'))throw new Error('Response tidak valid');
     const d=JSON.parse(txt);
-    if(d.status==='error')throw new Error(d.msg);
-    if(!d.projects?.length)return;
+    if(d.status==='error')throw new Error(d.msg||'GSheet error');
 
+    // Koneksi berhasil — reset semua fail state
     _rtFailCount=0;
+    _rtConnected=true;
+    _rtHideRetryBtn();
+
+    if(!d.projects?.length){
+      const now=new Date().toLocaleTimeString('id-ID');
+      if($('smsg')&&!isDirty)$('smsg').textContent='GSheet \u2713 \u00b7 '+now;
+      _rtSetStatus('synced');
+      return;
+    }
+
     const gTs=+d.lastSaved||0;
 
-    // GSheet adalah source of truth \u2014 update jika GSheet punya versi baru
-    // Bandingkan hanya dengan lastTs GSheet sebelumnya, BUKAN dengan localStorage
-    if(gTs<=_rtLastTs)return;
+    // Data tidak berubah — update status saja tanpa re-render
+    if(gTs>0&&gTs<=_rtLastTs){
+      const now=new Date().toLocaleTimeString('id-ID');
+      if($('smsg')&&!isDirty)$('smsg').textContent='GSheet \u2713 \u00b7 '+now;
+      _rtSetStatus('synced');
+      return;
+    }
     _rtLastTs=gTs;
 
     // Smart merge \u2014 semua collection
@@ -8070,10 +8107,18 @@ async function _rtPoll(){
     _rtSetStatus('synced');
 
   }catch(e){
+    clearTimeout(timer);
     _rtFailCount++;
-    if(_rtFailCount>=3){
-      if($('smsg'))$('smsg').textContent='GSheet tidak terjangkau \u2014 data lokal ditampilkan';
+    const isTimeout=(e.name==='AbortError');
+    if(_rtFailCount===1){
+      // Gagal pertama — diam saja, coba lagi di poll berikutnya
       if($('sdot'))$('sdot').style.background='var(--yw)';
+    }else if(_rtFailCount>=2){
+      // Gagal 2x berturut-turut — tampilkan info + tombol retry
+      const errInfo=isTimeout?'timeout':'tidak terjangkau';
+      if($('smsg'))$('smsg').textContent='GSheet '+errInfo+' \u2014 data lokal ditampilkan';
+      _rtSetStatus('error');
+      _rtShowRetryBtn();
     }
   }
 }
