@@ -3984,15 +3984,24 @@ function _onCostAmountInput(){
 
 function delCost(){
   showConfirm('Hapus entri pengeluaran ini?',()=>{
-    // Soft delete: tandai _deleted=true agar GSheet ikut hapus via mergeById allowDelete
     const idx=COSTS.findIndex(c=>String(c.id)===String(editCostId));
-    if(idx>=0){
-      COSTS[idx]={...COSTS[idx],_deleted:true};
-      addPendingDeleteCost(editCostId);
-    }
-    // Juga filter dari tampilan lokal
+    if(idx<0){cm('addCost');return;}
+
+    // 1. Tandai _deleted di memory
+    COSTS[idx]={...COSTS[idx],_deleted:true};
+    addPendingDeleteCost(editCostId);
+
+    // 2. Ambil snapshot COSTS+deleted SEKARANG sebelum difilter
+    const costsSnapshot=[...COSTS];
+
+    // 3. Filter lokal untuk UI
     COSTS=COSTS.filter(c=>!c._deleted);
-    dirty();cm('addCost');renderCost();renderRab();toast('Pengeluaran dihapus','warn');gsSync();
+    cm('addCost');renderCost();renderRab();
+    toast('Pengeluaran dihapus','warn');
+
+    // 4. Kirim snapshot (berisi _deleted record) langsung ke GSheet tanpa debounce
+    dirty();
+    _gsSyncWithCosts(costsSnapshot);
   });
 }
 
@@ -4026,7 +4035,9 @@ function sanitizeCosts(arr){
     paidBy:String(c.paidBy||'').slice(0,100),
     notes:String(c.notes||'').slice(0,300),
     ref:String(c.ref||'').slice(0,100),
-    status:['paid','unpaid','partial'].includes(c.status)?c.status:'unpaid'
+    status:['paid','unpaid','partial'].includes(c.status)?c.status:'unpaid',
+    rabKatId:c.rabKatId?String(c.rabKatId):null,
+    rabItemId:c.rabItemId?String(c.rabItemId):null
   })).filter(c=>{if(seen.has(c.id))return false;seen.add(c.id);return true;});
 }
 
@@ -4784,7 +4795,28 @@ function _updateCostKatList(projId){
   const allKats=[...new Set([...rabKats,...defaults])];
   dl.innerHTML=allKats.map(k=>'<option value="'+safeStr(k)+'">').join('');
 }
-async function gsSync(){
+// Sync dengan COSTS custom (dipakai oleh delCost untuk kirim snapshot sebelum filter)
+async function _gsSyncWithCosts(costsArr){
+  if(!gsOk||!gsUrl)return;
+  try{
+    const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
+    const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
+    const user=localStorage.getItem('atw_user')||'user';
+    const body=JSON.stringify({action:'sync',lastSaved:lTs,user,projects:P,history:hist,
+      issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,
+      scurve:SCURVE,wbs:WBS,costs:costsArr,rab:RAB});
+    const r=await fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain;charset=utf-8'}});
+    if(r.ok){
+      const d=JSON.parse(await r.text());
+      if(d.status==='ok'){
+        clearPendingDeletesCost();
+        console.log('GS delete sync OK');
+      }
+    }
+  }catch(e){console.warn('GS delete sync failed:',e.message);}
+}
+
+function gsSync(){
   if(!gsOk||!gsUrl)return;
   // Debounce \u2014 jangan sync terlalu sering
   if(gsSync._pending)clearTimeout(gsSync._pending);
