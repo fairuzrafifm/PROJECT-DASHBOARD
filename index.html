@@ -7751,148 +7751,125 @@ function renderGantt(){
   const projId=$('wbsProjSel')?.value;if(!projId)return;
   const proj=P.find(p=>String(p.id)===String(projId));
   const all=WBS.filter(w=>String(w.projId)===String(projId));
-  const cats=all.filter(w=>w.type==='cat').sort((a,b)=>a.order-b.order);
+  const cats=all.filter(w=>w.type==='cat').sort((a,b)=>+a.order-+b.order);
   const zoom=+($('ganttZoom')?.value||30);
   if($('wbsGanttTitle'))$('wbsGanttTitle').textContent=proj?.nama||'';
 
-  // Collect all dates to determine range
+  // Date range
   const allDates=[];
-  if(proj?.mulai) allDates.push(new Date(proj.mulai+'T00:00:00'));
-  if(proj?.selesai) allDates.push(new Date(proj.selesai+'T00:00:00'));
   all.forEach(w=>{
     if(w.startDate)allDates.push(new Date(w.startDate+'T00:00:00'));
     if(w.finishDate)allDates.push(new Date(w.finishDate+'T00:00:00'));
   });
-
-  let minDate, maxDate;
+  if(proj?.mulai)allDates.push(new Date(proj.mulai+'T00:00:00'));
+  if(proj?.selesai)allDates.push(new Date(proj.selesai+'T00:00:00'));
+  const today=new Date();today.setHours(0,0,0,0);
+  let minDate,maxDate;
   if(allDates.length){
     minDate=new Date(Math.min(...allDates));
     maxDate=new Date(Math.max(...allDates));
-  }else if(proj?.mulai){
-    minDate=new Date(proj.mulai+'T00:00:00');
-    maxDate=new Date(minDate);maxDate.setMonth(maxDate.getMonth()+3);
   }else{
-    const now=new Date();
-    minDate=new Date(now.getFullYear(),now.getMonth(),1);
-    maxDate=new Date(now.getFullYear(),now.getMonth()+3,1);
+    minDate=new Date(today.getFullYear(),today.getMonth()-1,1);
+    maxDate=new Date(today.getFullYear(),today.getMonth()+3,1);
   }
-  // Add padding
-  minDate=new Date(minDate);minDate.setDate(minDate.getDate()-7);
-  maxDate=new Date(maxDate);maxDate.setDate(maxDate.getDate()+14);
+  minDate=new Date(minDate.getTime()-7*86400000);
+  maxDate=new Date(maxDate.getTime()+21*86400000);
+  if(zoom===30){const dow=minDate.getDay();minDate=new Date(minDate.getTime()-(dow===0?6:dow-1)*86400000);}
 
-  // Build column units
+  // Columns
+  const stepDays=zoom===7?1:zoom===30?7:30;
+  const COL_W=zoom===7?28:zoom===30?32:44;
+  const pxPerDay=COL_W/stepDays;
   const cols=[];
   let cur=new Date(minDate);
-  const COL_W=zoom===7?24:zoom===30?28:40; // px per col
-  while(cur<=maxDate){
-    cols.push(new Date(cur));
-    cur.setDate(cur.getDate()+(zoom===7?1:zoom===30?7:30));
-  }
-  const totalW=cols.length*COL_W;
-  const today=new Date();today.setHours(0,0,0,0);
+  while(cur<=maxDate){cols.push(new Date(cur));cur=new Date(cur.getTime()+stepDays*86400000);}
+  const totalW=Math.max(cols.length*COL_W,400);
 
-  // Helper: date -> x position
-  // Step size in days per column
-  const stepDays=zoom===7?1:zoom===30?7:30;
-  // Pixels per day
-  const pxPerDay=COL_W/stepDays;
-  const dateToX=d=>{
-    if(!d)return 0;
-    const ms=new Date(d+'T00:00:00')-minDate;
-    return Math.round(ms/86400000*pxPerDay);
+  // px helper
+  const toX=ds=>{
+    if(!ds)return -999;
+    return Math.round((new Date(ds+'T00:00:00').getTime()-minDate.getTime())/86400000*pxPerDay);
   };
-  const dateToXObj=d=>{
-    if(!d)return 0;
-    const ms=d-minDate;
-    return Math.round(ms/86400000*pxPerDay);
-  };
+  const todayX=Math.round((today.getTime()-minDate.getTime())/86400000*pxPerDay);
 
-  // Build column header months
-  let monthHeaders='';
-  const monthMap={};
-  cols.forEach((d,i)=>{
-    const mk=d.getFullYear()+'-'+d.getMonth();
-    if(!monthMap[mk])monthMap[mk]={start:i,label:d.toLocaleDateString('id-ID',{month:'short',year:'2-digit'})};
-    monthMap[mk].end=i;
+  // Month header
+  let monthHdr='';
+  const mmap={};
+  cols.forEach(d=>{
+    const k=d.getFullYear()+'-'+d.getMonth();
+    if(!mmap[k])mmap[k]={label:d.toLocaleDateString('id-ID',{month:'short',year:'2-digit'}),count:0};
+    mmap[k].count++;
   });
-  Object.values(monthMap).forEach(m=>{
-    const w=(m.end-m.start+1)*COL_W;
-    monthHeaders+=`<div class="gantt-month" style="width:${w}px;flex-shrink:0">${m.label}</div>`;
+  Object.values(mmap).forEach(m=>{
+    monthHdr+='<div style="width:'+m.count*COL_W+'px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;border-right:1px solid var(--bd);box-sizing:border-box">'+m.label+'</div>';
   });
 
-  // Column headers (week/day labels)
-  let colHeaders='';
-  cols.forEach((d,i)=>{
+  // Col header
+  let colHdr='';
+  cols.forEach(d=>{
     const isToday=d.toDateString()===today.toDateString();
-    const label=zoom===7?d.getDate():zoom===30?'W'+(Math.ceil((d-new Date(d.getFullYear(),0,1))/86400000/7)):d.toLocaleDateString('id-ID',{month:'short'});
-    colHeaders+=`<div class="gantt-day-col" style="width:${COL_W}px;flex-shrink:0;${isToday?'color:var(--or);font-weight:700':''}">${label}</div>`;
+    const lbl=zoom===7?d.getDate():zoom===30?d.getDate():d.toLocaleDateString('id-ID',{month:'short'});
+    colHdr+='<div style="width:'+COL_W+'px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;border-right:1px solid rgba(128,128,128,.1);box-sizing:border-box;'+(isToday?'color:var(--or);font-weight:700;background:rgba(249,115,22,.08)':'color:var(--mt)')+'">'+lbl+'</div>';
   });
 
-  // Today line x
-  const todayX=dateToXObj(today);
+  // Bar builder
+  const mkBar=(sd,fd,type)=>{
+    if(!sd||!fd)return '';
+    const x1=Math.max(0,toX(sd));
+    const x2=Math.min(totalW,toX(fd));
+    const w=Math.max(6,x2-x1);
+    if(x1>=totalW||x2<=0)return '';
+    const dur=_ganttDuration(sd,fd);
+    let st='position:absolute;left:'+x1+'px;width:'+w+'px;z-index:2;overflow:visible;';
+    if(type==='cat')st+='height:16px;top:11px;background:rgba(59,130,246,.2);border:2px solid #3b82f6;border-radius:4px';
+    else if(type==='sub')st+='height:14px;top:12px;background:rgba(16,185,129,.3);border:1px solid #10b981;border-radius:3px';
+    else st+='height:14px;top:12px;background:rgba(59,130,246,.7);border:1px solid #3b82f6;border-radius:3px';
+    return '<div style="'+st+'">'+(dur&&w>40?'<span style="position:absolute;left:4px;top:50%;transform:translateY(-50%);font-size:8px;font-weight:700;color:#fff;white-space:nowrap">'+dur+'</span>':'')+'</div>';
+  };
+  const mkAct=(node,sd,fd)=>{
+    if(!sd||!fd)return '';
+    const pct=Math.min(100,Math.max(0,+node.cumActual||0));
+    if(!pct)return '';
+    const x1=Math.max(0,toX(sd));
+    const x2=Math.min(totalW,toX(fd));
+    const fw=Math.max(6,x2-x1);
+    const aw=Math.max(3,Math.round(fw*pct/100));
+    return '<div style="position:absolute;left:'+x1+'px;width:'+fw+'px;height:8px;top:28px;background:rgba(249,115,22,.2);border-radius:2px;z-index:2"><div style="width:'+aw+'px;height:100%;background:#f97316;border-radius:2px"></div></div>';
+  };
+  const tLine='<div style="position:absolute;left:'+todayX+'px;top:0;bottom:0;width:2px;background:#f97316;opacity:.8;z-index:5;pointer-events:none"><span style="position:absolute;top:2px;left:3px;font-size:7px;color:#f97316;font-weight:700;white-space:nowrap">TODAY</span></div>';
 
-  // Build left and right rows — fixed 40px height each, perfectly synced
+  // Rows
   let leftRows='',rightRows='';
+  if(!cats.length){
+    leftRows='<div style="padding:20px;color:var(--mt);font-size:12px;text-align:center">Belum ada WBS. Tambahkan item dan isi Start/Finish date.</div>';
+    rightRows='<div style="height:60px;min-width:'+totalW+'px"></div>';
+  }
   cats.forEach((cat,ci)=>{
-    const catChildren=all.filter(w=>String(w.projId)===String(projId)&&(w.type==='subcat'||w.type==='item')&&all.some(s=>s.type==='subcat'&&s.parentId===cat.id&&(s.id===w.parentId||w.parentId===s.id)));
-    const allCatDates=[...all.filter(w=>w.parentId===cat.id||catChildren.some(x=>x.id===w.parentId))];
-    const catStarts=allCatDates.map(w=>w.startDate).filter(Boolean).sort();
-    const catFinishes=allCatDates.map(w=>w.finishDate).filter(Boolean).sort();
-    const catPlanBar=_ganttBar(catStarts[0],catFinishes.slice(-1)[0],dateToX,totalW,'cat');
-    const dur=_ganttDuration(catStarts[0],catFinishes.slice(-1)[0]);
-    leftRows+=`<div class="gantt-lrow gl-cat" onclick="toggleGanttCat2('gc2_${cat.id}')" style="cursor:pointer">
-      <span id="gc2icon_${cat.id}" style="font-size:9px;opacity:.5;flex-shrink:0">▼</span>
-      <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${String.fromCharCode(65+ci)}. ${safeStr(cat.name)}</span>
-      ${dur?`<span style="font-size:9px;color:var(--mt);flex-shrink:0;margin-left:4px">${dur}</span>`:''}
-    </div>`;
-    rightRows+=`<div class="gantt-rrow gl-cat" style="width:${totalW}px">
-      ${catPlanBar}<div class="gantt-today-line" style="left:${todayX}px"></div>
-    </div>`;
+    const subcats=all.filter(w=>w.type==='subcat'&&String(w.parentId)===String(cat.id)).sort((a,b)=>+a.order-+b.order);
+    const items=all.filter(w=>w.type==='item'&&subcats.some(s=>String(s.id)===String(w.parentId)));
+    const allNodes=[...subcats,...items];
+    const cS=allNodes.map(w=>w.startDate).filter(Boolean).sort();
+    const cF=allNodes.map(w=>w.finishDate).filter(Boolean).sort();
+    const dur=_ganttDuration(cS[0],cF.slice(-1)[0]);
+    leftRows+='<div class="gantt-lrow gl-cat" onclick="toggleGanttCat2(\'gc2_'+cat.id+'\')" style="cursor:pointer"><span id="gc2icon_'+cat.id+'" style="font-size:9px;flex-shrink:0;opacity:.5">&#x25BC;</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+String.fromCharCode(65+ci)+'. '+safeStr(cat.name)+'</span>'+(dur?'<span style="font-size:9px;color:var(--mt);flex-shrink:0">'+dur+'</span>':'')+'</div>';
+    rightRows+='<div class="gantt-rrow gl-cat" style="width:'+totalW+'px;min-width:'+totalW+'px">'+mkBar(cS[0],cF.slice(-1)[0],'cat')+tLine+'</div>';
 
-    all.filter(w=>w.type==='subcat'&&String(w.parentId)===String(cat.id)).sort((a,b)=>+a.order-+b.order).forEach((sub,si)=>{
-      const subItems=all.filter(w=>w.type==='item'&&String(w.parentId)===String(sub.id)).sort((a,b)=>+a.order-+b.order);
-      const isLeaf=subItems.length===0;
-      const subPlanBar=_ganttBar(sub.startDate,sub.finishDate,dateToX,totalW,'sub');
-      const subActBar=isLeaf?_ganttActualBar(sub,dateToX,totalW,sub.startDate,sub.finishDate):'';
+    subcats.forEach((sub,si)=>{
+      const subItems=items.filter(w=>String(w.parentId)===String(sub.id)).sort((a,b)=>+a.order-+b.order);
+      const isLeaf=!subItems.length;
       const subPct=isLeaf?+(sub.cumActual||0):subItems.reduce((s,x)=>s+(+x.cumActual||0),0)/Math.max(1,subItems.length);
-      leftRows+=`<div class="gantt-lrow gl-sub gc2_${cat.id}" ${!isLeaf?`onclick="toggleGanttCat2('gi2_${sub.id}')" style="cursor:pointer;padding-left:20px"`:'style="padding-left:20px"'}>
-        ${!isLeaf?`<span id="gi2icon_${sub.id}" style="font-size:9px;opacity:.5;flex-shrink:0">▼</span>`:'<span style="width:10px;flex-shrink:0"></span>'}
-        <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ci+1}.${si+1} ${safeStr(sub.name)}</span>
-        ${subPct>0?`<span style="font-size:9px;font-family:var(--fm);color:var(--or);flex-shrink:0">${subPct.toFixed(1)}%</span>`:''}
-      </div>`;
-      rightRows+=`<div class="gantt-rrow gl-sub gc2_${cat.id}" style="width:${totalW}px">
-        ${subPlanBar}${subActBar}<div class="gantt-today-line" style="left:${todayX}px"></div>
-      </div>`;
+      leftRows+='<div class="gantt-lrow gl-sub gc2_'+cat.id+'" style="padding-left:22px;'+(isLeaf?'':'cursor:pointer')+'"'+(isLeaf?'':' onclick="toggleGanttCat2(\'gi2_'+sub.id+'\')"')+'>'+(!isLeaf?'<span id="gi2icon_'+sub.id+'" style="font-size:9px;flex-shrink:0;opacity:.5">&#x25BC;</span>':'<span style="width:10px;flex-shrink:0"></span>')+'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(ci+1)+'.'+(si+1)+' '+safeStr(sub.name)+'</span>'+(subPct>0?'<span style="font-size:9px;color:var(--or);flex-shrink:0;font-family:var(--fm)">'+subPct.toFixed(1)+'%</span>':'')+'</div>';
+      rightRows+='<div class="gantt-rrow gl-sub gc2_'+cat.id+'" style="width:'+totalW+'px;min-width:'+totalW+'px">'+mkBar(sub.startDate,sub.finishDate,'sub')+(isLeaf?mkAct(sub,sub.startDate,sub.finishDate):'')+tLine+'</div>';
 
       subItems.forEach((item,ii)=>{
-        const planBar=_ganttBar(item.startDate||sub.startDate,item.finishDate||sub.finishDate,dateToX,totalW,'plan');
-        const actBar=_ganttActualBar(item,dateToX,totalW,sub.startDate,sub.finishDate);
         const pct=+item.cumActual||0;
-        leftRows+=`<div class="gantt-lrow gl-item gi2_${sub.id}" style="padding-left:32px">
-          <span style="font-size:9px;color:var(--mt);flex-shrink:0">${ci+1}.${si+1}.${ii+1}</span>
-          <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px">${safeStr(item.name)}</span>
-          ${pct>0?`<span style="font-size:9px;font-family:var(--fm);color:var(--or);flex-shrink:0">${pct.toFixed(1)}%</span>`:''}
-        </div>`;
-        rightRows+=`<div class="gantt-rrow gi2_${sub.id}" style="width:${totalW}px">
-          ${planBar}${actBar}<div class="gantt-today-line" style="left:${todayX}px"></div>
-        </div>`;
+        leftRows+='<div class="gantt-lrow gl-item gi2_'+sub.id+'" style="padding-left:36px"><span style="font-size:9px;color:var(--mt);flex-shrink:0;margin-right:2px">'+(ci+1)+'.'+(si+1)+'.'+(ii+1)+'</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">'+safeStr(item.name)+'</span>'+(pct>0?'<span style="font-size:9px;color:var(--or);flex-shrink:0;font-family:var(--fm)">'+pct.toFixed(1)+'%</span>':'')+'</div>';
+        rightRows+='<div class="gantt-rrow gi2_'+sub.id+'" style="width:'+totalW+'px;min-width:'+totalW+'px">'+mkBar(item.startDate||sub.startDate,item.finishDate||sub.finishDate,'plan')+mkAct(item,item.startDate||sub.startDate,item.finishDate||sub.finishDate)+tLine+'</div>';
       });
     });
   });
 
-  $('wbsGanttChart').innerHTML=`
-    <div class="gantt-container">
-      <div class="gantt-left-panel">
-        <div class="gantt-left-header">ITEM PEKERJAAN</div>
-        <div class="gantt-left-subheader">Bobot / Durasi / Progress</div>
-        ${leftRows||'<div style="padding:20px;color:var(--mt);font-size:12px">Belum ada WBS. Tambahkan item dan isi Start/Finish date.</div>'}
-      </div>
-      <div class="gantt-right-panel">
-        <div class="gantt-right-header" style="width:${totalW}px">${monthHeaders}</div>
-        <div class="gantt-right-subheader" style="width:${totalW}px">${colHeaders}</div>
-        ${rightRows}
-      </div>
-    </div>`;
+  $('wbsGanttChart').innerHTML='<div class="gantt-container"><div class="gantt-left-panel"><div class="gantt-left-header">ITEM PEKERJAAN</div><div class="gantt-left-subheader">Bobot / Durasi / Progress</div>'+leftRows+'</div><div class="gantt-right-panel"><div style="display:flex;height:22px;border-bottom:1px solid var(--bd);background:var(--sf2);width:'+totalW+'px;min-width:'+totalW+'px">'+monthHdr+'</div><div style="display:flex;height:20px;border-bottom:2px solid var(--bd);background:var(--sf2);width:'+totalW+'px;min-width:'+totalW+'px">'+colHdr+'</div><div style="min-width:'+totalW+'px;width:'+totalW+'px">'+rightRows+'</div></div></div>';
 }
 
 function toggleGanttCat2(groupClass){
