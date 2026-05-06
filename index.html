@@ -6456,15 +6456,31 @@ function _syncDailyToProject(projId){
   const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
   const proj=P.find(p=>String(p.id)===String(projId));
 
-  // Recalculate cumActual dari sum semua dailyLog.pct
+  // Recalculate cumActual dari dailyLogs qty (source of truth)
   leafNodes.forEach(node=>{
     const dl=node.dailyLogs||[];
-    const totalDaily=Math.min(100, dl.reduce((s,l)=>s+(+l.pct||0),0));
-    // Juga ambil dari weeklyData jika ada
-    const wd=node.weeklyData||{};
-    const weeklyTotal=Math.min(100, Object.keys(wd).reduce((s,k)=>s+(+(wd[k].wAct||0)),0));
-    // Gunakan yang lebih besar (daily bisa lebih detail)
-    node.cumActual=Math.max(totalDaily, weeklyTotal);
+    if(+node.qtyPlan>0){
+      // Qty-based: totalQty kumulatif / qtyPlan
+      const totalQty=dl.reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0);
+      node.cumActual=Math.min(100,Math.round(totalQty/node.qtyPlan*10000)/100);
+    } else if(dl.length>0){
+      // Pct-based fallback (legacy)
+      node.cumActual=Math.min(100,Math.round(dl.reduce((s,l)=>s+(+l.pct||0),0)*100)/100);
+    }
+    // Sync cumActual ke weeklyData per minggu
+    if(node.weeklyData){
+      const weeks=[...new Set(dl.map(l=>l.week).filter(Boolean))].sort((a,b)=>a-b);
+      weeks.forEach(w=>{
+        const wLogs=dl.filter(l=>l.week===w);
+        if(+node.qtyPlan>0){
+          const wQty=wLogs.reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0);
+          const wAct=Math.min(100,Math.round(wQty/node.qtyPlan*10000)/100);
+          const cumQty=dl.filter(l=>(l.week||0)<=w).reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0);
+          const cAct=Math.min(100,Math.round(cumQty/node.qtyPlan*10000)/100);
+          node.weeklyData[w]={...(node.weeklyData[w]||{}),wAct,cAct};
+        }
+      });
+    }
   });
 
   // Update project actual & status
@@ -6497,10 +6513,15 @@ function _syncDailyToProject(projId){
 function getWbsWeekNum(projId, date){
   const proj=P.find(p=>String(p.id)===String(projId));
   if(!proj?.mulai||!date)return null;
-  const start=new Date(proj.mulai+'T00:00:00');
+  // Snap project start ke Senin terdekat (ke belakang)
+  const startRaw=new Date(proj.mulai+'T00:00:00');
+  const dow=startRaw.getDay(); // 0=Min,1=Sen,...,6=Sab
+  const snapDays=dow===0?-6:1-dow; // mundur ke Senin
+  const weekStart=new Date(startRaw.getTime()+snapDays*86400000);
   const d=new Date(date+'T00:00:00');
-  const diffDays=Math.floor((d-start)/86400000);
+  const diffDays=Math.floor((d-weekStart)/86400000);
   if(diffDays<0)return null;
+  // Cut-off Minggu: Senin-Minggu = satu minggu
   return Math.floor(diffDays/7)+1;
 }
 
@@ -6743,6 +6764,16 @@ function syncWbsToSCurve(projId){
   const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)&&+w.bobot>0));
   if(!leafNodes.length)return;
   const proj=P.find(p=>String(p.id)===String(projId));
+
+  // Week start: snap project mulai ke Senin
+  let weekStartBase=null;
+  if(proj?.mulai){
+    const raw=new Date(proj.mulai+'T00:00:00');
+    const dow=raw.getDay();
+    const snap=dow===0?-6:1-dow;
+    weekStartBase=new Date(raw.getTime()+snap*86400000);
+  }
+
   const weekSet=new Set();
   leafNodes.forEach(node=>{
     Object.keys(node.weeklyData||{}).forEach(k=>weekSet.add(+k));
@@ -6751,34 +6782,44 @@ function syncWbsToSCurve(projId){
   if(!weekSet.size)return;
   SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.fromWbs));
   const prevCumByNode={};
-  let cumAct=0;
   [...weekSet].sort((a,b)=>a-b).forEach(week=>{
     let wPlan=0,wAct=0,cPlanContrib=0;
+    // cAct = weighted sum of each node's cumActual up to this week
+    let cActContrib=0;
     leafNodes.forEach(node=>{
       const bobot=+node.bobot||0;
       const wp=node.weeklyPlan||{};
       const wd=node.weeklyData||{};
+      // wAct from weeklyData
       wAct+=bobot*(+(wd[week]?.wAct||0))/100;
-      // Derive cumulative plan \u2014 prefer cumPlan field (new grid), fallback to summing wPlan (legacy)
+      // cAct: use cAct from weeklyData for this week (set by _syncDailyToProject)
+      // Find latest cAct up to this week
+      const maxWeekWithAct=Math.max(0,...Object.keys(wd).filter(k=>+k<=week&&wd[k].cAct!=null).map(Number));
+      if(maxWeekWithAct>0)cActContrib+=bobot*(+wd[maxWeekWithAct].cAct||0)/100;
+      // Plan
       let cumPlanNode=null;
-      if(wp[week]?.cumPlan!=null){
-        cumPlanNode=+wp[week].cumPlan;
-      } else if(Object.keys(wp).some(k=>+k<=week&&wp[k]?.wPlan!=null)){
+      if(wp[week]?.cumPlan!=null){cumPlanNode=+wp[week].cumPlan;}
+      else if(Object.keys(wp).some(k=>+k<=week&&wp[k]?.wPlan!=null)){
         cumPlanNode=Math.min(100,Object.keys(wp).filter(k=>+k<=week).reduce((s,k)=>s+(+(wp[k].wPlan||0)),0));
       }
       if(cumPlanNode!=null){
         cPlanContrib+=bobot*cumPlanNode/100;
-        // Weekly increment = difference from previous week's cumulative
         const prevCum=prevCumByNode[node.id]||0;
         wPlan+=bobot*Math.max(0,cumPlanNode-prevCum)/100;
         prevCumByNode[node.id]=cumPlanNode;
       }
     });
-    cumAct+=wAct;
+    // dateStart = Senin minggu ke-week (cut-off Minggu)
     let dateStart='';
-    if(proj?.mulai){const d=new Date(proj.mulai);d.setDate(d.getDate()+(week-1)*7);dateStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});}
-    SCURVE.push({projId,week,wPlan:Math.round(wPlan*100)/100,wAct:Math.round(wAct*100)/100,
-      cPlan:Math.round(cPlanContrib*100)/100,cAct:Math.min(100,Math.round(cumAct*100)/100),
+    if(weekStartBase){
+      const d=new Date(weekStartBase.getTime()+(week-1)*7*86400000);
+      dateStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+    }
+    SCURVE.push({projId,week,
+      wPlan:Math.round(wPlan*100)/100,
+      wAct:Math.round(wAct*100)/100,
+      cPlan:Math.round(cPlanContrib*100)/100,
+      cAct:Math.min(100,Math.round(cActContrib*100)/100),
       dateStart,fromWbs:true});
   });
 }
@@ -7267,8 +7308,11 @@ function buildWeeklyReportHTML(projId,week){
   // Week date range
   let weekStartDate=null,weekEndDate=null,weekStart='',weekEnd='';
   if(proj.mulai){
-    weekStartDate=new Date(proj.mulai+'T00:00:00');weekStartDate.setDate(weekStartDate.getDate()+(week-1)*7);
-    weekEndDate=new Date(weekStartDate);weekEndDate.setDate(weekEndDate.getDate()+6);
+    const _raw=new Date(proj.mulai+'T00:00:00');
+    const _dow=_raw.getDay();const _snap=_dow===0?-6:1-_dow;
+    const _base=new Date(_raw.getTime()+_snap*86400000);
+    weekStartDate=new Date(_base.getTime()+(week-1)*7*86400000);
+    weekEndDate=new Date(weekStartDate.getTime()+6*86400000);
     weekStart=weekStartDate.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
     weekEnd=weekEndDate.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
   }
