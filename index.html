@@ -3567,6 +3567,7 @@ function saveWeather(){
   P.forEach(p=>{const el=$('wf_'+p.id);if(el)p.weather=el.value;});
   dirty();cm('editWeather');if(activeTab==='overview')renderOV();else renderSB();toast('Cuaca diupdate ✓');gsSync();
 }
+
 function saveIss(){
   const uraian=gv('iUraian').trim();if(!uraian){toast('Uraian wajib diisi','error');return;}
   const d={projId:+gv('iProj')||gv('iProj'),tgl:gv('iTgl'),uraian,prioritas:gv('iPri'),
@@ -3575,7 +3576,9 @@ function saveIss(){
   else{d.id=genId();ISS.push(d);toast('Issue ditambahkan ✓');}
   dirty();cm('addIssue');renderIssues();$('pk5').textContent=ISS.filter(i=>i.status!=='Closed').length;gsSync();
 }
+
 function delIss(){showConfirm('Hapus issue ini?',()=>{ISS=ISS.filter(i=>String(i.id)!==String(editIssId));dirty();cm('addIssue');renderIssues();toast('Issue dihapus','warn');gsSync();});}
+
 function saveProc(){
   const item=gv('pItem').trim();if(!item){toast('Nama item wajib diisi','error');return;}
   const d={projId:+gv('pProj')||gv('pProj'),item,kategori:gv('pKat'),qty:gv('pQty'),satuan:gv('pSat'),
@@ -3585,7 +3588,6 @@ function saveProc(){
   else{d.id=genId();PROC.push(d);toast('Item ditambahkan ✓');}
   dirty();cm('addProc');renderProc();if(activeTab==='overview')renderOV();gsSync();
 }
-function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>String(p.id)!==String(editProcId));dirty();cm('addProc');renderProc();toast('Item dihapus','warn');gsSync();});}
 
 function delProc(){showConfirm('Hapus item ini?',()=>{PROC=PROC.filter(p=>String(p.id)!==String(editProcId));dirty();cm('addProc');renderProc();toast('Item dihapus','warn');gsSync();});}
 
@@ -5801,10 +5803,6 @@ function renderWBS(){
   if(!projId){$('wbsTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:30px">Belum ada project</div>';return;}
   const proj=P.find(p=>String(p.id)===String(projId));
   if($('wbsChartTitle'))$('wbsChartTitle').textContent=proj?.nama||'';
-  // Debug: log first few WBS entries vs projId
-  if(WBS.length){
-
-  }
   // Try both string and loose match
   let all=WBS.filter(w=>String(w.projId)===String(projId));
   // Fallback: try numeric match if string match fails
