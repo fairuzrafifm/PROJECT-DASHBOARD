@@ -105,6 +105,46 @@
 .cost-type-proc{background:rgba(59,130,246,.15);color:var(--bl);padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700}
 .cost-type-opex{background:rgba(139,92,246,.15);color:var(--pu);padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700}
 .cost-type-other{background:rgba(100,116,139,.15);color:var(--mt);padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700}
+/* MANPOWER ACTIVITY ASSIGNMENT */
+#mpActivityRows::-webkit-scrollbar{width:5px}
+#mpActivityRows::-webkit-scrollbar-track{background:var(--sf2);border-radius:3px}
+#mpActivityRows::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+#mpActivityRows::-webkit-scrollbar-thumb:hover{background:var(--mt)}
+.mp-act-row .fi{padding:4px 6px}
+
+/* SCROLLABLE TABLE CONTAINERS */
+.tbl-scroll-wrap{overflow-x:auto;overflow-y:auto;position:relative;border-radius:0 0 8px 8px}
+.tbl-scroll-wrap table thead th,
+#rabTable table thead th,
+#costDetailTable table thead th,
+#costSummaryTable table thead th{
+  position:sticky;top:0;z-index:3;background:var(--sf);
+  box-shadow:0 1px 0 var(--bd);
+}
+/* Custom scrollbar untuk tabel */
+#rabTable::-webkit-scrollbar,
+#costDetailTable::-webkit-scrollbar,
+#costSummaryTable::-webkit-scrollbar{width:6px;height:6px}
+#rabTable::-webkit-scrollbar-track,
+#costDetailTable::-webkit-scrollbar-track,
+#costSummaryTable::-webkit-scrollbar-track{background:var(--sf2);border-radius:3px}
+#rabTable::-webkit-scrollbar-thumb,
+#costDetailTable::-webkit-scrollbar-thumb,
+#costSummaryTable::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+#rabTable::-webkit-scrollbar-thumb:hover,
+#costDetailTable::-webkit-scrollbar-thumb:hover,
+#costSummaryTable::-webkit-scrollbar-thumb:hover{background:var(--mt)}
+/* Scroll fade indicator */
+#rabTable,#costDetailTable{
+  background:
+    linear-gradient(var(--sf) 30%,transparent) top/100% 20px,
+    linear-gradient(transparent,var(--sf) 70%) bottom/100% 20px,
+    radial-gradient(farthest-side at 50% 0,rgba(0,0,0,.2),transparent) top/100% 8px,
+    radial-gradient(farthest-side at 50% 100%,rgba(0,0,0,.2),transparent) bottom/100% 8px;
+  background-repeat:no-repeat;
+  background-attachment:local,local,scroll,scroll;
+}
+
 /* RAB */
 .rab-kat-row{background:var(--sf2);font-weight:700;cursor:pointer;user-select:none}
 .rab-kat-row:hover{background:rgba(251,146,60,.08)}
@@ -1039,7 +1079,7 @@ select.fi{color-scheme:dark}
       <!-- Detail Table -->
       <div class="card">
         <div class="ct">DETAIL PENGELUARAN</div>
-        <div id="costDetailTable" style="overflow-x:auto;max-height:calc(100vh - 440px);overflow-y:auto"></div>
+        <div id="costDetailTable" style="overflow-x:auto;overflow-y:auto;max-height:380px;position:relative"></div>
       </div>
 
       <!-- RAB Section -->
@@ -1065,7 +1105,7 @@ select.fi{color-scheme:dark}
         </div>
 
         <!-- RAB Table -->
-        <div id="rabTable" style="overflow-x:auto"></div>
+        <div id="rabTable" style="overflow-x:auto;overflow-y:auto;max-height:520px;position:relative"></div>
       </div>
 
     </div>
@@ -1160,11 +1200,11 @@ select.fi{color-scheme:dark}
 
 <!-- INPUT MANPOWER -->
 <div class="ov" id="ov-inputMp" onclick="if(event.target===this)cm('inputMp')">
-<div class="modal wide">
+<div class="modal" style="max-width:820px;width:96vw">
   <div class="mtitle">INPUT HARIAN — MANPOWER & PROGRESS<button class="mclose" onclick="cm('inputMp')">✕</button></div>
   <div class="f2">
-    <div class="fg"><label class="fl">Project *</label><select class="fi" id="mpProj" onchange="fillMpPlan()"></select></div>
-    <div class="fg"><label class="fl">Tanggal</label><input class="fi" type="date" id="mpDate"></div>
+    <div class="fg"><label class="fl">Project *</label><select class="fi" id="mpProj" onchange="fillMpPlan();renderMpActivityRows()"></select></div>
+    <div class="fg"><label class="fl">Tanggal</label><input class="fi" type="date" id="mpDate" onchange="renderMpActivityRows()"></div>
   </div>
 
   <div class="fsec">MANDAYS PLAN VS ACTUAL</div>
@@ -1176,19 +1216,29 @@ select.fi{color-scheme:dark}
     </div>
   </div>
 
-  <div class="fsec">DATA PEKERJA HARI INI</div>
-  <div class="f3">
-    <div class="fg"><label class="fl">SPV</label><input class="fi" type="number" id="mpSpv" placeholder="0" min="0" oninput="calcMpTot()"></div>
-    <div class="fg"><label class="fl">Mandor</label><input class="fi" type="number" id="mpMandor" placeholder="0" min="0" oninput="calcMpTot()"></div>
-    <div class="fg"><label class="fl">Installer</label><input class="fi" type="number" id="mpInstaller" placeholder="0" min="0" oninput="calcMpTot()"></div>
+  <!-- Hidden fields untuk backward-compat — diisi otomatis dari activities saat simpan -->
+  <input type="hidden" id="mpSpv" value="0">
+  <input type="hidden" id="mpMandor" value="0">
+  <input type="hidden" id="mpInstaller" value="0">
+  <input type="hidden" id="mpTukang" value="0">
+  <input type="hidden" id="mpHelper" value="0">
+  <input type="hidden" id="mpSafety" value="0">
+  <input type="hidden" id="mpTot" value="0">
+
+  <!-- ═══ ASSIGNMENT AKTIVITAS ═══ -->
+  <div class="fsec" style="display:flex;align-items:center;justify-content:space-between">
+    <span>👷 ASSIGNMENT PEKERJA PER AKTIVITAS</span>
+    <button class="btn btn-sm" style="border-color:var(--gn);color:var(--gn);font-size:11px" onclick="addMpActivityRow()">＋ Tambah Aktivitas</button>
   </div>
-  <div class="f3">
-    <div class="fg"><label class="fl">Tukang</label><input class="fi" type="number" id="mpTukang" placeholder="0" min="0" oninput="calcMpTot()"></div>
-    <div class="fg"><label class="fl">Helper</label><input class="fi" type="number" id="mpHelper" placeholder="0" min="0" oninput="calcMpTot()"></div>
-    <div class="fg"><label class="fl">Safety Man</label><input class="fi" type="number" id="mpSafety" placeholder="0" min="0" oninput="calcMpTot()"></div>
+  <div id="mpActivityRows" style="display:flex;flex-direction:column;gap:6px;max-height:380px;overflow-y:auto;padding-right:2px;margin-bottom:8px"></div>
+
+  <!-- Total Summary Bar — auto dari activities -->
+  <div id="mpTotSummary" style="display:none;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 14px;margin-bottom:10px">
+    <div style="font-size:10px;color:var(--mt);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">REKAP TOTAL PEKERJA (auto)</div>
+    <div id="mpTotBreakdown" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center"></div>
   </div>
-  <div class="f3">
-    <div class="fg"><label class="fl">Total Pekerja (auto)</label><input class="fi" id="mpTot" readonly style="background:var(--sf2);color:var(--gn);font-weight:600"></div>
+
+  <div class="f2">
     <div class="fg"><label class="fl">Manhours Actual (jam)</label><input class="fi" type="number" id="mpMhAct" placeholder="480" min="0"></div>
     <div class="fg"><label class="fl">Time Lost (jam)</label><input class="fi" type="number" id="mpTL" placeholder="0" min="0"></div>
   </div>
@@ -1199,13 +1249,13 @@ select.fi{color-scheme:dark}
       <option>Kecelakaan Kerja</option><option>Masalah Material</option><option>Lainnya</option>
     </select>
   </div>
-
   <div class="fg">
     <label class="fl">Catatan Harian</label>
     <input class="fi" id="mpNotes" placeholder="Aktivitas hari ini, kendala, dll...">
   </div>
+  <div id="mpActSummary" style="display:none"></div>
 
-  <div class="mfoot">
+  <div class="mfoot" style="margin-top:14px">
     <button class="btn" onclick="cm('inputMp')">Batal</button>
     <button class="btn bp" onclick="saveMp()">💾 Simpan</button>
   </div>
@@ -2190,11 +2240,17 @@ function syncAllWbsToProjects(){
     if(!all.length)return;
     const leaves=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
     if(!leaves.length)return;
-    const cAct=leaves.reduce((s,n)=>{
-      const wd=n.weeklyData||{};
-      const cum=Math.min(100,Object.keys(wd).reduce((ss,k)=>ss+(+(wd[k].wAct||0)),0));
-      return s+(+n.bobot||0)*cum/100;
-    },0);
+    // Recalculate cumActual dari dailyLogs (source of truth) before using it
+    leaves.forEach(node=>{
+      const dl=node.dailyLogs||[];
+      if(+node.qtyPlan>0&&dl.length>0){
+        const totalQty=dl.reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0);
+        const newCum=Math.min(100,Math.round(totalQty/node.qtyPlan*10000)/100);
+        if(newCum>0)node.cumActual=newCum;
+      }
+    });
+    // cAct: use cumActual as source of truth (set by _syncDailyToProject or manual WBS update)
+    const cAct=leaves.reduce((s,n)=>s+(+n.bobot||0)*(+n.cumActual||0)/100,0);
     const cPlan=leaves.reduce((s,n)=>{
       const wp=n.weeklyPlan||{};
       const cum=Math.min(100,Object.keys(wp).reduce((ss,k)=>ss+(+(wp[k].wPlan||0)),0));
@@ -2203,8 +2259,9 @@ function syncAllWbsToProjects(){
     if(cAct>0||cPlan>0){
       proj.actual=Math.round(cAct*10)/10;
       if(cPlan>0)proj.plan=Math.round(cPlan*10)/10;
-      syncWbsToSCurve(projId);
     }
+    // Always sync S-Curve jika ada WBS data (cumActual sudah valid)
+    syncWbsToSCurve(projId);
   });
 }
 
@@ -3131,9 +3188,24 @@ function openModal(type,id=null){
     $('mpProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
     if(selId)$('mpProj').value=selId;
     sv('mpDate',new Date().toISOString().slice(0,10));
-    sv('mpSpv','');sv('mpMandor','');sv('mpInstaller','');sv('mpTukang','');sv('mpHelper','');sv('mpSafety','');sv('mpTot','');
+    sv('mpSpv',0);sv('mpMandor',0);sv('mpInstaller',0);sv('mpTukang',0);sv('mpHelper',0);sv('mpSafety',0);sv('mpTot',0);
     sv('mpMhAct','');sv('mpTL','0');sv('mpTLReason','');sv('mpNotes','');
+    // Jika edit (id diberikan), load existing data
+    if(id){
+      const ex=MPLOGS.find(m=>m.id===id);
+      if(ex){
+        sv('mpProj',String(ex.projId));sv('mpDate',ex.date||'');
+        sv('mpSpv',ex.spv||0);sv('mpMandor',ex.mandor||0);sv('mpInstaller',ex.installer||0);
+        sv('mpTukang',ex.tukang||0);sv('mpHelper',ex.helper||0);sv('mpSafety',ex.safety||0);
+        calcMpTot();sv('mpMhAct',ex.mhActual||0);sv('mpTL',ex.timeLost||0);
+        sv('mpTLReason',ex.timeLostReason||'');sv('mpNotes',ex.notes||'');
+        $('mpProj').dataset.editId=id;
+      }
+    } else {
+      delete $('mpProj').dataset.editId;
+    }
     fillMpPlan();
+    renderMpActivityRows();
     show('ov-inputMp');
   }
   if(type==='addAccident'){
@@ -3412,7 +3484,7 @@ function renderMpLog(){
   const logs=[...MPLOGS].filter(m=>!fP||m.projId==fP).sort((a,b)=>b.date.localeCompare(a.date));
   if(!$('mpLogTable'))return;
   if(!logs.length){$('mpLogTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:16px;font-size:12px">Belum ada data</div>';return;}
-  $('mpLogTable').innerHTML=`<table class="tbl"><thead><tr><th>Tgl</th><th>Project</th><th>SPV</th><th>Mdr</th><th>Inst</th><th>Tukang</th><th>Helper</th><th>Safety</th><th>Total</th><th>MH</th><th>TL</th><th>Catatan</th><th></th></tr></thead><tbody>
+  $('mpLogTable').innerHTML=`<table class="tbl"><thead><tr><th>Tgl</th><th>Project</th><th>SPV</th><th>Mdr</th><th>Inst</th><th>Tukang</th><th>Helper</th><th>Safety</th><th>Total</th><th>MH</th><th>TL</th><th>Catatan / Aktivitas</th><th></th></tr></thead><tbody>
     ${logs.map(m=>{
       const pr=P.find(p=>p.id==m.projId);
       const tl=+m.timeLost||0;
@@ -3424,9 +3496,18 @@ function renderMpLog(){
         <td style="font-weight:600;color:var(--or)">${m.total||0}</td>
         <td style="color:var(--mt)">${m.mhActual||0}</td>
         <td style="color:${tl>0?'var(--rd)':'var(--mt)'}">${tl>0?tl+'h':'\u2014'}</td>
-        <td style="color:var(--mt);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.notes||'\u2014'}</td>
-        <td><button class="btn btn-sm" style="padding:1px 5px;font-size:10px" onclick="openModal('editMpLog','${m.id}')">✏</button>
-            <button class="btn btn-sm brd" style="padding:1px 5px;font-size:10px" onclick="delMpLog('${m.id}')">🗑</button></td>
+        <td style="max-width:160px">
+          ${m.notes?`<div style="color:var(--mt);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.notes}</div>`:''}
+          ${(m.activities&&m.activities.length)?`<div style="margin-top:2px;display:flex;flex-wrap:wrap;gap:2px">
+            ${m.activities.map(a=>`<span title="${a.wbsName}: ${a.total} orang" style="font-size:8px;background:rgba(59,130,246,.12);color:var(--bl);padding:1px 5px;border-radius:3px;white-space:nowrap;border:1px solid rgba(59,130,246,.2);cursor:default">
+              📌 ${(a.wbsName||'Aktivitas').slice(0,18)}: <b>${a.total}</b>
+            </span>`).join('')}
+          </div>`:'<span style="color:var(--bd);font-size:9px">—</span>'}
+        </td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-sm" style="padding:1px 5px;font-size:10px" onclick="openModal('inputMp','${m.id}')">✏</button>
+          <button class="btn btn-sm brd" style="padding:1px 5px;font-size:10px" onclick="delMpLog('${m.id}')">🗑</button>
+        </td>
       </tr>`;
     }).join('')}
   </tbody></table>`;
@@ -3439,7 +3520,192 @@ function _doDelMpLog(id){
   dirty();renderMP();updateTimeLostKPI();toast('Log dihapus','warn');gsSync();
 }
 
-function calcMpTot(){sv('mpTot',(+gv('mpSpv')||0)+(+gv('mpMandor')||0)+(+gv('mpInstaller')||0)+(+gv('mpTukang')||0)+(+gv('mpHelper')||0)+(+gv('mpSafety')||0));}
+function calcMpTot(){
+  // Field manual sudah dihapus — total dihitung dari activities
+  updateMpActSummary();
+}
+
+// ── Render activity assignment rows ──────────────────────────
+function renderMpActivityRows(){
+  const container=$('mpActivityRows');
+  if(!container)return;
+  const projId=gv('mpProj');
+  const date=gv('mpDate');
+  const editId=$('mpProj')?.dataset?.editId;
+
+  // Get WBS items for project
+  const allWbs=WBS.filter(w=>String(w.projId)===String(projId));
+  const leafItems=allWbs.filter(w=>w.type==='item');
+  const subcats=allWbs.filter(w=>w.type==='subcat'&&!allWbs.some(x=>x.type==='item'&&x.parentId===w.id));
+  const wbsChoices=[...leafItems,...subcats].sort((a,b)=>(a.order||0)-(b.order||0));
+
+  // Load existing activities if editing or if same project+date already has log
+  let existingActivities=[];
+  if(editId){
+    const ex=MPLOGS.find(m=>m.id===editId);
+    existingActivities=ex?.activities||[];
+  } else if(date&&projId){
+    const ex=MPLOGS.find(m=>String(m.projId)===String(projId)&&m.date===date);
+    existingActivities=ex?.activities||[];
+  }
+
+  // Clear and re-render
+  container.innerHTML='';
+  if(existingActivities.length>0){
+    existingActivities.forEach(act=>addMpActivityRow(act,wbsChoices));
+  } else if(wbsChoices.length>0){
+    // Default: tambah 1 row kosong
+    addMpActivityRow(null,wbsChoices);
+  } else {
+    container.innerHTML='<div style="color:var(--mt);font-size:11px;padding:8px;text-align:center">Belum ada item WBS untuk project ini — setup WBS terlebih dahulu</div>';
+  }
+  updateMpActSummary();
+}
+
+function addMpActivityRow(existing, wbsChoices){
+  const container=$('mpActivityRows');
+  if(!container)return;
+  const projId=gv('mpProj');
+  if(!wbsChoices){
+    const allWbs=WBS.filter(w=>String(w.projId)===String(projId));
+    const leafItems=allWbs.filter(w=>w.type==='item');
+    const subcats=allWbs.filter(w=>w.type==='subcat'&&!allWbs.some(x=>x.type==='item'&&x.parentId===w.id));
+    wbsChoices=[...leafItems,...subcats].sort((a,b)=>(a.order||0)-(b.order||0));
+  }
+
+  const rowId='mpar_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  const selVal=existing?.wbsId||'';
+
+  // Build WBS options dengan hierarchy
+  const allWbs=WBS.filter(w=>String(w.projId)===String(projId));
+  const buildOpts=()=>{
+    let opts='<option value="">— Pilih Item Pekerjaan —</option>';
+    const cats=allWbs.filter(w=>w.type==='cat').sort((a,b)=>(a.order||0)-(b.order||0));
+    if(cats.length){
+      cats.forEach(cat=>{
+        opts+=`<optgroup label="▸ ${cat.name}">`;
+        const subs=allWbs.filter(w=>w.type==='subcat'&&w.parentId===cat.id).sort((a,b)=>(a.order||0)-(b.order||0));
+        subs.forEach(sub=>{
+          const items=allWbs.filter(w=>w.type==='item'&&w.parentId===sub.id).sort((a,b)=>(a.order||0)-(b.order||0));
+          if(items.length){
+            items.forEach(item=>{
+              const sel=selVal===item.id?'selected':'';
+              opts+=`<option value="${item.id}" ${sel}>${sub.name} / ${item.name}</option>`;
+            });
+          } else {
+            const sel=selVal===sub.id?'selected':'';
+            opts+=`<option value="${sub.id}" ${sel}>${sub.name}</option>`;
+          }
+        });
+        // Direct items under cat
+        allWbs.filter(w=>w.type==='item'&&w.parentId===cat.id).forEach(item=>{
+          const sel=selVal===item.id?'selected':'';
+          opts+=`<option value="${item.id}" ${sel}>${item.name}</option>`;
+        });
+        opts+='</optgroup>';
+      });
+    } else {
+      wbsChoices.forEach(w=>{
+        const sel=selVal===w.id?'selected':'';
+        opts+=`<option value="${w.id}" ${sel}>${w.name}</option>`;
+      });
+    }
+    return opts;
+  };
+
+  const row=document.createElement('div');
+  row.className='mp-act-row';
+  row.dataset.wbsId=selVal;
+  row.dataset.wbsName=existing?.wbsName||'';
+  row.style.cssText='background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;position:relative';
+  row.innerHTML=`
+    <button onclick="this.closest('.mp-act-row').remove();updateMpActSummary()"
+      style="position:absolute;top:6px;right:8px;background:none;border:none;cursor:pointer;color:var(--mt);font-size:14px;line-height:1;padding:0" title="Hapus aktivitas">✕</button>
+
+    <div style="margin-bottom:8px">
+      <label style="font-size:10px;color:var(--mt);font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Item Pekerjaan / Aktivitas</label>
+      <select class="fi mpa-wbs" style="font-size:12px" onchange="
+        this.closest('.mp-act-row').dataset.wbsId=this.value;
+        this.closest('.mp-act-row').dataset.wbsName=this.selectedOptions[0]?.text||'';
+        updateMpActSummary()">
+        ${buildOpts()}
+      </select>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(6,1fr) auto;gap:6px;align-items:end">
+      ${['SPV','Mandor','Inst','Tukang','Helper','Safety'].map((lbl,i)=>{
+        const cls=['mpa-spv','mpa-mandor','mpa-installer','mpa-tukang','mpa-helper','mpa-safety'][i];
+        const val=existing?[existing.spv,existing.mandor,existing.installer,existing.tukang,existing.helper,existing.safety][i]||0:0;
+        return`<div>
+          <div style="font-size:9px;color:var(--mt);margin-bottom:2px;text-align:center">${lbl}</div>
+          <input type="number" class="fi ${cls}" value="${val}" min="0" style="text-align:center;padding:4px 2px;font-size:12px" oninput="updateMpActSummary()">
+        </div>`;
+      }).join('')}
+      <div style="text-align:center">
+        <div style="font-size:9px;color:var(--or);margin-bottom:2px">Total</div>
+        <div class="mpa-rowtot" style="font-family:var(--fm);font-weight:700;color:var(--or);font-size:14px;padding:4px 0">${
+          existing?[existing.spv||0,existing.mandor||0,existing.installer||0,existing.tukang||0,existing.helper||0,existing.safety||0].reduce((s,v)=>s+v,0):0
+        }</div>
+      </div>
+    </div>
+
+    <div style="margin-top:8px">
+      <input class="fi mpa-notes" value="${existing?.notes||''}" placeholder="Keterangan aktivitas / lokasi / progres..." style="font-size:11px">
+    </div>`;
+
+  // Auto-calc row total
+  row.querySelectorAll('input[type=number]').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const tot=['mpa-spv','mpa-mandor','mpa-installer','mpa-tukang','mpa-helper','mpa-safety']
+        .reduce((s,cls)=>s+(+row.querySelector('.'+cls)?.value||0),0);
+      row.querySelector('.mpa-rowtot').textContent=tot;
+    });
+  });
+
+  container.appendChild(row);
+  updateMpActSummary();
+}
+
+function updateMpActSummary(){
+  // Hitung totals dari semua activity rows
+  const rows=document.querySelectorAll('#mpActivityRows .mp-act-row');
+  const totals={spv:0,mandor:0,installer:0,tukang:0,helper:0,safety:0};
+  rows.forEach(row=>{
+    totals.spv      +=(+row.querySelector('.mpa-spv')?.value||0);
+    totals.mandor   +=(+row.querySelector('.mpa-mandor')?.value||0);
+    totals.installer+=(+row.querySelector('.mpa-installer')?.value||0);
+    totals.tukang   +=(+row.querySelector('.mpa-tukang')?.value||0);
+    totals.helper   +=(+row.querySelector('.mpa-helper')?.value||0);
+    totals.safety   +=(+row.querySelector('.mpa-safety')?.value||0);
+  });
+  const grandTot=Object.values(totals).reduce((s,v)=>s+v,0);
+
+  // Update hidden fields (untuk saveMp)
+  sv('mpSpv',totals.spv);sv('mpMandor',totals.mandor);sv('mpInstaller',totals.installer);
+  sv('mpTukang',totals.tukang);sv('mpHelper',totals.helper);sv('mpSafety',totals.safety);
+  sv('mpTot',grandTot);
+
+  // Tampilkan summary bar
+  const bar=$('mpTotSummary');
+  const breakdown=$('mpTotBreakdown');
+  if(!bar||!breakdown)return;
+  if(!rows.length||grandTot===0){bar.style.display='none';return;}
+  bar.style.display='block';
+  const roles=[
+    {lbl:'SPV',val:totals.spv,clr:'var(--bl)'},
+    {lbl:'Mandor',val:totals.mandor,clr:'var(--pu)'},
+    {lbl:'Installer',val:totals.installer,clr:'var(--gn)'},
+    {lbl:'Tukang',val:totals.tukang,clr:'var(--tl,#2dd4bf)'},
+    {lbl:'Helper',val:totals.helper,clr:'var(--or)'},
+    {lbl:'Safety',val:totals.safety,clr:'var(--yw)'},
+    {lbl:'TOTAL',val:grandTot,clr:'var(--tx)',bold:true},
+  ];
+  breakdown.innerHTML=roles.map(r=>`
+    <div>
+      <div style="font-size:9px;color:var(--mt);margin-bottom:2px">${r.lbl}</div>
+      <div style="font-family:var(--fm);font-size:${r.bold?'18':'15'}px;font-weight:${r.bold?'800':'600'};color:${r.clr}">${r.val}</div>
+    </div>`).join('');
+}
 function calcEmlTot(){sv('emlTot',(+gv('emlSpv')||0)+(+gv('emlMandor')||0)+(+gv('emlInstaller')||0)+(+gv('emlTukang')||0)+(+gv('emlHelper')||0)+(+gv('emlSafety')||0));}
 
 function fillMpPlan(){
@@ -3462,17 +3728,75 @@ function fillMpPlan(){
   }
 }
 function saveMp(){
-  const projId=gv('mpProj');if(!projId){toast('Pilih project','error');return;}
-  const tot=(+gv('mpSpv')||0)+(+gv('mpMandor')||0)+(+gv('mpInstaller')||0)+(+gv('mpTukang')||0)+(+gv('mpHelper')||0)+(+gv('mpSafety')||0);
-  const entry={id:genId(),projId:+projId||projId,date:gv('mpDate')||new Date().toISOString().slice(0,10),
-    spv:+gv('mpSpv')||0,mandor:+gv('mpMandor')||0,installer:+gv('mpInstaller')||0,
-    tukang:+gv('mpTukang')||0,helper:+gv('mpHelper')||0,safety:+gv('mpSafety')||0,total:tot,
-    mhActual:+gv('mpMhAct')||0,timeLost:+gv('mpTL')||0,timeLostReason:gv('mpTLReason'),notes:gv('mpNotes')};
-  const pi=P.findIndex(p=>p.id==projId);
-  if(pi>=0){P[pi].mpActual=tot;}
-  MPLOGS.push(entry);
-  dirty();cm('inputMp');render();updateTimeLostKPI();
-  toast('Manpower disimpan ✓');gsSync();
+  const projId=gv('mpProj');
+  if(!projId){toast('Pilih project terlebih dahulu','error');return;}
+  const date=gv('mpDate')||new Date().toISOString().slice(0,10);
+
+  // ── Collect activity assignments ──────────────────────────
+  const activities=[];
+  document.querySelectorAll('#mpActivityRows .mp-act-row').forEach(row=>{
+    const wbsId  = row.dataset.wbsId||'';
+    const wbsName= row.querySelector('.mpa-wbs')?.selectedOptions?.[0]?.text||row.dataset.wbsName||'';
+    const spv    = +row.querySelector('.mpa-spv')?.value||0;
+    const mandor = +row.querySelector('.mpa-mandor')?.value||0;
+    const inst   = +row.querySelector('.mpa-installer')?.value||0;
+    const tukang = +row.querySelector('.mpa-tukang')?.value||0;
+    const helper = +row.querySelector('.mpa-helper')?.value||0;
+    const safety = +row.querySelector('.mpa-safety')?.value||0;
+    const total  = spv+mandor+inst+tukang+helper+safety;
+    const notes  = row.querySelector('.mpa-notes')?.value?.trim()||'';
+    if(total>0||notes){
+      activities.push({wbsId,wbsName,spv,mandor,installer:inst,tukang,helper,safety,total,notes});
+    }
+  });
+
+  // ── Auto-aggregate total dari activities (field SPV/Mandor dihapus dari UI) ──
+  const spv    = activities.reduce((s,a)=>s+(+a.spv||0),0);
+  const mandor = activities.reduce((s,a)=>s+(+a.mandor||0),0);
+  const inst   = activities.reduce((s,a)=>s+(+a.installer||0),0);
+  const tukang = activities.reduce((s,a)=>s+(+a.tukang||0),0);
+  const helper = activities.reduce((s,a)=>s+(+a.helper||0),0);
+  const safety = activities.reduce((s,a)=>s+(+a.safety||0),0);
+  const tot    = spv+mandor+inst+tukang+helper+safety;
+
+  if(activities.length===0){toast('Tambahkan minimal 1 aktivitas dengan pekerja','warn');return;}
+
+  // ── Build entry ───────────────────────────────────────────
+  const editId=$('mpProj').dataset?.editId||'';
+  const entry={
+    id:editId||genId(),
+    projId:String(projId),
+    date,
+    spv,mandor,installer:inst,tukang,helper,safety,total:tot,
+    mhActual:+gv('mpMhAct')||0,
+    timeLost:+gv('mpTL')||0,
+    timeLostReason:gv('mpTLReason')||'',
+    notes:gv('mpNotes')||'',
+    activities
+  };
+
+  // ── Upsert ke MPLOGS ──────────────────────────────────────
+  if(editId){
+    const idx=MPLOGS.findIndex(m=>m.id===editId);
+    if(idx>=0)MPLOGS[idx]=entry; else MPLOGS.push(entry);
+    if($('mpProj').dataset)delete $('mpProj').dataset.editId;
+  } else {
+    // Upsert by project+date (timpa tanpa konfirmasi)
+    const existing=MPLOGS.findIndex(m=>String(m.projId)===String(projId)&&m.date===date);
+    if(existing>=0) MPLOGS[existing]=entry;
+    else MPLOGS.push(entry);
+  }
+
+  // Update project mpActual
+  const pi=P.findIndex(p=>String(p.id)===String(projId));
+  if(pi>=0) P[pi].mpActual=tot;
+
+  dirty();
+  cm('inputMp');
+  render();
+  updateTimeLostKPI();
+  toast(`✓ Manpower disimpan — ${tot} pekerja${activities.length?' | '+activities.length+' aktivitas':''}`);
+  gsSync();
 }
 function saveAcc(){
   const projId=gv('accProj');if(!projId){toast('Pilih project','error');return;}
@@ -3731,9 +4055,16 @@ function renderCost(){
     return;
   }
   const typeLabel=t=>t==='procurement'?`<span class="cost-type-proc">PROC</span>`:t==='opex'?`<span class="cost-type-opex">OPEX</span>`:`<span class="cost-type-other">LAIN</span>`;
-  detEl.innerHTML=`<table class="tbl"><thead><tr>
-    <th>Tgl</th><th>Project</th><th>Tipe</th><th>Kategori</th><th>Deskripsi</th>
-    <th title="Alokasi RAB" style="white-space:nowrap">RAB Link</th><th>Dibayar oleh</th><th style="text-align:right">Jumlah</th><th></th>
+  detEl.innerHTML=`<table class="tbl" style="border-collapse:collapse;width:100%"><thead><tr>
+    <th style="position:sticky;top:0;background:var(--sf);z-index:3">Tgl</th>
+    <th style="position:sticky;top:0;background:var(--sf);z-index:3">Project</th>
+    <th style="position:sticky;top:0;background:var(--sf);z-index:3">Tipe</th>
+    <th style="position:sticky;top:0;background:var(--sf);z-index:3">Kategori</th>
+    <th style="position:sticky;top:0;background:var(--sf);z-index:3">Deskripsi</th>
+    <th title="Alokasi RAB" style="white-space:nowrap;position:sticky;top:0;background:var(--sf);z-index:3">RAB Link</th>
+    <th style="position:sticky;top:0;background:var(--sf);z-index:3">Dibayar oleh</th>
+    <th style="text-align:right;position:sticky;top:0;background:var(--sf);z-index:3">Jumlah</th>
+    <th style="position:sticky;top:0;background:var(--sf);z-index:3"></th>
   </tr></thead><tbody>
   ${filtered.map(co=>{
     const pr=P.find(p=>String(p.id)===String(co.projId));
@@ -4249,10 +4580,15 @@ function renderRab(){
   const grandAct=Object.entries(actualByKat).filter(([k])=>k!=='_uncat').reduce((s,[,v])=>s+v,0);
   const grandSisa=grandTotal-grandAct;
 
-  rabTable.innerHTML=`<table class="tbl"><thead><tr>
-    <th style="width:20px"></th><th>Item</th><th>Volume</th><th>Harga Satuan</th>
-    <th style="text-align:right">RAB</th><th style="text-align:right">Aktual</th>
-    <th style="text-align:right">Sisa</th><th class="edit-only" style="width:60px"></th>
+  rabTable.innerHTML=`<table class="tbl" style="border-collapse:collapse;width:100%"><thead><tr style="position:sticky;top:0;z-index:3">
+    <th style="width:20px;position:sticky;top:0;background:var(--sf);z-index:3"></th>
+    <th style="position:sticky;top:0;background:var(--sf);z-index:3">Item</th>
+    <th style="position:sticky;top:0;background:var(--sf);z-index:3">Volume</th>
+    <th style="position:sticky;top:0;background:var(--sf);z-index:3">Harga Satuan</th>
+    <th style="text-align:right;position:sticky;top:0;background:var(--sf);z-index:3">RAB</th>
+    <th style="text-align:right;position:sticky;top:0;background:var(--sf);z-index:3">Aktual</th>
+    <th style="text-align:right;position:sticky;top:0;background:var(--sf);z-index:3">Sisa</th>
+    <th class="edit-only" style="width:60px;position:sticky;top:0;background:var(--sf);z-index:3"></th>
   </tr></thead><tbody>
   ${rows}
   <tr style="border-top:2px solid var(--bd);font-weight:700;background:var(--sf2)">
@@ -5703,7 +6039,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.35';
+  const DASH_VER='3.41';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -6656,7 +6992,9 @@ function saveAllDailyLogs(){
       const weekLogs=node.dailyLogs.filter(l=>l.week===weekNum);
       const wAct=Math.min(100,weekLogs.reduce((s,l)=>s+(+l.pct||0),0));
       node.weeklyData[weekNum]={...(node.weeklyData[weekNum]||{}),wAct:Math.round(wAct*100)/100};
-      const cumAct=Math.min(100,Object.keys(node.weeklyData).filter(k=>+k<=weekNum).reduce((s,k)=>s+(+(node.weeklyData[k].wAct||0)),0));
+      // cAct = cumulative qty up to this week / qtyPlan (source of truth)
+      const cumQty=node.dailyLogs.filter(l=>l.week!=null&&+l.week<=weekNum).reduce((s,l)=>s+(l.qty!=null?+l.qty:0),0);
+      const cumAct=Math.min(100,cumQty/node.qtyPlan*100);
       node.weeklyData[weekNum].cAct=Math.round(cumAct*100)/100;
       node.cumActual=node.weeklyData[weekNum].cAct;
     }
@@ -6780,6 +7118,8 @@ function syncWbsToSCurve(projId){
   leafNodes.forEach(node=>{
     for(const k in (node.weeklyData||{})){const n=parseInt(k,10);if(!isNaN(n)&&n>0)weekSet.add(n);}
     for(const k in (node.weeklyPlan||{})){const n=parseInt(k,10);if(!isNaN(n)&&n>0)weekSet.add(n);}
+    // Also include weeks from dailyLogs (Daily Report input)
+    (node.dailyLogs||[]).forEach(l=>{const n=parseInt(l.week,10);if(!isNaN(n)&&n>0)weekSet.add(n);});
   });
   if(!weekSet.size)return;
   SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.fromWbs));
@@ -6794,10 +7134,18 @@ function syncWbsToSCurve(projId){
       const wd=node.weeklyData||{};
       // wAct from weeklyData
       wAct+=bobot*(+(wd[week]?.wAct||0))/100;
-      // cAct: use cAct from weeklyData for this week (set by _syncDailyToProject)
-      // Find latest cAct up to this week
-      const maxWeekWithAct=Math.max(0,...Object.keys(wd).filter(k=>+k<=week&&wd[k].cAct!=null).map(Number));
-      if(maxWeekWithAct>0)cActContrib+=bobot*(+wd[maxWeekWithAct].cAct||0)/100;
+      // cAct: use cAct from weeklyData, fallback to cumActual for last known week
+      const keysUpTo=Object.keys(wd).filter(k=>+k<=week&&wd[k].cAct!=null).map(Number);
+      const maxWeekWithAct=keysUpTo.length>0?Math.max(...keysUpTo):0;
+      // Check if this is the last available week (use cumActual as fallback)
+      const allWeeks=[...weekSet].sort((a,b)=>a-b);
+      const isLastOrBeyond=week>=Math.max(...[...weekSet]);
+      if(maxWeekWithAct>0){
+        cActContrib+=bobot*(+wd[maxWeekWithAct].cAct||0)/100;
+      } else if(isLastOrBeyond&&(+node.cumActual||0)>0){
+        // Fallback: use cumActual directly for latest week if no weeklyData.cAct
+        cActContrib+=bobot*(+node.cumActual||0)/100;
+      }
       // Plan
       let cumPlanNode=null;
       if(wp[week]?.cumPlan!=null){cumPlanNode=+wp[week].cumPlan;}
@@ -7130,7 +7478,12 @@ function saveDrInput(){
   });
   if(!saved){toast('Tidak ada data diisi','warn');return;}
   _syncDailyToProject(projId);syncWbsToSCurve(projId);
-  dirty();cm('drInput');render();if(selId)renderDetail(selId);renderWBS();renderDailyReport();gsSync();
+  dirty();cm('drInput');render();if(selId)renderDetail(selId);renderWBS();renderDailyReport();
+  // Jika S-Curve tab aktif, re-render
+  if(activeTab==='scurve')renderSCurve();
+  // Update WBS S-Curve preview jika WBS tab aktif
+  if(activeTab==='wbs')renderWbsSCurve(projId);
+  gsSync();
   toast(`✓ Daily report ${date}${weekNum?' (W'+String(weekNum).padStart(2,'0')+')':''} disimpan`);
 }
 function toggleDrHistory(){
@@ -8056,7 +8409,15 @@ function sanitizeMpLogs(arr){
     total:+m.total||0,mhActual:+m.mhActual||0,
     timeLost:+m.timeLost||0,
     timeLostReason:safeStr(m.timeLostReason).slice(0,200),
-    notes:safeStr(m.notes).slice(0,500)
+    notes:safeStr(m.notes).slice(0,500),
+    // Preserve activities assignment array
+    activities:Array.isArray(m.activities)?m.activities.map(a=>({
+      wbsId:String(a.wbsId||''),
+      wbsName:String(a.wbsName||''),
+      spv:+a.spv||0,mandor:+a.mandor||0,installer:+a.installer||0,
+      tukang:+a.tukang||0,helper:+a.helper||0,safety:+a.safety||0,
+      total:+a.total||0,notes:String(a.notes||'')
+    })):[]
   }));
 }
 function sanitizeAccLogs(arr){
