@@ -985,7 +985,10 @@ select.fi{color-scheme:dark}
 
       <!-- S-Curve from WBS -->
       <div class="card">
-        <div class="ct">📈 S-CURVE — DARI WBS</div>
+        <div class="ct" style="display:flex;align-items:center;justify-content:space-between">
+          <span>📈 S-CURVE — DARI WBS</span>
+          <button class="btn btn-sm" style="border-color:var(--or);color:var(--or);font-size:11px" onclick="resyncAndDrawSCurve()" title="Rebuild S-Curve dari data WBS">↺ Rebuild S-Curve</button>
+        </div>
         <div id="wbsScKpi" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"></div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:var(--mt)">
           <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;background:#3b82f6;opacity:.8;border-radius:2px;display:inline-block"></span>Weekly Plan</span>
@@ -2262,6 +2265,10 @@ function syncAllWbsToProjects(){
     }
     // Always sync S-Curve jika ada WBS data (cumActual sudah valid)
     syncWbsToSCurve(projId);
+    // Refresh chart jika tab WBS sedang aktif
+    if(activeTab==='wbs' && typeof renderWbsSCurve==='function'){
+      setTimeout(()=>renderWbsSCurve(projId),100);
+    }
   });
 }
 
@@ -6039,7 +6046,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.41';
+  const DASH_VER='3.42';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -7174,7 +7181,26 @@ function syncWbsToSCurve(projId){
       cAct:Math.min(100,Math.round(cActContrib*100)/100),
       dateStart,fromWbs:true});
   });
+  // Auto-refresh WBS S-Curve chart jika tab aktif
+  if(activeTab==='wbs' && typeof renderWbsSCurve==='function'){
+    setTimeout(()=>renderWbsSCurve(projId), 50);
+  }
 }
+function resyncAndDrawSCurve(){
+  const projId=$('wbsProjSel')?.value||selId;
+  if(!projId){toast('Pilih project dulu','error');return;}
+  const wbsItems=WBS.filter(w=>String(w.projId)===String(projId));
+  if(!wbsItems.length){toast('Tidak ada WBS untuk project ini','error');return;}
+  syncWbsToSCurve(projId);
+  dirty();
+  setTimeout(()=>{
+    renderWbsSCurve(projId);
+    const scData=SCURVE.filter(d=>String(d.projId)===String(projId)&&d.fromWbs);
+    toast(`✓ S-Curve direbuild — ${scData.length} minggu data`);
+  },100);
+  gsSync();
+}
+
 function resyncScurveFromWbs(){
   const projId=$('scProjSel')?.value;
   if(!projId){toast('Pilih project dulu','error');return;}
@@ -7187,7 +7213,14 @@ function resyncScurveFromWbs(){
 }
 
 function renderWbsSCurve(projId){
-  const data=SCURVE.filter(d=>String(d.projId)===String(projId)&&d.fromWbs&&((+d.cPlan||0)>0||(+d.cAct||0)>0||(+d.wPlan||0)>0||(+d.wAct||0)>0)).sort((a,b)=>a.week-b.week);
+  // Filter: ambil semua minggu yg ada plan atau actual (cAct=0 valid untuk minggu plan-only)
+  const data=SCURVE.filter(d=>
+    String(d.projId)===String(projId) &&
+    d.fromWbs &&
+    ((+d.cPlan||0)>0||(+d.wPlan||0)>0||(+d.cAct||0)>0||(+d.wAct||0)>0)
+  ).sort((a,b)=>a.week-b.week);
+  // Debug log
+  console.log('[WBS S-Curve] projId='+projId+' data='+data.length+' SCURVE total='+SCURVE.length+' fromWbs='+SCURVE.filter(d=>d.fromWbs).length);
   const lastW=data.filter(d=>+d.cAct>0).slice(-1)[0]||data.slice(-1)[0];
   const cAct=+(lastW?.cAct||0);const cPlan=+(lastW?.cPlan||0);const varr=(cAct-cPlan).toFixed(1);
   const vClr=+varr>=0?'var(--gn)':+varr>=-5?'var(--yw)':'var(--rd)';
@@ -7197,16 +7230,18 @@ function renderWbsSCurve(projId){
     <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Variance</div><div style="font-family:var(--fd);font-size:20px;color:${vClr}">${+varr>=0?'+':''}${varr}%</div></div>
     <div style="background:var(--sf2);border-radius:8px;padding:8px 10px;text-align:center"><div style="font-size:9px;color:var(--mt);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">Progress</div><div style="font-family:var(--fd);font-size:20px;color:var(--bl)">${cAct.toFixed(0)}%</div></div>`;
 
-  // Canvas hanya bisa dirender jika tab WBS aktif (element visible di DOM)
-  const tryDraw=()=>{
+  // Canvas render — support hidden tab via pending draw
+  const tryDraw=(force)=>{
     const ctx=$('wbsScCanvas');
     if(!ctx||!window.Chart)return;
-    if(ctx.offsetParent===null){
-      // Canvas tidak visible \u2014 simpan data untuk dirender saat tab aktif
+    // Jika canvas tidak visible (tab hidden), simpan pending lalu return
+    const isVisible=ctx.offsetWidth>0||force;
+    if(!isVisible){
       window._wbsPendingChart={projId,data};return;
     }
+    window._wbsPendingChart=null;
     if(!data.length){
-      if(ctx.parentElement)ctx.parentElement.innerHTML='<div style="text-align:center;color:var(--mt);padding:30px;font-size:12px">Belum ada data \u2014 klik ✏ Update Progress untuk mulai</div>';
+      if(ctx.parentElement)ctx.parentElement.innerHTML='<div style="text-align:center;color:var(--mt);padding:30px;font-size:12px">Belum ada data — input progress lewat Daily Report atau ✏ Update WBS</div>';
       return;
     }
     if(window._wbsChart)window._wbsChart.destroy();
@@ -7231,7 +7266,10 @@ function renderWbsSCurve(projId){
       }
     });
   };
-  setTimeout(tryDraw, 80);
+  // Coba langsung, lalu retry setelah tab animation selesai
+  tryDraw(false);
+  setTimeout(()=>tryDraw(true), 150);
+  setTimeout(()=>tryDraw(true), 400);
 }
 
 // ===============================================================
@@ -7482,7 +7520,17 @@ function saveDrInput(){
   // Jika S-Curve tab aktif, re-render
   if(activeTab==='scurve')renderSCurve();
   // Update WBS S-Curve preview jika WBS tab aktif
-  if(activeTab==='wbs')renderWbsSCurve(projId);
+  if(activeTab==='wbs'){
+    renderWbsSCurve(projId);
+    // Render pending chart jika ada (dari saat tab masih hidden)
+    setTimeout(()=>{
+      if(window._wbsPendingChart){
+        const {projId:pid,data}=window._wbsPendingChart;
+        window._wbsPendingChart=null;
+        renderWbsSCurve(pid);
+      }
+    },200);
+  }
   gsSync();
   toast(`✓ Daily report ${date}${weekNum?' (W'+String(weekNum).padStart(2,'0')+')':''} disimpan`);
 }
