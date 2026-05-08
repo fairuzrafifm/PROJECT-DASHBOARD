@@ -5907,6 +5907,10 @@ function renderWBS(){
     html+='</tbody></table>';
   }
   $('wbsTable').innerHTML=html;
+  // Auto-sync WBS plan ke SCURVE jika belum ada data scurve
+  const _hasPlan=WBS.filter(w=>String(w.projId)===String(projId)).some(w=>w.weeklyPlan&&Object.keys(w.weeklyPlan).length>0);
+  const _hasSc=SCURVE.some(d=>String(d.projId)===String(projId)&&d.fromWbs);
+  if(_hasPlan&&!_hasSc){syncWbsToSCurve(projId);}
   renderWbsSCurve(projId);
   if(_ganttView==='gantt')renderGantt();
 }
@@ -6774,8 +6778,8 @@ function syncWbsToSCurve(projId){
 
   const weekSet=new Set();
   leafNodes.forEach(node=>{
-    Object.keys(node.weeklyData||{}).forEach(k=>weekSet.add(+k));
-    Object.keys(node.weeklyPlan||{}).forEach(k=>weekSet.add(+k));
+    for(const k in (node.weeklyData||{})){const n=parseInt(k,10);if(!isNaN(n)&&n>0)weekSet.add(n);}
+    for(const k in (node.weeklyPlan||{})){const n=parseInt(k,10);if(!isNaN(n)&&n>0)weekSet.add(n);}
   });
   if(!weekSet.size)return;
   SCURVE=SCURVE.filter(d=>!(String(d.projId)===String(projId)&&d.fromWbs));
@@ -6812,6 +6816,8 @@ function syncWbsToSCurve(projId){
     if(weekStartBase){
       const d=new Date(weekStartBase.getTime()+(week-1)*7*86400000);
       dateStart=d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+    } else {
+      dateStart='W'+String(week).padStart(2,'0');
     }
     SCURVE.push({projId,week,
       wPlan:Math.round(wPlan*100)/100,
@@ -6833,7 +6839,7 @@ function resyncScurveFromWbs(){
 }
 
 function renderWbsSCurve(projId){
-  const data=SCURVE.filter(d=>String(d.projId)===String(projId)&&d.fromWbs&&((+d.wPlan||0)>0||(+d.wAct||0)>0||(+d.cPlan||0)>0)).sort((a,b)=>a.week-b.week);
+  const data=SCURVE.filter(d=>String(d.projId)===String(projId)&&d.fromWbs&&((+d.cPlan||0)>0||(+d.cAct||0)>0||(+d.wPlan||0)>0||(+d.wAct||0)>0)).sort((a,b)=>a.week-b.week);
   const lastW=data.filter(d=>+d.cAct>0).slice(-1)[0]||data.slice(-1)[0];
   const cAct=+(lastW?.cAct||0);const cPlan=+(lastW?.cPlan||0);const varr=(cAct-cPlan).toFixed(1);
   const vClr=+varr>=0?'var(--gn)':+varr>=-5?'var(--yw)':'var(--rd)';
