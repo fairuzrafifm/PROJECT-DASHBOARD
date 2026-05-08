@@ -2302,10 +2302,7 @@ function syncAllWbsToProjects(){
     }
     // Always sync S-Curve jika ada WBS data (cumActual sudah valid)
     syncWbsToSCurve(projId);
-    // Refresh chart jika tab WBS sedang aktif
-    if(activeTab==='wbs' && typeof renderWbsSCurve==='function'){
-      setTimeout(()=>renderWbsSCurve(projId),100);
-    }
+    // Chart di-refresh oleh renderWBS() saat tab aktif, tidak perlu di sini
   });
 }
 
@@ -2499,14 +2496,7 @@ function sw(t,el){
   if(t==='issues')renderIssues();
   if(t==='procurement')renderProc();
   if(t==='wbs'){
-    renderWBS();
-    setTimeout(()=>{
-      if(window._wbsPendingChart){
-        const{projId}=window._wbsPendingChart;
-        window._wbsPendingChart=null;
-        renderWbsSCurve(projId);
-      }
-    },100);
+    renderWBS(); // renderWBS sudah memanggil renderWbsSCurve di akhir
   }
   if(t==='daily')renderDailyReport();
   if(t==='cost'){
@@ -6322,7 +6312,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.45';
+  const DASH_VER='3.47';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -7457,9 +7447,12 @@ function syncWbsToSCurve(projId){
       cAct:Math.min(100,Math.round(cActContrib*100)/100),
       dateStart,fromWbs:true});
   });
-  // Auto-refresh WBS S-Curve chart jika tab aktif
+  // Auto-refresh WBS S-Curve chart HANYA jika projId ini yang sedang ditampilkan
   if(activeTab==='wbs' && typeof renderWbsSCurve==='function'){
-    setTimeout(()=>renderWbsSCurve(projId), 50);
+    const _activeWbsProj=String($('wbsProjSel')?.value||'');
+    if(_activeWbsProj===String(projId)){
+      setTimeout(()=>renderWbsSCurve(projId), 50);
+    }
   }
 }
 function resyncAndDrawSCurve(){
@@ -7489,7 +7482,9 @@ function resyncScurveFromWbs(){
 }
 
 function renderWbsSCurve(projId){
-  // Filter: ambil semua minggu yg ada plan atau actual (cAct=0 valid untuk minggu plan-only)
+  // Guard: hanya render jika projId sesuai selector aktif
+  const _activeSel=String($('wbsProjSel')?.value||'');
+  if(_activeSel && _activeSel!==String(projId)) return;
   // fromWbs bisa boolean true ATAU string "true" tergantung source (localStorage vs GSheet)
   const _isFromWbs=d=>d.fromWbs===true||d.fromWbs==='true'||d.fromWbs===1;
   const data=SCURVE.filter(d=>
@@ -7558,10 +7553,10 @@ function renderWbsSCurve(projId){
       }
     });
   };
-  // Coba langsung, lalu retry setelah tab animation selesai
-  tryDraw(false);
-  setTimeout(()=>tryDraw(true), 150);
-  setTimeout(()=>tryDraw(true), 400);
+  // Retry beberapa kali untuk handle tab animation & async chart destroy
+  setTimeout(()=>tryDraw(true), 50);
+  setTimeout(()=>tryDraw(true), 250);
+  setTimeout(()=>tryDraw(true), 600);
 }
 
 // ===============================================================
@@ -7813,13 +7808,9 @@ function saveDrInput(){
   if(activeTab==='scurve')renderSCurve();
   // Update WBS S-Curve preview jika WBS tab aktif
   if(activeTab==='wbs'){
-    // Render S-Curve dengan multiple retry untuk handle animasi tab
-    const _wbsPid=projId||selId||P[0]?.id;
-    if(_wbsPid){
-      renderWbsSCurve(_wbsPid);
-      setTimeout(()=>renderWbsSCurve(_wbsPid), 200);
-      setTimeout(()=>renderWbsSCurve(_wbsPid), 500);
-    }
+    // Re-render S-Curve dengan projId yang benar dari selector
+    const _wbsPid=String($('wbsProjSel')?.value||projId||selId||'');
+    if(_wbsPid) setTimeout(()=>renderWbsSCurve(_wbsPid), 200);
   }
   gsSync();
   toast(`✓ Daily report ${date}${weekNum?' (W'+String(weekNum).padStart(2,'0')+')':''} disimpan`);
@@ -8731,7 +8722,9 @@ function sanitizeProc(arr){
     due:_trimDate(pr.due),
     status:safeStr(pr.status)||'Waiting Approval',
     notes:safeStr(pr.notes).slice(0,500),
-    harga:pr.harga!=null&&pr.harga!==''?+pr.harga||0:undefined
+    harga:pr.harga!=null&&pr.harga!==''?+pr.harga||0:undefined,
+    rabKatId:pr.rabKatId||null,
+    rabItemId:pr.rabItemId||null
   })).filter(pr=>{
     if(seen.has(pr.id))return false;
     seen.add(pr.id);return true;
