@@ -984,7 +984,7 @@ select.fi{color-scheme:dark}
       </div>
 
       <!-- S-Curve from WBS -->
-      <div class="card">
+      <div class="card" id="wbsScSection">
         <div class="ct" style="display:flex;align-items:center;justify-content:space-between">
           <span>📈 S-CURVE — DARI WBS</span>
           <button class="btn btn-sm" style="border-color:var(--or);color:var(--or);font-size:11px" onclick="resyncAndDrawSCurve()" title="Rebuild S-Curve dari data WBS">↺ Rebuild S-Curve</button>
@@ -2596,7 +2596,10 @@ function renderSB(){
 function onWbsProjChange(id){
   selId=String(id);
   _syncAllProjSelectors(id);
-  renderSB(); // highlight project di sidebar
+  renderSB();
+  // Destroy chart & hide section sebelum render project baru
+  if(window._wbsChart){window._wbsChart.destroy();window._wbsChart=null;}
+  const sec=$('wbsScSection');if(sec)sec.style.display='none';
   renderWBS();
 }
 
@@ -6312,7 +6315,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.47';
+  const DASH_VER='3.48';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -6400,6 +6403,8 @@ function resetWbsAndReload(){
 }
 
 function renderWBS(){
+  // Destroy chart lama saat ganti project — cegah bleed antar project
+  if(window._wbsChart){window._wbsChart.destroy();window._wbsChart=null;}
   const sel=$('wbsProjSel');
   if(sel){
     const cur=sel.value||selId;
@@ -7485,8 +7490,18 @@ function renderWbsSCurve(projId){
   // Guard: hanya render jika projId sesuai selector aktif
   const _activeSel=String($('wbsProjSel')?.value||'');
   if(_activeSel && _activeSel!==String(projId)) return;
-  // fromWbs bisa boolean true ATAU string "true" tergantung source (localStorage vs GSheet)
   const _isFromWbs=d=>d.fromWbs===true||d.fromWbs==='true'||d.fromWbs===1;
+
+  // Cek apakah project ini punya SCURVE data
+  const hasAnyData=SCURVE.some(d=>String(d.projId)===String(projId)&&_isFromWbs(d));
+  const section=$('wbsScSection');
+  if(!hasAnyData){
+    // Destroy chart lama (dari project sebelumnya) dan sembunyikan section
+    if(window._wbsChart){window._wbsChart.destroy();window._wbsChart=null;}
+    if(section)section.style.display='none';
+    return;
+  }
+  if(section)section.style.display='block';
   const data=SCURVE.filter(d=>
     String(d.projId)===String(projId) &&
     _isFromWbs(d) &&
