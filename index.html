@@ -431,7 +431,9 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .ov .modal{transform:translateZ(0);will-change:transform}
 
 .gantt-container{display:flex;width:100%;overflow:hidden;border:1px solid var(--bd);border-radius:6px}
-.gantt-left-panel{width:340px;flex-shrink:0;border-right:2px solid var(--bd);background:var(--sf)}
+.gantt-left-panel{width:460px;flex-shrink:0;border-right:2px solid var(--bd);background:var(--sf)}
+.gantt-date-col{width:70px;flex-shrink:0;font-size:9px;color:var(--mt);text-align:center;padding:0 2px}
+.gantt-date-val{font-size:9px;font-family:var(--fm);color:var(--mt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gantt-right-panel{flex:1;overflow-x:auto;min-width:0}
 .gantt-left-header{height:22px;display:flex;align-items:center;padding:0 12px;font-size:9px;font-weight:700;color:var(--mt);letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--bd);background:var(--sf2)}
 .gantt-left-subheader{height:20px;display:flex;align-items:center;padding:0 12px;border-bottom:2px solid var(--bd);background:var(--sf2);font-size:8px;color:var(--mt)}
@@ -5473,14 +5475,14 @@ function doPost(e) {
       writeSheet(ss,'PROJECTS',   mergeById(existingProj, d.projects||[]),    ['id','kode','nama','lokasi','client','mulai','selesai','status','plan','actual','mdPlan','mpPlan','mpActual','mhPlan','weather','notes','logo','picPm','picSm','picEng','picProc']);
       writeSheet(ss,'HISTORY',    mergedHist,     ['projId','kode','date','actual','plan','mp','notes']);
       writeSheet(ss,'ISSUES',     mergeById(existingIss,  d.issues||[], true),      ['id','projId','tgl','uraian','prioritas','kategori','pj','due','status','done','action']);
-      writeSheet(ss,'PROCUREMENT',mergeById(existingProc, d.procurement||[], true), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes','harga']);
+      writeSheet(ss,'PROCUREMENT',mergeById(existingProc, d.procurement||[], true), ['id','projId','item','kategori','qty','satuan','supplier','due','status','notes','harga','rabKatId','rabItemId']);
       writeSheet(ss,'MANPOWER_LOG',mergeById(existingMp,  d.manpowerLogs||[], true),['id','projId','date','spv','mandor','installer','tukang','helper','safety','total','mhActual','timeLost','timeLostReason','notes']);
       writeSheet(ss,'ACCIDENT_LOG',mergeById(existingAcc, d.accidentLogs||[], true),['id','projId','date','fatality','lti','minorInjury','medTreatment','propertyDamage','fire','traffic','environment','nearMiss','timeLost','notes']);
       writeSheet(ss,'SCURVE',d.scurve||[],['projId','week','wPlan','wAct','cPlan','cAct','dateStart','fromWbs']);
       writeSheet(ss,'WBS',mergeById(existingWbs,d.wbs||[]),['id','projId','type','parentId','name','bobot','order','cumPlan','cumActual','weeklyData','weeklyPlan','startDate','finishDate','dailyLogs','qtyPlan','qtySatuan']);
       // COSTS (OPEX)
       const existingCosts=readSheet(ss,'COSTS')||[];
-      writeSheet(ss,'COSTS',mergeById(existingCosts,d.costs||[]),['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes']);
+      writeSheet(ss,'COSTS',mergeById(existingCosts,d.costs||[]),['id','projId','date','type','kategori','deskripsi','amount','paidBy','notes','ref','status','rabKatId','rabItemId']);
       // RAB (Rencana Anggaran Biaya)
       const existingRab=readSheet(ss,'RAB')||[];
       writeSheet(ss,'RAB',mergeById(existingRab,d.rab||[]),['id','projId','type','katId','name','deskripsi','satuan','volume','hargaSatuan','total','notes','urutan','isCustom','procKat']);
@@ -6608,7 +6610,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.51';
+  const DASH_VER='3.58';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -7010,9 +7012,20 @@ function renderWbsPlanGrid(){
 
 function _wbsPlanRow(node,ci,si,weeks,curWeek,proj,ii){
   const wp=node.weeklyPlan||{};
+  const fmtPD=ds=>{if(!ds)return'';const d=new Date(ds+'T12:00');return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short'});};
+  const sdLabel=node.startDate?fmtPD(node.startDate):'';
+  const fdLabel=node.finishDate?fmtPD(node.finishDate):'';
+  let dateInfo='';
+  if(sdLabel||fdLabel){
+    dateInfo='<div style="display:flex;gap:4px;margin-top:1px">';
+    if(sdLabel) dateInfo+='<span style="font-size:8px;color:var(--bl);background:rgba(59,130,246,.1);border-radius:3px;padding:0 4px">▶ '+sdLabel+'</span>';
+    if(fdLabel) dateInfo+='<span style="font-size:8px;color:var(--rd);background:rgba(239,68,68,.1);border-radius:3px;padding:0 4px">■ '+fdLabel+'</span>';
+    dateInfo+='</div>';
+  }
   let html=`<tr data-nid="${node.id}">
     <td class="wbspg-name" style="padding-left:${node.type==='item'?'32px':'16px'}">
       <div style="font-size:11px;color:${node.type==='item'?'var(--tx)':'var(--gn)'};font-weight:${node.type==='item'?'400':'600'}">${safeStr(node.name)}</div>
+      ${dateInfo}
       ${_wbsPlanActualBar(node,weeks)}
     </td>
     <td class="wbspg-bobot" style="text-align:center">
@@ -8326,7 +8339,10 @@ function generateMpReport(){
 function buildMpReportHTML(projId,dateFrom,dateTo,periodLabel,proj){
   const today=new Date().toISOString().slice(0,10);
   const fmtD=d=>d?d.split('-').reverse().join('/'):'-';
-  const logo=localStorage.getItem('atw_dash_logo')||'';
+  // Logo: coba localStorage, lalu src dari dashLogoImg
+  let logo='';
+  try{logo=localStorage.getItem('atw_dash_logo')||'';}catch(e){}
+  if(!logo){const img=$('dashLogoImg');if(img&&img.src&&!img.src.includes('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAlg'))logo=img.src;}
 
   // Filter logs
   const logs=MPLOGS.filter(m=>{
@@ -8341,10 +8357,10 @@ function buildMpReportHTML(projId,dateFrom,dateTo,periodLabel,proj){
   logs.forEach(log=>{
     const pr=P.find(p=>String(p.id)===String(log.projId));
     (log.activities||[]).forEach(act=>{
-      const key=(act.wbsId||'_'+'|'+log.projId);
+      const key=(act.wbsId||'_')+'|'+log.projId;
       if(!wbsMap.has(key)) wbsMap.set(key,{
         wbsId:act.wbsId||'',wbsName:act.wbsName||'(tanpa nama)',
-        projKode:pr?.kode||'—',projNama:pr?.nama||'',projId:String(log.projId),
+        projKode:pr?.kode||'\u2014',projNama:pr?.nama||'',projId:String(log.projId),
         entries:[],spv:0,mandor:0,installer:0,tukang:0,helper:0,safety:0,total:0
       });
       const r=wbsMap.get(key);
@@ -8362,7 +8378,7 @@ function buildMpReportHTML(projId,dateFrom,dateTo,periodLabel,proj){
   rows.forEach(r=>{grandTot.spv+=r.spv;grandTot.mandor+=r.mandor;grandTot.installer+=r.installer;
     grandTot.tukang+=r.tukang;grandTot.helper+=r.helper;grandTot.safety+=r.safety;grandTot.total+=r.total;});
 
-  // Also compute daily summary
+  // Daily summary
   const dailyMap=new Map();
   logs.forEach(m=>{
     if(!dailyMap.has(m.date))dailyMap.set(m.date,{spv:0,mandor:0,installer:0,tukang:0,helper:0,safety:0,total:0,mh:0,tl:0});
@@ -8376,129 +8392,162 @@ function buildMpReportHTML(projId,dateFrom,dateTo,periodLabel,proj){
   const totalMH=logs.reduce((s,m)=>s+(+m.mhActual||0),0);
   const totalTL=logs.reduce((s,m)=>s+(+m.timeLost||0),0);
 
-  // ── Page 1: Cover + Summary + Daily ──
+  const logoHtml=logo?`<img src="${logo}" style="height:54px;object-fit:contain">`:
+    `<div style="font-weight:900;font-size:22px;color:#8b5cf6;letter-spacing:1px">ATW SOLAR</div>`;
+  const projLabel=proj?`${proj.kode} \u2014 ${proj.nama}${proj.client?' ('+proj.client+')':''}${proj.mdPlan?' '+proj.mdPlan:''}`:'Semua Project';
+
+  // ── Page 1 ──
   let html=`
-  <div style="padding:20px 24px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;border-bottom:3px solid #8b5cf6;padding-bottom:12px">
-      <div>
-        ${logo?`<img src="${logo}" style="height:36px;margin-bottom:6px;display:block">`:
-          '<div style="font-weight:900;font-size:18px;color:#8b5cf6;letter-spacing:1px">ATW SOLAR</div>'}
-        <div style="font-size:18px;font-weight:800;color:#1e293b;letter-spacing:.5px">MANPOWER REPORT</div>
-        <div style="font-size:11px;color:#64748b;margin-top:2px">${proj?proj.kode+' — '+proj.nama:'Semua Project'}</div>
-      </div>
-      <div style="text-align:right;font-size:10px;color:#64748b">
-        <div style="font-size:12px;font-weight:700;color:#1e293b">${periodLabel}</div>
-        <div style="margin-top:4px">Dicetak: ${fmtD(today)}</div>
-        <div style="margin-top:2px">${logs.length} hari log | ${totalMD} orang-hari</div>
+  <div style="padding:20px 24px 16px">
+
+    <!-- HEADER -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;border-bottom:3px solid #8b5cf6;padding-bottom:12px">
+      <div>${logoHtml}</div>
+      <div style="text-align:right">
+        <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:2px">${projLabel}</div>
+        <div style="font-size:13px;font-weight:700;color:#8b5cf6">${periodLabel}</div>
+        <div style="font-size:10px;color:#64748b;margin-top:3px">Dicetak: ${fmtD(today)} | ${logs.length} hari log | ${totalMD} orang-hari</div>
       </div>
     </div>
 
-    <!-- KPI Summary -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+    <!-- KPI CARDS -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
       ${[
-        {l:'Total Mandays',v:totalMD+' MD',c:'#8b5cf6'},
-        {l:'Total Manhours',v:totalMH+' Jam',c:'#3b82f6'},
-        {l:'Time Lost',v:totalTL+' Jam',c:totalTL>0?'#ef4444':'#10b981'},
-        {l:'Item Pekerjaan',v:rows.length+' item',c:'#f97316'},
-      ].map(k=>`<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center;border-top:3px solid ${k.c}">
-        <div style="font-size:8px;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">${k.l}</div>
-        <div style="font-size:20px;font-weight:800;color:${k.c}">${k.v}</div>
+        {l:'TOTAL MANDAYS',v:totalMD+' MD',c:'#8b5cf6'},
+        {l:'TOTAL MANHOURS',v:totalMH+' Jam',c:'#3b82f6'},
+        {l:'TIME LOST',v:totalTL+' Jam',c:totalTL>0?'#ef4444':'#10b981'},
+        {l:'ITEM PEKERJAAN',v:rows.length+' item',c:'#f97316'},
+      ].map(k=>`<div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 10px;text-align:center;border-top:3px solid ${k.c}">
+        <div style="font-size:8px;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">${k.l}</div>
+        <div style="font-size:24px;font-weight:800;color:${k.c}">${k.v}</div>
       </div>`).join('')}
     </div>
 
-    <!-- Daily Summary Table -->
-    <div style="margin-bottom:16px">
-      <div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;border-left:3px solid #8b5cf6;padding-left:8px">
-        REKAP HARIAN
-      </div>
-      <table>
-        <thead><tr>
-          <th>Tanggal</th><th class="r">SPV</th><th class="r">Mandor</th><th class="r">Installer</th>
-          <th class="r">Tukang</th><th class="r">Helper</th><th class="r">Safety</th>
-          <th class="r">Total</th><th class="r">MH (jam)</th><th class="r">TL (jam)</th>
-        </tr></thead>
-        <tbody>
-          ${dailyRows.map(([date,d])=>`<tr>
-            <td style="font-weight:600">${fmtD(date)}</td>
-            <td class="r">${d.spv||'—'}</td><td class="r">${d.mandor||'—'}</td>
-            <td class="r">${d.installer||'—'}</td><td class="r">${d.tukang||'—'}</td>
-            <td class="r">${d.helper||'—'}</td><td class="r">${d.safety||'—'}</td>
-            <td class="r" style="font-weight:700;color:#f97316">${d.total}</td>
-            <td class="r">${d.mh||'—'}</td>
-            <td class="r" style="color:${d.tl>0?'#ef4444':'#94a3b8'}">${d.tl||'—'}</td>
-          </tr>`).join('')}
-          <tr class="total-row">
-            <td>TOTAL</td><td class="r">${grandTot.spv}</td><td class="r">${grandTot.mandor}</td>
-            <td class="r">${grandTot.installer}</td><td class="r">${grandTot.tukang}</td>
-            <td class="r">${grandTot.helper}</td><td class="r">${grandTot.safety}</td>
-            <td class="r">${totalMD}</td><td class="r">${totalMH}</td><td class="r">${totalTL}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <!-- REKAP HARIAN -->
+    <div style="margin-bottom:6px;font-size:11px;font-weight:700;color:#1e293b;text-transform:uppercase;letter-spacing:.5px;border-left:4px solid #8b5cf6;padding-left:8px">REKAP HARIAN</div>
+    <table style="width:100%;border-collapse:collapse;font-size:10px">
+      <thead>
+        <tr style="background:#1e293b">
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:left;font-size:9px;letter-spacing:.4px">Tanggal</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">SPV</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Mandor</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Installer</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Tukang</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Helper</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Safety</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Total</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">MH (jam)</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">TL (jam)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${dailyRows.map(([date,d],i)=>`<tr style="background:${i%2===0?'#fff':'#f8fafc'}">
+          <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;font-weight:600">${fmtD(date)}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;text-align:center">${d.spv||'\u2014'}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;text-align:center">${d.mandor||'\u2014'}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;text-align:center">${d.installer||'\u2014'}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;text-align:center">${d.tukang||'\u2014'}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;text-align:center">${d.helper||'\u2014'}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;text-align:center">${d.safety||'\u2014'}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:700;color:#f97316">${d.total}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;text-align:center">${d.mh||'\u2014'}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #e2e8f0;text-align:center;color:${d.tl>0?'#ef4444':'#94a3b8'}">${d.tl||'\u2014'}</td>
+        </tr>`).join('')}
+        <tr style="background:#1e293b">
+          <td style="padding:6px 8px;color:#f1f5f9;font-weight:700">TOTAL</td>
+          <td style="padding:6px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.spv||0}</td>
+          <td style="padding:6px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.mandor||0}</td>
+          <td style="padding:6px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.installer||0}</td>
+          <td style="padding:6px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.tukang||0}</td>
+          <td style="padding:6px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.helper||0}</td>
+          <td style="padding:6px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.safety||0}</td>
+          <td style="padding:6px 8px;color:#f97316;text-align:center;font-weight:700">${totalMD}</td>
+          <td style="padding:6px 8px;color:#f1f5f9;text-align:center;font-weight:700">${totalMH}</td>
+          <td style="padding:6px 8px;color:${totalTL>0?'#fca5a5':'#f1f5f9'};text-align:center;font-weight:700">${totalTL||'\u2014'}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
-  <!-- Page 2: Rekap per Item Pekerjaan -->
-  <div class="pb" style="padding:20px 24px">
-    <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:4px;border-bottom:3px solid #8b5cf6;padding-bottom:8px">
-      REKAP MANPOWER PER ITEM PEKERJAAN
-      <span style="font-size:10px;font-weight:400;color:#64748b;margin-left:8px">${proj?proj.kode+' — '+proj.nama:'Semua Project'} | ${periodLabel}</span>
+  <!-- PAGE 2: Rekap per Item -->
+  <div class="pb" style="padding:20px 24px 16px">
+
+    <!-- HEADER PAGE 2 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;border-bottom:3px solid #8b5cf6;padding-bottom:10px">
+      <div>
+        <div style="font-size:16px;font-weight:800;color:#1e293b;letter-spacing:.3px">REKAP MANPOWER PER ITEM PEKERJAAN</div>
+        <div style="font-size:10px;color:#64748b;margin-top:2px">${projLabel} | ${periodLabel}</div>
+      </div>
+      ${logoHtml}
     </div>
-    ${rows.length===0?'<div style="text-align:center;color:#94a3b8;padding:30px;font-size:12px">Belum ada data assignment aktivitas pada periode ini</div>':
-    `<table style="margin-bottom:16px">
-      <thead><tr>
-        <th>Item Pekerjaan</th><th>Project</th>
-        <th class="r">SPV</th><th class="r">Mandor</th><th class="r">Inst</th>
-        <th class="r">Tukang</th><th class="r">Helper</th><th class="r">Safety</th>
-        <th class="r">Total MD</th><th class="r">%</th>
-      </tr></thead>
+
+    <!-- TABLE REKAP -->
+    ${rows.length===0?`<div style="text-align:center;color:#94a3b8;padding:40px;font-size:12px">Belum ada data assignment aktivitas pada periode ini</div>`:`
+    <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:20px">
+      <thead>
+        <tr style="background:#1e293b">
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:left;font-size:9px">Item Pekerjaan</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:left;font-size:9px">Project</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">SPV</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Mandor</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Inst</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Tukang</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Helper</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Safety</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">Total MD</th>
+          <th style="color:#f1f5f9;padding:6px 8px;text-align:center;font-size:9px">%</th>
+        </tr>
+      </thead>
       <tbody>
         ${rows.map(r=>{
           const pct=grandTot.total>0?Math.round(r.total/grandTot.total*100):0;
-          return`<tr class="kat-row"><td colspan="10" style="padding:0"></td></tr>
-          <tr>
-            <td style="font-weight:600">${r.wbsName}</td>
-            <td style="font-size:9px;color:#3b82f6">${r.projKode}</td>
-            <td class="r">${r.spv||'—'}</td><td class="r">${r.mandor||'—'}</td>
-            <td class="r">${r.installer||'—'}</td><td class="r">${r.tukang||'—'}</td>
-            <td class="r">${r.helper||'—'}</td><td class="r">${r.safety||'—'}</td>
-            <td class="r" style="font-weight:700;color:#f97316">${r.total}</td>
-            <td class="r" style="font-size:9px;color:#64748b">${pct}%</td>
-          </tr>
-          ${r.entries.sort((a,b)=>a.date>b.date?1:-1).map(e=>`
-          <tr class="sub-row">
-            <td style="padding-left:20px">${fmtD(e.date)} ${e.notes?'— '+e.notes.slice(0,50):''}</td>
-            <td></td>
-            <td class="r">${e.spv||'—'}</td><td class="r">${e.mandor||'—'}</td>
-            <td class="r">${e.installer||'—'}</td><td class="r">${e.tukang||'—'}</td>
-            <td class="r">${e.helper||'—'}</td><td class="r">${e.safety||'—'}</td>
-            <td class="r" style="font-weight:600;color:#f97316">${e.total}</td>
-            <td></td>
-          </tr>`).join('')}`;
+          const subRows=r.entries.sort((a,b)=>a.date>b.date?1:-1).map(e=>`
+          <tr style="background:#fffbeb">
+            <td style="padding:3px 8px 3px 20px;border-bottom:1px solid #e2e8f0;color:#78716c;font-size:9px">${fmtD(e.date)}${e.notes?' \u2014 '+e.notes.slice(0,50):''}</td>
+            <td style="padding:3px 8px;border-bottom:1px solid #e2e8f0"></td>
+            <td style="padding:3px 8px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:9px">${e.spv||'\u2014'}</td>
+            <td style="padding:3px 8px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:9px">${e.mandor||'\u2014'}</td>
+            <td style="padding:3px 8px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:9px">${e.installer||'\u2014'}</td>
+            <td style="padding:3px 8px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:9px">${e.tukang||'\u2014'}</td>
+            <td style="padding:3px 8px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:9px">${e.helper||'\u2014'}</td>
+            <td style="padding:3px 8px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:9px">${e.safety||'\u2014'}</td>
+            <td style="padding:3px 8px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:9px;font-weight:600;color:#f97316">${e.total}</td>
+            <td style="padding:3px 8px;border-bottom:1px solid #e2e8f0"></td>
+          </tr>`).join('');
+          return`<tr style="background:#f8fafc">
+            <td style="padding:6px 8px;border-bottom:1px solid #cbd5e1;font-weight:700;color:#1e293b">${r.wbsName}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #cbd5e1;font-size:9px;color:#3b82f6;font-weight:600">${r.projKode}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #cbd5e1;text-align:center">${r.spv||'\u2014'}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #cbd5e1;text-align:center">${r.mandor||'\u2014'}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #cbd5e1;text-align:center">${r.installer||'\u2014'}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #cbd5e1;text-align:center">${r.tukang||'\u2014'}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #cbd5e1;text-align:center">${r.helper||'\u2014'}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #cbd5e1;text-align:center">${r.safety||'\u2014'}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #cbd5e1;text-align:center;font-weight:700;color:#f97316">${r.total}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #cbd5e1;text-align:center;font-size:9px;color:#64748b">${pct}%</td>
+          </tr>${subRows}`;
         }).join('')}
-        <tr class="total-row">
-          <td colspan="2">GRAND TOTAL — ${rows.length} item</td>
-          <td class="r">${grandTot.spv}</td><td class="r">${grandTot.mandor}</td>
-          <td class="r">${grandTot.installer}</td><td class="r">${grandTot.tukang}</td>
-          <td class="r">${grandTot.helper}</td><td class="r">${grandTot.safety}</td>
-          <td class="r">${grandTot.total}</td><td class="r">100%</td>
+        <tr style="background:#1e293b">
+          <td colspan="2" style="padding:7px 8px;color:#f1f5f9;font-weight:700;font-size:11px">GRAND TOTAL \u2014 ${rows.length} item</td>
+          <td style="padding:7px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.spv||0}</td>
+          <td style="padding:7px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.mandor||0}</td>
+          <td style="padding:7px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.installer||0}</td>
+          <td style="padding:7px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.tukang||0}</td>
+          <td style="padding:7px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.helper||0}</td>
+          <td style="padding:7px 8px;color:#f1f5f9;text-align:center;font-weight:700">${grandTot.safety||0}</td>
+          <td style="padding:7px 8px;color:#f97316;text-align:center;font-weight:700">${grandTot.total}</td>
+          <td style="padding:7px 8px;color:#f1f5f9;text-align:center;font-weight:700">100%</td>
         </tr>
       </tbody>
     </table>`}
 
-    <div style="margin-top:40px;display:flex;justify-content:space-around;font-size:10px">
+    <!-- SIGNATURE -->
+    <div style="margin-top:40px;display:flex;justify-content:space-around">
+      ${['Site Manager','Project Manager','Diketahui oleh'].map(role=>`
       <div style="text-align:center">
-        <div style="height:40px;border-bottom:1px solid #1e293b;width:140px;margin:0 auto"></div>
-        <div style="margin-top:4px;color:#64748b">Site Manager</div>
-      </div>
-      <div style="text-align:center">
-        <div style="height:40px;border-bottom:1px solid #1e293b;width:140px;margin:0 auto"></div>
-        <div style="margin-top:4px;color:#64748b">Project Manager</div>
-      </div>
-      <div style="text-align:center">
-        <div style="height:40px;border-bottom:1px solid #1e293b;width:140px;margin:0 auto"></div>
-        <div style="margin-top:4px;color:#64748b">Diketahui oleh</div>
-      </div>
+        <div style="height:44px;border-bottom:1px solid #1e293b;width:150px;margin:0 auto"></div>
+        <div style="margin-top:5px;font-size:10px;color:#64748b">${role}</div>
+      </div>`).join('')}
     </div>
   </div>`;
 
@@ -9136,11 +9185,13 @@ function renderGantt(){
   };
   const tLine='<div style="position:absolute;left:'+todayX+'px;top:0;bottom:0;width:2px;background:#f97316;opacity:.8;z-index:5;pointer-events:none"><span style="position:absolute;top:2px;left:3px;font-size:7px;color:#f97316;font-weight:700;white-space:nowrap">TODAY</span></div>';
 
+  // Date formatter for gantt
+  const fmtGD=ds=>{if(!ds)return'—';const d=new Date(ds+'T12:00');return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short'});};
   // Rows
   let leftRows='',rightRows='';
   if(!cats.length){
-    leftRows='<div style="padding:20px;color:var(--mt);font-size:12px;text-align:center">Belum ada WBS. Tambahkan item dan isi Start/Finish date.</div>';
-    rightRows='<div style="height:60px;min-width:'+totalW+'px"></div>';
+    leftRows='<div style="height:40px;display:flex;align-items:center;justify-content:center;color:var(--mt);font-size:12px">Belum ada WBS. Tambahkan item dan isi Start/Finish date.</div>';
+    rightRows='<div style="height:40px;min-width:'+totalW+'px"></div>';
   }
   cats.forEach((cat,ci)=>{
     const subcats=all.filter(w=>w.type==='subcat'&&String(w.parentId)===String(cat.id)).sort((a,b)=>+a.order-+b.order);
@@ -9149,25 +9200,27 @@ function renderGantt(){
     const cS=allNodes.map(w=>w.startDate).filter(Boolean).sort();
     const cF=allNodes.map(w=>w.finishDate).filter(Boolean).sort();
     const dur=_ganttDuration(cS[0],cF.slice(-1)[0]);
-    leftRows+='<div class="gantt-lrow gl-cat" onclick="toggleGanttCat2(\'gc2_'+cat.id+'\')" style="cursor:pointer"><span id="gc2icon_'+cat.id+'" style="font-size:9px;flex-shrink:0;opacity:.5">&#x25BC;</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+String.fromCharCode(65+ci)+'. '+safeStr(cat.name)+'</span>'+(dur?'<span style="font-size:9px;color:var(--mt);flex-shrink:0">'+dur+'</span>':'')+'</div>';
+    leftRows+='<div class="gantt-lrow gl-cat" onclick="toggleGanttCat2(\"gc2_\"+cat.id+\"\")" style="cursor:pointer"><span id="gc2icon_'+cat.id+'" style="font-size:9px;flex-shrink:0;opacity:.5">&#x25BC;</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+String.fromCharCode(65+ci)+'. '+safeStr(cat.name)+'</span><span style="display:flex;gap:2px;flex-shrink:0"><span class="gantt-date-val" style="width:62px">'+fmtGD(cS[0])+'</span><span class="gantt-date-val" style="width:62px">'+fmtGD(cF.slice(-1)[0])+'</span></span></div>';
     rightRows+='<div class="gantt-rrow gl-cat" style="width:'+totalW+'px;min-width:'+totalW+'px">'+mkBar(cS[0],cF.slice(-1)[0],'cat')+tLine+'</div>';
 
     subcats.forEach((sub,si)=>{
       const subItems=items.filter(w=>String(w.parentId)===String(sub.id)).sort((a,b)=>+a.order-+b.order);
       const isLeaf=!subItems.length;
       const subPct=isLeaf?+(sub.cumActual||0):subItems.reduce((s,x)=>s+(+x.cumActual||0),0)/Math.max(1,subItems.length);
-      leftRows+='<div class="gantt-lrow gl-sub gc2_'+cat.id+'" style="padding-left:22px;'+(isLeaf?'':'cursor:pointer')+'"'+(isLeaf?'':' onclick="toggleGanttCat2(\'gi2_'+sub.id+'\')"')+'>'+(!isLeaf?'<span id="gi2icon_'+sub.id+'" style="font-size:9px;flex-shrink:0;opacity:.5">&#x25BC;</span>':'<span style="width:10px;flex-shrink:0"></span>')+'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(ci+1)+'.'+(si+1)+' '+safeStr(sub.name)+'</span>'+(subPct>0?'<span style="font-size:9px;color:var(--or);flex-shrink:0;font-family:var(--fm)">'+subPct.toFixed(1)+'%</span>':'')+'</div>';
+      const subSD=isLeaf?sub.startDate:(subItems.map(x=>x.startDate).filter(Boolean).sort()[0]||sub.startDate);
+      const subFD=isLeaf?sub.finishDate:(subItems.map(x=>x.finishDate).filter(Boolean).sort().slice(-1)[0]||sub.finishDate);
+      leftRows+='<div class="gantt-lrow gl-sub gc2_'+cat.id+'" style="padding-left:22px;'+(isLeaf?'':'cursor:pointer')+'"'+(isLeaf?'':' onclick="toggleGanttCat2(\'gi2_\'+sub.id+\'\')"')+'>'+(!isLeaf?'<span id="gi2icon_'+sub.id+'" style="font-size:9px;flex-shrink:0;opacity:.5">&#x25BC;</span>':'<span style="width:10px;flex-shrink:0"></span>')+'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(ci+1)+'.'+(si+1)+' '+safeStr(sub.name)+'</span>'+(subPct>0?'<span style="font-size:9px;color:var(--or);flex-shrink:0;font-family:var(--fm);margin-right:2px">'+subPct.toFixed(1)+'%</span>':'')+'<span style="display:flex;gap:2px;flex-shrink:0"><span class="gantt-date-val" style="width:62px">'+fmtGD(subSD)+'</span><span class="gantt-date-val" style="width:62px">'+fmtGD(subFD)+'</span></span></div>';
       rightRows+='<div class="gantt-rrow gl-sub gc2_'+cat.id+'" style="width:'+totalW+'px;min-width:'+totalW+'px">'+mkBar(sub.startDate,sub.finishDate,'sub')+(isLeaf?mkAct(sub,sub.startDate,sub.finishDate):'')+tLine+'</div>';
 
       subItems.forEach((item,ii)=>{
         const pct=+item.cumActual||0;
-        leftRows+='<div class="gantt-lrow gl-item gi2_'+sub.id+'" style="padding-left:36px"><span style="font-size:9px;color:var(--mt);flex-shrink:0;margin-right:2px">'+(ci+1)+'.'+(si+1)+'.'+(ii+1)+'</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">'+safeStr(item.name)+'</span>'+(pct>0?'<span style="font-size:9px;color:var(--or);flex-shrink:0;font-family:var(--fm)">'+pct.toFixed(1)+'%</span>':'')+'</div>';
+        leftRows+='<div class="gantt-lrow gl-item gi2_'+sub.id+'" style="padding-left:36px"><span style="font-size:9px;color:var(--mt);flex-shrink:0;margin-right:2px">'+(ci+1)+'.'+(si+1)+'.'+(ii+1)+'</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">'+safeStr(item.name)+'</span>'+(pct>0?'<span style="font-size:9px;color:var(--or);flex-shrink:0;font-family:var(--fm);margin-right:2px">'+pct.toFixed(1)+'%</span>':'')+'<span style="display:flex;gap:2px;flex-shrink:0"><span class="gantt-date-val" style="width:62px">'+fmtGD(item.startDate||sub.startDate)+'</span><span class="gantt-date-val" style="width:62px">'+fmtGD(item.finishDate||sub.finishDate)+'</span></span></div>';
         rightRows+='<div class="gantt-rrow gi2_'+sub.id+'" style="width:'+totalW+'px;min-width:'+totalW+'px">'+mkBar(item.startDate||sub.startDate,item.finishDate||sub.finishDate,'plan')+mkAct(item,item.startDate||sub.startDate,item.finishDate||sub.finishDate)+tLine+'</div>';
       });
     });
   });
 
-  $('wbsGanttChart').innerHTML='<div class="gantt-container"><div class="gantt-left-panel"><div class="gantt-left-header">ITEM PEKERJAAN</div><div class="gantt-left-subheader">Bobot / Durasi / Progress</div>'+leftRows+'</div><div class="gantt-right-panel"><div style="display:flex;height:22px;border-bottom:1px solid var(--bd);background:var(--sf2);width:'+totalW+'px;min-width:'+totalW+'px">'+monthHdr+'</div><div style="display:flex;height:20px;border-bottom:2px solid var(--bd);background:var(--sf2);width:'+totalW+'px;min-width:'+totalW+'px">'+colHdr+'</div><div style="min-width:'+totalW+'px;width:'+totalW+'px">'+rightRows+'</div></div></div>';
+  $('wbsGanttChart').innerHTML='<div class="gantt-container"><div class="gantt-left-panel"><div class="gantt-left-header" style="display:flex;justify-content:space-between"><span>ITEM PEKERJAAN</span><span style="display:flex;gap:2px"><span style="width:62px;text-align:center;font-size:9px">START</span><span style="width:62px;text-align:center;font-size:9px">FINISH</span></span></div><div class="gantt-left-subheader" style="display:flex;justify-content:space-between"><span>Bobot / Progress</span><span style="display:flex;gap:2px"><span style="width:62px;text-align:center">dd/mmm</span><span style="width:62px;text-align:center">dd/mmm</span></span></div>'+leftRows+'</div><div class="gantt-right-panel"><div style="display:flex;height:22px;border-bottom:1px solid var(--bd);background:var(--sf2);width:'+totalW+'px;min-width:'+totalW+'px">'+monthHdr+'</div><div style="display:flex;height:20px;border-bottom:2px solid var(--bd);background:var(--sf2);width:'+totalW+'px;min-width:'+totalW+'px">'+colHdr+'</div><div style="min-width:'+totalW+'px;width:'+totalW+'px">'+rightRows+'</div></div></div>';
 }
 
 function toggleGanttCat2(groupClass){
