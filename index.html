@@ -6610,7 +6610,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.58';
+  const DASH_VER='3.59';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -8579,6 +8579,9 @@ function generateWeeklyReport(){
       body{font-family:Arial,sans-serif;color:#1e293b;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
       @media print{body{padding:0}@page{margin:12mm;size:A4}.wr-pb{page-break-before:always;break-before:page}}
       .wr-pb{page-break-before:always;break-before:page}
+      thead{display:table-header-group}
+      tfoot{display:table-footer-group}
+      tr{break-inside:avoid;page-break-inside:avoid}
     </style>
   </head><body>${html}</body></html>`;
 
@@ -8750,19 +8753,22 @@ function buildWeeklyReportHTML(projId,week){
   html+=`</table>`;
 
   // SECTION 2: AKTIVITAS HARIAN
-  html+=`<div style="background:#374151;color:#fff;text-align:center;padding:5px;font-weight:700;font-size:11px;margin-bottom:0">AKTIVITAS HARIAN</div>
-  <table style="${ts};margin-bottom:10px">
-    <tr>
-      <th style="${th};width:80px">Tanggal</th>
-      <th style="${th};width:40px">Hari</th>
-      <th style="${th}">Item Pekerjaan</th>
-      <th style="${th};width:80px">Qty Dikerjakan</th>
-      <th style="${th};width:60px">Kontribusi</th>
-      <th style="${th}">Catatan / Kendala</th>
-      <th style="${th};width:60px">Pekerja</th>
-      <th style="${th};width:55px">MH (jam)</th>
-      <th style="${th};width:55px">Time Lost</th>
-    </tr>`;
+  html+=`<div style="background:#374151;color:#fff;text-align:center;padding:5px;font-weight:700;font-size:11px;margin-bottom:0;break-after:avoid;page-break-after:avoid">AKTIVITAS HARIAN</div>
+  <table style="${ts};margin-bottom:10px;border-top:none">
+    <thead style="display:table-header-group">
+      <tr>
+        <th style="${th};background:#374151;color:#fff;width:80px">Tanggal</th>
+        <th style="${th};background:#374151;color:#fff;width:40px">Hari</th>
+        <th style="${th};background:#374151;color:#fff">Item Pekerjaan</th>
+        <th style="${th};background:#374151;color:#fff;width:80px">Qty Dikerjakan</th>
+        <th style="${th};background:#374151;color:#fff;width:60px">Kontribusi</th>
+        <th style="${th};background:#374151;color:#fff">Catatan / Kendala</th>
+        <th style="${th};background:#374151;color:#fff;width:60px">Pekerja</th>
+        <th style="${th};background:#374151;color:#fff;width:55px">MH (jam)</th>
+        <th style="${th};background:#374151;color:#fff;width:55px">Time Lost</th>
+      </tr>
+    </thead>
+    <tbody>`;
   if(sortedDates.length){
     sortedDates.forEach(date=>{
       const dd=dailyData[date];
@@ -8794,7 +8800,7 @@ function buildWeeklyReportHTML(projId,week){
   }else{
     html+=`<tr><td colspan="9" style="${tdc};color:#94a3b8;padding:12px">Belum ada data aktivitas harian untuk minggu ini</td></tr>`;
   }
-  html+=`</table>`;
+  html+=`</tbody></table>`;
 
   // SECTION 3: MANPOWER & TIME LOST
   html+=`<div style="background:#374151;color:#fff;text-align:center;padding:5px;font-weight:700;font-size:11px;margin-bottom:0">REKAPITULASI MANPOWER & TIME LOST</div>
