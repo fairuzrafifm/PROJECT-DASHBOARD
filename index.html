@@ -240,6 +240,12 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .sbar-info{display:flex;align-items:center;gap:6px;color:var(--mt);min-width:0;overflow:hidden;flex-shrink:1}
 .sbar-info #smsg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sbar-btns{display:flex;gap:5px;flex-shrink:0;align-items:center}
+.sbar-dd{position:relative;display:inline-block}
+.sbar-dd-menu{display:none;position:fixed;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;min-width:165px;z-index:99999;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.sbar-dd-menu.open{display:block}
+.sbar-dd-item{padding:6px 12px;font-size:11px;color:var(--tx);border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.sbar-dd-item:hover{background:var(--ib)}
+.sbar-dd-sep{height:1px;background:var(--bd);margin:3px 0}
 .sdot{width:7px;height:7px;border-radius:50%;background:var(--gn);flex-shrink:0}
 .sdot.unsaved{background:var(--yw);animation:blink 1.2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
@@ -417,6 +423,11 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .pi,.btn,.tab,.kpi,.psc{transition:background .08s}
 /* Contain scroll bounce */
 .content,.sidebar,#wbsTable,#procTable,#drTable,#mpLogTable{overscroll-behavior:contain}
+#mpLogTable::-webkit-scrollbar,#mpActivityReport::-webkit-scrollbar{width:6px;height:6px}
+#mpLogTable,#mpActivityReport{scrollbar-gutter:stable}
+#mpLogTable::-webkit-scrollbar-track,#mpActivityReport::-webkit-scrollbar-track{background:transparent}
+#mpLogTable::-webkit-scrollbar-thumb,#mpActivityReport::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+#mpLogTable::-webkit-scrollbar-thumb:hover,#mpActivityReport::-webkit-scrollbar-thumb:hover{background:var(--mt)}
 /* Touch scrolling */
 .content,.sidebar{-webkit-overflow-scrolling:touch}
 /* No layout on decorative */
@@ -434,6 +445,18 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:13px;h
 .gantt-left-panel{width:460px;flex-shrink:0;border-right:2px solid var(--bd);background:var(--sf)}
 .gantt-date-col{width:70px;flex-shrink:0;font-size:9px;color:var(--mt);text-align:center;padding:0 2px}
 .gantt-date-val{font-size:9px;font-family:var(--fm);color:var(--mt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wbs-date-cell{cursor:pointer;position:relative;min-width:72px}
+.wbs-date-cell:hover{background:rgba(59,130,246,.08);border-radius:3px}
+.wbs-date-cell input[type=date]{position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer;border:none;background:transparent}
+.wbs-date-cell.has-date{color:var(--bl)}
+.wbs-date-cell.editing{background:rgba(59,130,246,.12);border-radius:3px;outline:1px solid var(--bl)}
+.wbs-inline-text{cursor:text;border-radius:3px;padding:1px 3px;display:inline-flex;align-items:center;gap:1px;white-space:nowrap}
+.wbs-inline-text:hover{background:rgba(59,130,246,.08)}
+.wbs-inline-text input{border:none;background:transparent;font:inherit;color:inherit;padding:0;outline:none}
+.wbs-inline-text input[type=text]{width:100%;min-width:60px;max-width:220px}
+.wbs-inline-text input[type=number]{width:48px;text-align:right;-moz-appearance:textfield}
+.wbs-inline-text input[type=number]::-webkit-inner-spin-button,.wbs-inline-text input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
+.wbs-inline-text.editing{background:rgba(59,130,246,.12);outline:1px solid var(--bl);border-radius:3px}
 .gantt-right-panel{flex:1;overflow-x:auto;min-width:0}
 .gantt-left-header{height:22px;display:flex;align-items:center;padding:0 12px;font-size:9px;font-weight:700;color:var(--mt);letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--bd);background:var(--sf2)}
 .gantt-left-subheader{height:20px;display:flex;align-items:center;padding:0 12px;border-bottom:2px solid var(--bd);background:var(--sf2);font-size:8px;color:var(--mt)}
@@ -624,16 +647,14 @@ select.fi{color-scheme:dark}
   <div class="hdr-right">
     <!-- NOTIFICATION BELL -->
     <div class="notif-wrap" id="notifWrap">
-      <button class="notif-btn" id="notifBtn" onclick="toggleNotif(event)" title="Notifikasi">🔔</button>
+      <button class="notif-btn" id="notifBtn" onclick="toggleNotif(event)" title="Notifikasi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
       <div class="notif-badge hidden" id="notifBadge">0</div>
     </div>
-    <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Ganti tema">🌙</button>
+    <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" title="Ganti tema"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
     <div id="roleBadgeHdr" class="role-badge rb-viewer" style="display:none"></div>
-    <button class="btn btn-sm" id="btnChangePw" onclick="openModal('changePw')" style="display:none;border-color:var(--mt);color:var(--mt)" title="Ganti Password">🔐</button>
+    <button class="btn btn-sm" id="btnChangePw" onclick="openModal('changePw')" style="display:none;border-color:var(--mt);color:var(--mt)" title="Ganti Password"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
     <button class="btn btn-sm" onclick="doLogout()" id="btnLogout" style="display:none;border-color:var(--mt);color:var(--mt)" title="Keluar">⏏</button>
     <div id="gsBadge" class="gs-badge gs-off" onclick="openModal('gsConfig')" title="Konfigurasi Google Sheets">GSheet</div>
-    <button class="btn bg btn-sm" onclick="openModal('addProj')">＋</button>
-    <button class="btn bp btn-sm" id="btnUpd" onclick="openModal('updProgress')" disabled>↑ Update</button>
   </div>
 </div>
 
@@ -646,28 +667,42 @@ select.fi{color-scheme:dark}
     <span id="flabel" style="font-family:var(--fm);font-size:10px;white-space:nowrap">Belum ada file</span>
   </div>
   <div class="sbar-btns">
-    <button class="btn btn-sm" onclick="exportPDF()" style="border-color:#8b5cf6;color:#8b5cf6">📄 PDF</button>
-    <button class="btn btn-sm" onclick="openModal('weeklyReport')" style="border-color:var(--bl);color:var(--bl)">📋 Weekly</button>
-    <button class="btn btn-sm" onclick="openModal('mpReport')" style="border-color:var(--pu,#8b5cf6);color:var(--pu,#8b5cf6)">👷 MP Report</button>
-    <button class="btn btn-sm" style="border-color:var(--pu);color:var(--pu)" onclick="copyShareUrl()" id="btnShareUrl" title="Share Link">🔗</button>
-    <button class="btn btn-sm bgs" onclick="syncAllGS()" id="btnSync" style="display:none">↑ Sync</button>
-    <button class="btn btn-sm bgs" onclick="loadFromGS()" id="btnLoad" style="display:none">↓ Load</button>
-    <button class="btn btn-sm bb" onclick="triggerImport()">📂 Excel</button>
-    <button class="btn btn-sm bg" onclick="exportExcel()">💾 Simpan</button>
+    <!-- Dropdown: Report -->
+    <div class="sbar-dd" id="ddReport">
+      <button class="btn btn-sm" style="border-color:#8b5cf6;color:#8b5cf6" onclick="toggleSbarDD('ddReport')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg> Report<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;display:inline-block;margin-left:3px"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="sbar-dd-menu" id="ddReportMenu">
+        <div class="sbar-dd-item" onclick="exportPDF();toggleSbarDD('ddReport')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h1a1 1 0 0 1 0 2H9v-2zm4 0h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1h-1v-3zm4 0v3"/></svg> PDF</div>
+        <div class="sbar-dd-item" onclick="openModal('weeklyReport');toggleSbarDD('ddReport')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg> Weekly Report</div>
+        <div class="sbar-dd-item" onclick="openModal('mpReport');toggleSbarDD('ddReport')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg> MP Report</div>
+        <div class="sbar-dd-sep"></div>
+        <div class="sbar-dd-item" onclick="copyShareUrl();toggleSbarDD('ddReport')" id="btnShareUrl" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Share Link</div>
+      </div>
+    </div>
+    <!-- Dropdown: Data -->
+    <div class="sbar-dd" id="ddData">
+      <button class="btn btn-sm bgs" onclick="toggleSbarDD('ddData')" id="btnDataDD" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Data<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;display:inline-block;margin-left:3px"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="sbar-dd-menu" id="ddDataMenu">
+        <div class="sbar-dd-item" onclick="syncAllGS();toggleSbarDD('ddData')" id="btnSync"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Sync ke GSheet</div>
+        <div class="sbar-dd-item" onclick="loadFromGS();toggleSbarDD('ddData')" id="btnLoad"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Load dari GSheet</div>
+        <div class="sbar-dd-sep"></div>
+        <div class="sbar-dd-item" onclick="triggerImport();toggleSbarDD('ddData')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="12" y1="13" x2="12" y2="21"/></svg> Import Excel</div>
+      </div>
+    </div>
+    <button class="btn btn-sm bg" onclick="exportExcel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan</button>
     <input type="file" id="fileIn" accept=".xlsx" style="display:none" onchange="importExcel(event)">
   </div>
 </div>
 
 <!-- TABS -->
 <div class="tabs">
-  <div class="tab active" onclick="sw('overview',this)" title="[1] Portfolio Overview">🗂 Portfolio Overview</div>
-  <div class="tab" onclick="sw('projects',this)" title="[2] Projects">📊 Projects</div>
-  <div class="tab" onclick="sw('manpower',this)" title="[3] Manpower">👷 Manpower</div>
-  <div class="tab" onclick="sw('issues',this)" title="[4] Issues">⚠️ Issues<span id="ibadge" style="background:var(--rd);color:#fff;border-radius:10px;padding:0 5px;font-size:9px;font-weight:700;margin-left:3px"></span></div>
-  <div class="tab" onclick="sw('procurement',this)" title="[5] Procurement">📦 Procurement</div>
-  <div class="tab" onclick="sw('wbs',this)" title="[6] WBS">🏗 WBS</div>
-  <div class="tab" onclick="sw('daily',this)" title="[7] Daily Report">📊 Daily Report</div>
-  <div class="tab" onclick="sw('cost',this)" title="[8] Cost/Finance">💰 Cost/Finance</div>
+  <div class="tab active" onclick="sw('overview',this)" title="[1] Portfolio Overview"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Portfolio Overview</div>
+  <div class="tab" onclick="sw('projects',this)" title="[2] Projects"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Projects</div>
+  <div class="tab" onclick="sw('manpower',this)" title="[3] Manpower"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M12 2a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9z"/><path d="M3 11v2a9 9 0 0 0 18 0v-2"/><line x1="3" y1="15" x2="21" y2="15"/></svg> Manpower</div>
+  <div class="tab" onclick="sw('issues',this)" title="[4] Issues"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Issues<span id="ibadge" style="background:var(--rd);color:#fff;border-radius:10px;padding:0 5px;font-size:9px;font-weight:700;margin-left:3px"></span></div>
+  <div class="tab" onclick="sw('procurement',this)" title="[5] Procurement"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg> Procurement</div>
+  <div class="tab" onclick="sw('wbs',this)" title="[6] WBS"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M3 6v.01"/><path d="M3 12v.01"/><path d="M3 18v.01"/></svg> WBS</div>
+  <div class="tab" onclick="sw('daily',this)" title="[7] Daily Report"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h4"/><path d="M8 18h.01"/><path d="M12 18h4"/></svg> Daily Report</div>
+  <div class="tab" onclick="sw('cost',this)" title="[8] Cost/Finance"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="9"/><path d="M14.8 9A2 2 0 0 0 13 8h-2a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4h-2a2 2 0 0 1-1.8-1"/><line x1="12" y1="6" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="18"/></svg> Cost/Finance</div>
 </div>
 
 <!-- MAIN LAYOUT -->
@@ -729,7 +764,7 @@ select.fi{color-scheme:dark}
             <div style="font-family:var(--fd);font-size:13px;letter-spacing:2px;color:var(--mt)">PROJECT STATUS CARDS</div>
           </div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <input class="fi" id="ovSearch" placeholder="🔍 Cari project..." oninput="renderProjStatusCards()" style="padding:4px 9px;font-size:11px;width:160px">
+            <input class="fi" id="ovSearch" placeholder="Cari project..." oninput="renderProjStatusCards()" style="padding:4px 9px;font-size:11px;width:160px">
             <select class="fi" id="ovFiltStatus" onchange="renderProjStatusCards()" style="padding:4px 9px;font-size:11px;width:auto">
               <option value="">Semua Status</option>
               <option>On Track</option><option>Delayed</option><option>Critical</option><option>Planning</option><option>Done</option>
@@ -743,16 +778,16 @@ select.fi{color-scheme:dark}
       <div class="g3">
         <!-- WEATHER -->
         <div class="card">
-          <div class="ct">🌤 WEATHER — ALL SITES <span style="color:var(--gn);animation:pulse 3s infinite;font-size:10px">● LIVE</span></div>
+          <div class="ct"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M12 2v2M4.93 4.93l1.41 1.41M20 12h2M19.07 4.93l-1.41 1.41M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6z"/></svg> WEATHER — ALL SITES <span style="color:var(--gn);animation:pulse 3s infinite;font-size:10px">● LIVE</span></div>
           <div class="wg" id="weatherGrid"></div>
           <div style="margin-top:9px;text-align:right">
-            <button class="btn btn-sm" onclick="openModal('editWeather')">✏ Edit Cuaca</button>
+            <button class="btn btn-sm" onclick="openModal('editWeather')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit Cuaca</button>
           </div>
         </div>
 
         <!-- ACCIDENT LOG -->
         <div class="card">
-          <div class="ct">🦺 ACCIDENT LOG — PORTFOLIO
+          <div class="ct"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="2" y="6" width="20" height="15" rx="2"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="9.5" y1="13.5" x2="14.5" y2="13.5"/></svg> ACCIDENT LOG — PORTFOLIO
             <button class="btn btn-sm bp" onclick="openModal('addAccident')">＋ Input</button>
           </div>
           <div id="accLog"></div>
@@ -774,7 +809,7 @@ select.fi{color-scheme:dark}
 
         <!-- PROCUREMENT STATUS -->
         <div class="card">
-          <div class="ct">📦 PROCUREMENT STATUS</div>
+          <div class="ct"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg> PROCUREMENT STATUS</div>
           <div class="proc-grid" id="procGrid"></div>
         </div>
       </div>
@@ -791,12 +826,12 @@ select.fi{color-scheme:dark}
       </div>
       <div id="detail">
         <div class="empty">
-          <div style="font-size:38px;opacity:.3;margin-bottom:10px">📊</div>
+          <div style="font-size:38px;opacity:.3;margin-bottom:10px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg></div>
           <div style="font-size:13px;margin-bottom:5px">Pilih project dari sidebar</div>
           <div style="font-size:11px;margin-bottom:13px">atau load data dari Google Sheet / file Excel</div>
           <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-            <button class="btn bgs" onclick="openModal('gsConfig')">⚙ Setup Google Sheet</button>
-            <button class="btn bb" onclick="triggerImport()">📂 Buka Excel</button>
+            <button class="btn bgs" onclick="openModal('gsConfig')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Setup Google Sheet</button>
+            <button class="btn bb" onclick="triggerImport()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="12" y1="13" x2="12" y2="21"/></svg> Buka Excel</button>
             <button class="btn bg" onclick="openModal('addProj')">＋ Project Baru</button>
           </div>
         </div>
@@ -842,15 +877,15 @@ select.fi{color-scheme:dark}
             <option value="">Semua Project</option>
           </select>
         </div>
-        <div id="mpLogTable" style="overflow-x:auto;max-height:280px"></div>
+        <div id="mpLogTable" style="overflow-x:auto;overflow-y:auto;max-height:280px;scrollbar-width:thin;scrollbar-color:var(--bd) transparent"></div>
       </div>
 
       <!-- Rekap per Item Pekerjaan -->
       <div class="card">
         <div class="ct" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <span>📌 REKAP MANPOWER PER ITEM PEKERJAAN</span>
+          <span>REKAP MANPOWER PER ITEM PEKERJAAN</span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <select class="fi" style="width:auto;padding:3px 8px;font-size:11px" id="mpActFiltProj" onchange="renderMpActivity()">
+            <select class="fi" style="width:auto;padding:3px 8px;font-size:11px" id="mpActFiltProj" onchange="this._mpActFiltManual=true;renderMpActivity()">
               <option value="">Semua Project</option>
             </select>
             <select class="fi" style="width:auto;padding:3px 8px;font-size:11px" id="mpActFiltPeriod" onchange="renderMpActivity()">
@@ -866,7 +901,7 @@ select.fi{color-scheme:dark}
             </span>
           </div>
         </div>
-        <div id="mpActivityReport" style="overflow-x:auto;overflow-y:auto;max-height:480px"></div>
+        <div id="mpActivityReport" style="overflow-x:auto;overflow-y:auto;max-height:480px;scrollbar-width:thin;scrollbar-color:var(--bd) transparent"></div>
       </div>
 
     </div>
@@ -906,7 +941,7 @@ select.fi{color-scheme:dark}
             <option value="">Semua Kategori</option>
             <option>Equipment</option><option>Material</option><option>Civil</option><option>Service</option>
           </select>
-          <input class="fi" style="width:160px;padding:4px 9px;font-size:11px" id="procSearch" placeholder="🔍 Cari item..." oninput="renderProc()">
+          <input class="fi" style="width:160px;padding:4px 9px;font-size:11px" id="procSearch" placeholder="Cari item..." oninput="renderProc()">
         </div>
         <button class="btn bg btn-sm" onclick="openModal('addProc')">＋ Tambah Item</button>
       </div>
@@ -937,10 +972,10 @@ select.fi{color-scheme:dark}
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="font-size:12px;color:var(--mt)">Project:</div>
           <select class="fi" style="width:auto;min-width:200px" id="scProjSel" onchange="renderSCurve()"></select>
-          <button class="btn btn-sm edit-only" style="border-color:var(--bl);color:var(--bl)" onclick="openModal('scPlan')">📋 Input Plan</button>
-          <button class="btn btn-sm bp edit-only" onclick="openModal('scActual')">✏ Update Actual</button>
-          <button class="btn btn-sm" onclick="openModal('scManage')" style="border-color:var(--mt);color:var(--mt)">⚙ Kelola Data</button>
-          <button class="btn btn-sm" style="border-color:var(--gn);color:var(--gn)" onclick="resyncScurveFromWbs()" title="Rebuild S-Curve dari data WBS">🔄 Sync dari WBS</button>
+          <button class="btn btn-sm edit-only" style="border-color:var(--bl);color:var(--bl)" onclick="openModal('scPlan')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="16" y1="17" x2="16" y2="21"/><line x1="14" y1="19" x2="18" y2="19"/></svg> Input Plan</button>
+          <button class="btn btn-sm bp edit-only" onclick="openModal('scActual')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Update Actual</button>
+          <button class="btn btn-sm" onclick="openModal('scManage')" style="border-color:var(--mt);color:var(--mt)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Kelola Data</button>
+          <button class="btn btn-sm" style="border-color:var(--gn);color:var(--gn)" onclick="resyncScurveFromWbs()" title="Rebuild S-Curve dari data WBS"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Sync dari WBS</button>
         </div>
       </div>
 
@@ -972,13 +1007,13 @@ select.fi{color-scheme:dark}
             <button class="btn btn-sm bp" style="border:none;border-radius:0" onclick="openModal('wbsAddItem')">＋ Item</button>
           </div>
           <div style="display:flex;border:1px solid var(--bd);border-radius:6px;overflow:hidden" class="edit-only">
-            <button class="btn btn-sm" style="border:none;border-radius:0;border-right:1px solid var(--bd);color:var(--bl)" onclick="openModal('wbsPlan')">📋 Input Plan</button>
-            <button class="btn btn-sm bp" style="border:none;border-radius:0" onclick="openModal('wbsActual')">✏ Update Actual</button>
+            <button class="btn btn-sm" style="border:none;border-radius:0;border-right:1px solid var(--bd);color:var(--bl)" onclick="openModal('wbsPlan')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="16" y1="17" x2="16" y2="21"/><line x1="14" y1="19" x2="18" y2="19"/></svg> Input Plan</button>
+            <button class="btn btn-sm bp" style="border:none;border-radius:0" onclick="openModal('wbsActual')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Update Actual</button>
           </div>
           <!-- View toggle -->
           <div style="display:flex;border:1px solid var(--bd);border-radius:6px;overflow:hidden;margin-left:auto">
             <button id="wbsViewTable" class="btn btn-sm" style="border:none;border-radius:0;border-right:1px solid var(--bd);background:var(--bl);color:#fff" onclick="setWbsView('table')">☰ Tabel</button>
-            <button id="wbsViewGantt" class="btn btn-sm" style="border:none;border-radius:0;color:var(--mt)" onclick="setWbsView('gantt')">📊 Gantt</button>
+            <button id="wbsViewGantt" class="btn btn-sm" style="border:none;border-radius:0;color:var(--mt)" onclick="setWbsView('gantt')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg> Gantt</button>
           </div>
           <div id="wbsTotalBobot" style="font-size:11px;font-family:var(--fm);color:var(--mt)">Total bobot: 0%</div>
         </div>
@@ -1013,7 +1048,7 @@ select.fi{color-scheme:dark}
       <!-- S-Curve from WBS -->
       <div class="card" id="wbsScSection">
         <div class="ct" style="display:flex;align-items:center;justify-content:space-between">
-          <span>📈 S-CURVE — DARI WBS</span>
+          <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> S-CURVE — DARI WBS</span>
           <button class="btn btn-sm" style="border-color:var(--or);color:var(--or);font-size:11px" onclick="resyncAndDrawSCurve()" title="Rebuild S-Curve dari data WBS">↺ Rebuild S-Curve</button>
         </div>
         <div id="wbsScKpi" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"></div>
@@ -1038,7 +1073,7 @@ select.fi{color-scheme:dark}
           <div style="font-size:12px;color:var(--mt)">Tanggal:</div>
           <input type="date" class="fi" style="width:auto" id="drDate" onchange="renderDailyReport()">
           <button class="btn btn-sm edit-only" style="border-color:var(--gn);color:var(--gn)" onclick="openModal('drInput')">＋ Input Harian</button>
-          <button class="btn btn-sm" style="border-color:var(--bl);color:var(--bl)" onclick="openModal('drQtySetup')">⚙ Setup Qty Plan</button>
+          <button class="btn btn-sm" style="border-color:var(--bl);color:var(--bl)" onclick="openModal('drQtySetup')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Setup Qty Plan</button>
           <div id="drWeekBadge" style="margin-left:auto;font-size:11px;font-family:var(--fm);background:rgba(249,115,22,.1);color:var(--or);padding:3px 10px;border-radius:20px;display:none"></div>
         </div>
       </div>
@@ -1084,7 +1119,7 @@ select.fi{color-scheme:dark}
             <option value="procurement">Procurement</option>
             <option value="opex">Operasional (OPEX)</option>
           </select>
-          <input class="fi" id="costSearch" placeholder="🔍 Cari item..." oninput="renderCost()" style="width:160px;padding:4px 9px;font-size:11px">
+          <input class="fi" id="costSearch" placeholder="Cari item..." oninput="renderCost()" style="width:160px;padding:4px 9px;font-size:11px">
           <button class="btn btn-sm edit-only" style="border-color:var(--gn);color:var(--gn);margin-left:auto" onclick="openModal('addCost')">＋ Tambah Pengeluaran</button>
         </div>
       </div>
@@ -1101,7 +1136,7 @@ select.fi{color-scheme:dark}
       <div class="card">
         <div class="ct" style="display:flex;align-items:center;gap:10px">
           <span>RINGKASAN COST PER PROJECT</span>
-          <button class="btn btn-sm" style="margin-left:auto;border-color:var(--bl);color:var(--bl);font-size:10px" onclick="exportCostCSV()">📥 Export CSV</button>
+          <button class="btn btn-sm" style="margin-left:auto;border-color:var(--bl);color:var(--bl);font-size:10px" onclick="exportCostCSV()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV</button>
         </div>
         <div id="costSummaryTable" style="overflow-x:auto"></div>
       </div>
@@ -1122,7 +1157,7 @@ select.fi{color-scheme:dark}
           <button class="btn btn-sm edit-only" style="border-color:var(--gn);color:var(--gn)" onclick="openRabKatModal(null)">＋ Kategori</button>
           <button class="btn btn-sm edit-only" id="btnAddRabItem" style="border-color:var(--bl);color:var(--bl);display:none" onclick="openRabItemModal(null)">＋ Item RAB</button>
           <button class="btn btn-sm edit-only" style="border-color:var(--or);color:var(--or)" onclick="openCloneRabModal()" title="Clone RAB dari project lain ke project ini">⧉ Clone RAB</button>
-          <button class="btn btn-sm" style="border-color:var(--pu);color:var(--pu)" onclick="exportRabCSV()">📥 Export RAB</button>
+          <button class="btn btn-sm" style="border-color:var(--pu);color:var(--pu)" onclick="exportRabCSV()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export RAB</button>
         </div>
 
         <!-- RAB KPI -->
@@ -1171,7 +1206,7 @@ select.fi{color-scheme:dark}
       </div>
       <div style="flex:1">
         <label class="btn btn-sm bb" style="cursor:pointer;display:inline-flex;gap:5px">
-          🖼 Pilih Gambar
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M15 8h.01"/><path d="M3 15l4-4a3 5 0 0 1 3 0l5 5"/><path d="M14 14l1-1a3 5 0 0 1 3 0l3 3"/><path d="M16 5h6"/><path d="m19 2 3 3-3 3"/></svg> Pilih Gambar
           <input type="file" id="fLogoFile" accept="image/*" style="display:none" onchange="previewClientLogo(this)">
         </label>
         <button class="btn btn-sm brd" onclick="clearClientLogo()" style="margin-left:6px">✕ Hapus</button>
@@ -1184,12 +1219,12 @@ select.fi{color-scheme:dark}
     <div class="fg"><label class="fl">Mandays Plan (total orang-hari)</label><input class="fi" type="number" id="fMpP" placeholder="mis: 1000 MD" min="0"></div>
     <div class="fg"><label class="fl">Manhours Plan/hari</label><input class="fi" type="number" id="fMhP" placeholder="480" min="0"></div>
     <div class="fg"><label class="fl">Cuaca Lokasi</label>
-      <select class="fi" id="fWeather"><option>☀️ Sunny</option><option>⛅ Partly Cloudy</option><option>🌥 Overcast</option><option>🌧 Rainy</option><option>⛈ Thunderstorm</option><option>🌫 Foggy</option></select>
+      <select class="fi" id="fWeather"><option><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Sunny</option><option>Partly Cloudy</option><option>🌥 Overcast</option><option>Rainy</option><option>⛈ Thunderstorm</option><option>Foggy</option></select>
     </div>
     <div class="fg"><label class="fl">Catatan</label><input class="fi" id="fNotes" placeholder="Keterangan..."></div>
   </div>
   <!-- PIC / TIM PROJECT -->
-  <div style="font-family:var(--fd);font-size:11px;letter-spacing:1px;color:var(--bl);margin:10px 0 8px;padding:6px 10px;background:rgba(59,130,246,.07);border-radius:6px">👥 TIM PROJECT</div>
+  <div style="font-family:var(--fd);font-size:11px;letter-spacing:1px;color:var(--bl);margin:10px 0 8px;padding:6px 10px;background:rgba(59,130,246,.07);border-radius:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.85"/></svg> TIM PROJECT</div>
   <div class="f2">
     <div class="fg"><label class="fl">Project Manager</label><input class="fi" id="fPicPm" placeholder="Nama PM" list="picPmList"><datalist id="picPmList"></datalist></div>
     <div class="fg"><label class="fl">Site Manager</label><input class="fi" id="fPicSm" placeholder="Nama SM" list="picSmList"><datalist id="picSmList"></datalist></div>
@@ -1197,7 +1232,7 @@ select.fi{color-scheme:dark}
     <div class="fg"><label class="fl">Procurement</label><input class="fi" id="fPicProc" placeholder="Nama Procurement" list="picProcList"><datalist id="picProcList"></datalist></div>
   </div>
   <div class="mfoot">
-    <button class="btn brd" id="btnDelProj" onclick="delProj()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn brd" id="btnDelProj" onclick="delProj()" style="margin-right:auto;display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Hapus</button>
     <button class="btn" onclick="cm('addProj')">Batal</button>
     <button class="btn bp" onclick="saveProj()" id="btnSaveProj">＋ Tambah</button>
   </div>
@@ -1263,7 +1298,7 @@ select.fi{color-scheme:dark}
   <div class="fg"><label class="fl">Keterangan</label><input class="fi" id="uNotes" placeholder="Progres minggu ini, kendala, dll..."></div>
   <div class="mfoot">
     <button class="btn" onclick="cm('updProgress')">Batal</button>
-    <button class="btn bp" onclick="saveUpdate()">💾 Simpan</button>
+    <button class="btn bp" onclick="saveUpdate()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan</button>
   </div>
 </div></div>
 
@@ -1296,7 +1331,7 @@ select.fi{color-scheme:dark}
 
   <!-- ═══ ASSIGNMENT AKTIVITAS ═══ -->
   <div class="fsec" style="display:flex;align-items:center;justify-content:space-between">
-    <span>👷 ASSIGNMENT PEKERJA PER AKTIVITAS</span>
+    <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M12 2a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9z"/><path d="M3 11v2a9 9 0 0 0 18 0v-2"/><line x1="3" y1="15" x2="21" y2="15"/></svg> ASSIGNMENT PEKERJA PER AKTIVITAS</span>
     <button class="btn btn-sm" style="border-color:var(--gn);color:var(--gn);font-size:11px" onclick="addMpActivityRow()">＋ Tambah Aktivitas</button>
   </div>
   <div id="mpActivityRows" style="display:flex;flex-direction:column;gap:6px;max-height:380px;overflow-y:auto;padding-right:2px;margin-bottom:8px"></div>
@@ -1326,7 +1361,7 @@ select.fi{color-scheme:dark}
 
   <div class="mfoot" style="margin-top:14px">
     <button class="btn" onclick="cm('inputMp')">Batal</button>
-    <button class="btn bp" onclick="saveMp()">💾 Simpan</button>
+    <button class="btn bp" onclick="saveMp()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan</button>
   </div>
 </div></div>
 
@@ -1385,7 +1420,7 @@ select.fi{color-scheme:dark}
   </div>
   <div class="fg"><label class="fl">Tindakan Korektif</label><input class="fi" id="iAction" placeholder="Langkah penanganan..."></div>
   <div class="mfoot">
-    <button class="btn brd" id="btnDelIss" onclick="delIss()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn brd" id="btnDelIss" onclick="delIss()" style="margin-right:auto;display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Hapus</button>
     <button class="btn" onclick="cm('addIssue')">Batal</button>
     <button class="btn bp" onclick="saveIss()" id="btnSaveIss">Simpan</button>
   </div>
@@ -1448,13 +1483,13 @@ select.fi{color-scheme:dark}
 
   <!-- Harga total — tampil saat PO Issued / In Transit / On Site -->
   <div class="fg" id="procCostWrap" style="display:none">
-    <label class="fl" style="color:var(--gn)">💰 Harga Total (Rp)</label>
+    <label class="fl" style="color:var(--gn)">Harga Total (Rp)</label>
     <input class="fi" type="number" id="pHarga" min="0" placeholder="Masukkan total harga setelah PO diterbitkan" oninput="_updateProcRabBudget()" style="border-color:rgba(16,185,129,.4)">
     <div style="font-size:10px;color:var(--mt);margin-top:3px">Input harga total setelah PO diterbitkan / barang tiba — akan otomatis masuk ke aktual RAB</div>
   </div>
   <div class="fg"><label class="fl">Keterangan</label><input class="fi" id="pNotes"></div>
   <div class="mfoot">
-    <button class="btn brd" id="btnDelProc" onclick="delProc()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn brd" id="btnDelProc" onclick="delProc()" style="margin-right:auto;display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Hapus</button>
     <button class="btn" onclick="cm('addProc')">Batal</button>
     <button class="btn bp" onclick="saveProc()" id="btnSaveProc">Simpan</button>
   </div>
@@ -1536,7 +1571,7 @@ select.fi{color-scheme:dark}
     <input class="fi" id="cNotes" placeholder="Keterangan tambahan (opsional)">
   </div>
   <div class="mfoot">
-    <button class="btn brd" id="btnDelCost" onclick="delCost()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn brd" id="btnDelCost" onclick="delCost()" style="margin-right:auto;display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Hapus</button>
     <button class="btn" onclick="cm('addCost')">Batal</button>
     <button class="btn bp" onclick="saveCost()" id="btnSaveCost">＋ Tambah</button>
   </div>
@@ -1564,7 +1599,7 @@ select.fi{color-scheme:dark}
     <input class="fi" type="number" id="rkUrutan" min="1" value="1" placeholder="Urutan tampil">
   </div>
   <div class="mfoot">
-    <button class="btn brd" id="btnDelRabKat" onclick="delRabKat()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn brd" id="btnDelRabKat" onclick="delRabKat()" style="margin-right:auto;display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Hapus</button>
     <button class="btn" onclick="cm('addRabKat')">Batal</button>
     <button class="btn bp" onclick="saveRabKat()" id="btnSaveRabKat">＋ Tambah</button>
   </div>
@@ -1623,7 +1658,7 @@ select.fi{color-scheme:dark}
     <input class="fi" id="riNotes" placeholder="Catatan tambahan (opsional)">
   </div>
   <div class="mfoot">
-    <button class="btn brd" id="btnDelRabItem" onclick="delRabItem()" style="margin-right:auto;display:none">🗑 Hapus</button>
+    <button class="btn brd" id="btnDelRabItem" onclick="delRabItem()" style="margin-right:auto;display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Hapus</button>
     <button class="btn" onclick="cm('addRabItem')">Batal</button>
     <button class="btn bp" onclick="saveRabItem()" id="btnSaveRabItem">＋ Tambah</button>
   </div>
@@ -1673,7 +1708,7 @@ select.fi{color-scheme:dark}
 <!-- GOOGLE SHEET CONFIG -->
 <div class="ov" id="ov-gsConfig" onclick="if(event.target===this)cm('gsConfig')">
 <div class="modal wide">
-  <div class="mtitle">⚙ GOOGLE SHEET INTEGRATION<button class="mclose" onclick="cm('gsConfig')">✕</button></div>
+  <div class="mtitle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> GOOGLE SHEET INTEGRATION<button class="mclose" onclick="cm('gsConfig')">✕</button></div>
 
   <!-- Status saat ini -->
   <div id="gsCurrentStatus" style="border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:11px;font-family:var(--fm);display:flex;align-items:center;gap:8px;background:rgba(100,116,139,.1);border:1px solid var(--bd)">
@@ -1703,13 +1738,13 @@ select.fi{color-scheme:dark}
   <div id="gsTestRes" style="font-size:11px;margin-bottom:10px;padding:9px 12px;border-radius:6px;display:none;white-space:pre-line;line-height:1.6"></div>
 
   <div style="display:flex;gap:8px;margin-bottom:8px">
-    <button class="btn bb" onclick="testGS()" style="flex:1;justify-content:center;font-weight:600">🔍 Test Koneksi</button>
+    <button class="btn bb" onclick="testGS()" style="flex:1;justify-content:center;font-weight:600">▪ Test Koneksi</button>
     <button class="btn bgs" onclick="copyGsScript()" style="flex:1;justify-content:center">📋 Salin Script v11</button>
   </div>
-  <button class="btn" onclick="copyShareUrl()" style="width:100%;justify-content:center;margin-bottom:12px;border-color:var(--pu);color:var(--pu)">🔗 Salin Link Share untuk Tim</button>
+  <button class="btn" onclick="copyShareUrl()" style="width:100%;justify-content:center;margin-bottom:12px;border-color:var(--pu);color:var(--pu)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Salin Link Share untuk Tim</button>
   <div class="mfoot">
     <button class="btn" onclick="cm('gsConfig')">Batal</button>
-    <button class="btn bp" onclick="saveGS()">💾 Simpan & Sambungkan</button>
+    <button class="btn bp" onclick="saveGS()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan & Sambungkan</button>
   </div>
 </div></div>
 
@@ -1736,7 +1771,7 @@ select.fi{color-scheme:dark}
   </div>
   <div class="mfoot">
     <button class="btn" onclick="cm('editHist')">Batal</button>
-    <button class="btn bp" onclick="saveHistEntry()">💾 Simpan</button>
+    <button class="btn bp" onclick="saveHistEntry()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan</button>
   </div>
 </div></div>
 
@@ -1763,9 +1798,9 @@ select.fi{color-scheme:dark}
   </div>
   <div class="fg"><label class="fl">Keterangan</label><input class="fi" id="eaNotes"></div>
   <div class="mfoot">
-    <button class="btn brd" onclick="delAccLog()" style="margin-right:auto">🗑 Hapus</button>
+    <button class="btn brd" onclick="delAccLog()" style="margin-right:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Hapus</button>
     <button class="btn" onclick="cm('editAcc')">Batal</button>
-    <button class="btn bp" onclick="saveAccEdit()">💾 Simpan</button>
+    <button class="btn bp" onclick="saveAccEdit()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan</button>
   </div>
 </div></div>
 
@@ -1793,7 +1828,7 @@ select.fi{color-scheme:dark}
   </div>
   <div class="mfoot">
     <button class="btn" onclick="cm('scPlan')">Batal</button>
-    <button class="btn bg" onclick="saveSCurvePlan()">💾 Simpan Plan</button>
+    <button class="btn bg" onclick="saveSCurvePlan()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Plan</button>
   </div>
 </div></div>
 
@@ -1841,7 +1876,7 @@ select.fi{color-scheme:dark}
   </div>
   <div class="mfoot">
     <button class="btn" onclick="cm('scActual')">Batal</button>
-    <button class="btn bp" onclick="saveSCurveActual()">💾 Simpan Actual</button>
+    <button class="btn bp" onclick="saveSCurveActual()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Actual</button>
   </div>
 </div></div>
 
@@ -1899,12 +1934,12 @@ select.fi{color-scheme:dark}
       <select class="fi" id="wbsPlanProj" onchange="renderWbsPlanGrid()"></select>
     </div>
     <div style="background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:6px 12px;font-size:11px;color:var(--mt);flex:2;min-width:260px">
-      💡 Isi <b style="color:var(--bl)">% kumulatif pencapaian</b> per item per minggu (0–100%). Contoh: PV Lofting → W1=20%, W2=70%, W3=100%.
+      Isi <b style="color:var(--bl)">% kumulatif pencapaian</b> per item per minggu (0–100%). Contoh: PV Lofting → W1=20%, W2=70%, W3=100%.
       Nilai harus <b style="color:var(--yw)">naik atau sama</b> dari minggu ke minggu. Dikali bobot → S-Curve otomatis.
     </div>
     <div style="display:flex;gap:6px;flex-shrink:0">
-      <button class="btn" style="border-color:var(--yw);color:var(--yw);font-size:11px" onclick="wbsPlanFillLinear()" title="Isi otomatis linear (merata per minggu)">⚡ Auto Linear</button>
-      <button class="btn" style="border-color:var(--rd);color:var(--rd);font-size:11px" onclick="wbsPlanClearAll()" title="Hapus semua plan">🗑 Clear</button>
+      <button class="btn" style="border-color:var(--yw);color:var(--yw);font-size:11px" onclick="wbsPlanFillLinear()" title="Isi otomatis linear (merata per minggu)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Auto Linear</button>
+      <button class="btn" style="border-color:var(--rd);color:var(--rd);font-size:11px" onclick="wbsPlanClearAll()" title="Hapus semua plan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Clear</button>
     </div>
   </div>
 
@@ -1921,7 +1956,7 @@ select.fi{color-scheme:dark}
       Project S-Curve akan diperbarui otomatis setelah disimpan
     </div>
     <button class="btn" onclick="cm('wbsPlan')">Batal</button>
-    <button class="btn bg" onclick="saveWbsPlanGrid()">💾 Simpan Plan</button>
+    <button class="btn bg" onclick="saveWbsPlanGrid()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Plan</button>
   </div>
 </div></div>
 
@@ -1956,21 +1991,21 @@ select.fi{color-scheme:dark}
   </div>
   <div class="mfoot">
     <button class="btn" onclick="cm('wbsActual')">Batal</button>
-    <button class="btn bp" onclick="saveWbsProgress()">💾 Simpan Actual</button>
+    <button class="btn bp" onclick="saveWbsProgress()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Actual</button>
   </div>
 </div></div>
 
 <!-- WBS PROGRESS (kept for backward compat, hidden) -->
 <div class="ov" id="ov-wbsProgress" onclick="if(event.target===this)cm('wbsProgress')">
 <div class="modal" style="width:300px;padding:20px;text-align:center">
-  <div style="color:var(--mt);font-size:12px;margin-bottom:12px">Gunakan tombol 📋 Input Plan atau ✏ Update Actual</div>
+  <div style="color:var(--mt);font-size:12px;margin-bottom:12px">Gunakan tombol 📋 Input Plan atau <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Update Actual</div>
   <button class="btn" onclick="cm('wbsProgress')">Tutup</button>
 </div></div>
 
 <!-- WBS UPDATE HARIAN -->
 <div class="ov" id="ov-wbsDaily" onclick="if(event.target===this)cm('wbsDaily')">
 <div class="modal wide" style="max-height:92vh;overflow-y:auto">
-  <div class="mtitle" style="color:var(--gn)">📅 UPDATE HARIAN ITEM PEKERJAAN<button class="mclose" onclick="cm('wbsDaily')">✕</button></div>
+  <div class="mtitle" style="color:var(--gn)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="15" x2="12" y2="19"/><line x1="10" y1="17" x2="14" y2="17"/></svg> UPDATE HARIAN ITEM PEKERJAAN<button class="mclose" onclick="cm('wbsDaily')">✕</button></div>
   <div class="f2" style="margin-bottom:10px">
     <div class="fg"><label class="fl">Project</label>
       <select class="fi" id="wbsDailyProj" onchange="renderWbsDailyForm()"></select>
@@ -1985,14 +2020,14 @@ select.fi{color-scheme:dark}
   <div id="wbsDailyForm"></div>
   <div class="mfoot">
     <button class="btn" onclick="cm('wbsDaily')">Tutup</button>
-    <button class="btn" style="border-color:var(--gn);color:var(--gn)" onclick="saveAllDailyLogs()">💾 Simpan Semua</button>
+    <button class="btn" style="border-color:var(--gn);color:var(--gn)" onclick="saveAllDailyLogs()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Semua</button>
   </div>
 </div></div>
 
 <!-- WEEKLY REPORT SELECTOR -->
 <div class="ov" id="ov-weeklyReport" onclick="if(event.target===this)cm('weeklyReport')">
 <div class="modal wide" style="max-height:92vh;overflow-y:auto;width:560px">
-  <div class="mtitle" style="color:var(--bl)">📋 GENERATE WEEKLY REPORT<button class="mclose" onclick="cm('weeklyReport')">✕</button></div>
+  <div class="mtitle" style="color:var(--bl)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg> GENERATE WEEKLY REPORT<button class="mclose" onclick="cm('weeklyReport')">✕</button></div>
   <div class="f2" style="margin-bottom:10px">
     <div class="fg"><label class="fl">Project</label>
       <select class="fi" id="wrProj" onchange="populateWeekOptions()"></select>
@@ -2001,13 +2036,13 @@ select.fi{color-scheme:dark}
       <select class="fi" id="wrWeek"></select>
     </div>
   </div>
-  <!-- PHOTO UPLOAD SECTION -->
+  <div id="wrWeekWarn" style="display:none;background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3);border-radius:6px;padding:8px 12px;font-size:11px;color:var(--or);margin-bottom:8px">⚠ Pastikan <b>Tanggal Mulai</b> project sudah diisi di tab Projects → Edit, dan ada data Daily Log atau Manpower.</div>
   <div style="margin-bottom:10px">
-    <div style="font-size:11px;font-weight:600;color:var(--mt);margin-bottom:8px;letter-spacing:.5px">📷 DOKUMENTASI FOTO (opsional — maks 6 foto)</div>
+    <div style="font-size:11px;font-weight:600;color:var(--mt);margin-bottom:8px;letter-spacing:.5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> DOKUMENTASI FOTO (opsional — maks 6 foto)</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
       <div style="border:1px dashed var(--bd);border-radius:6px;overflow:hidden;background:var(--sf2)">
         <div id="wrPhotoSlot_1" style="height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative" onclick="document.getElementById('wrPhotoFile_1').click()">
-          <span style="font-size:20px">📷</span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 1</span>
+          <span style="font-size:20px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 1</span>
           <input type="file" id="wrPhotoFile_1" accept="image/*" style="display:none" onchange="loadWrPhoto(1,this)">
         </div>
         <div style="padding:3px 5px;border-top:1px solid var(--bd)">
@@ -2016,7 +2051,7 @@ select.fi{color-scheme:dark}
       </div>
       <div style="border:1px dashed var(--bd);border-radius:6px;overflow:hidden;background:var(--sf2)">
         <div id="wrPhotoSlot_2" style="height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative" onclick="document.getElementById('wrPhotoFile_2').click()">
-          <span style="font-size:20px">📷</span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 2</span>
+          <span style="font-size:20px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 2</span>
           <input type="file" id="wrPhotoFile_2" accept="image/*" style="display:none" onchange="loadWrPhoto(2,this)">
         </div>
         <div style="padding:3px 5px;border-top:1px solid var(--bd)">
@@ -2025,7 +2060,7 @@ select.fi{color-scheme:dark}
       </div>
       <div style="border:1px dashed var(--bd);border-radius:6px;overflow:hidden;background:var(--sf2)">
         <div id="wrPhotoSlot_3" style="height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative" onclick="document.getElementById('wrPhotoFile_3').click()">
-          <span style="font-size:20px">📷</span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 3</span>
+          <span style="font-size:20px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 3</span>
           <input type="file" id="wrPhotoFile_3" accept="image/*" style="display:none" onchange="loadWrPhoto(3,this)">
         </div>
         <div style="padding:3px 5px;border-top:1px solid var(--bd)">
@@ -2034,7 +2069,7 @@ select.fi{color-scheme:dark}
       </div>
       <div style="border:1px dashed var(--bd);border-radius:6px;overflow:hidden;background:var(--sf2)">
         <div id="wrPhotoSlot_4" style="height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative" onclick="document.getElementById('wrPhotoFile_4').click()">
-          <span style="font-size:20px">📷</span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 4</span>
+          <span style="font-size:20px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 4</span>
           <input type="file" id="wrPhotoFile_4" accept="image/*" style="display:none" onchange="loadWrPhoto(4,this)">
         </div>
         <div style="padding:3px 5px;border-top:1px solid var(--bd)">
@@ -2043,7 +2078,7 @@ select.fi{color-scheme:dark}
       </div>
       <div style="border:1px dashed var(--bd);border-radius:6px;overflow:hidden;background:var(--sf2)">
         <div id="wrPhotoSlot_5" style="height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative" onclick="document.getElementById('wrPhotoFile_5').click()">
-          <span style="font-size:20px">📷</span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 5</span>
+          <span style="font-size:20px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 5</span>
           <input type="file" id="wrPhotoFile_5" accept="image/*" style="display:none" onchange="loadWrPhoto(5,this)">
         </div>
         <div style="padding:3px 5px;border-top:1px solid var(--bd)">
@@ -2052,7 +2087,7 @@ select.fi{color-scheme:dark}
       </div>
       <div style="border:1px dashed var(--bd);border-radius:6px;overflow:hidden;background:var(--sf2)">
         <div id="wrPhotoSlot_6" style="height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative" onclick="document.getElementById('wrPhotoFile_6').click()">
-          <span style="font-size:20px">📷</span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 6</span>
+          <span style="font-size:20px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span><span style="font-size:9px;color:var(--mt);margin-top:2px">Foto 6</span>
           <input type="file" id="wrPhotoFile_6" accept="image/*" style="display:none" onchange="loadWrPhoto(6,this)">
         </div>
         <div style="padding:3px 5px;border-top:1px solid var(--bd)">
@@ -2066,14 +2101,14 @@ select.fi{color-scheme:dark}
   </div>
   <div class="mfoot">
     <button class="btn" onclick="cm('weeklyReport')">Batal</button>
-    <button class="btn bg" onclick="generateWeeklyReport()">🖨 Generate & Print PDF</button>
+    <button class="btn bg" onclick="generateWeeklyReport()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Generate & Print PDF</button>
   </div>
 </div></div>
 
 <!-- MANPOWER REPORT MODAL -->
 <div class="ov" id="ov-mpReport" onclick="if(event.target===this)cm('mpReport')">
 <div class="modal" style="max-width:480px">
-  <div class="mtitle" style="color:var(--pu,#8b5cf6)">👷 GENERATE MANPOWER REPORT<button class="mclose" onclick="cm('mpReport')">✕</button></div>
+  <div class="mtitle" style="color:var(--pu,#8b5cf6)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M12 2a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9z"/><path d="M3 11v2a9 9 0 0 0 18 0v-2"/><line x1="3" y1="15" x2="21" y2="15"/></svg> GENERATE MANPOWER REPORT<button class="mclose" onclick="cm('mpReport')">✕</button></div>
   <div class="f2" style="margin-bottom:10px">
     <div class="fg"><label class="fl">Project</label>
       <select class="fi" id="mrProj"></select>
@@ -2097,14 +2132,14 @@ select.fi{color-scheme:dark}
   </div>
   <div class="mfoot">
     <button class="btn" onclick="cm('mpReport')">Batal</button>
-    <button class="btn" style="background:var(--pu,#8b5cf6);color:#fff;border-color:var(--pu,#8b5cf6)" onclick="generateMpReport()">🖨 Generate & Print PDF</button>
+    <button class="btn" style="background:var(--pu,#8b5cf6);color:#fff;border-color:var(--pu,#8b5cf6)" onclick="generateMpReport()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Generate & Print PDF</button>
   </div>
 </div></div>
 
 <!-- DAILY REPORT: SETUP QTY PLAN -->
 <div class="ov" id="ov-drQtySetup" onclick="if(event.target===this)cm('drQtySetup')">
 <div class="modal wide" style="max-height:92vh;overflow-y:auto">
-  <div class="mtitle" style="color:var(--bl)">⚙ SETUP QUANTITY PLAN PER ITEM<button class="mclose" onclick="cm('drQtySetup')">✕</button></div>
+  <div class="mtitle" style="color:var(--bl)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> SETUP QUANTITY PLAN PER ITEM<button class="mclose" onclick="cm('drQtySetup')">✕</button></div>
   <div class="fg" style="margin-bottom:10px">
     <label class="fl">Project</label>
     <select class="fi" id="drSetupProj" onchange="renderDrQtySetupForm()"></select>
@@ -2115,7 +2150,7 @@ select.fi{color-scheme:dark}
   <div id="drQtySetupForm"></div>
   <div class="mfoot">
     <button class="btn" onclick="cm('drQtySetup')">Batal</button>
-    <button class="btn bg" onclick="saveDrQtySetup()">💾 Simpan Setup</button>
+    <button class="btn bg" onclick="saveDrQtySetup()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Setup</button>
   </div>
 </div></div>
 
@@ -2141,7 +2176,7 @@ select.fi{color-scheme:dark}
   </div>
   <div class="mfoot">
     <button class="btn" onclick="cm('drInput')">Batal</button>
-    <button class="btn" style="border-color:var(--gn);color:var(--gn)" onclick="saveDrInput()">💾 Simpan Daily Report</button>
+    <button class="btn" style="border-color:var(--gn);color:var(--gn)" onclick="saveDrInput()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Daily Report</button>
   </div>
 </div></div>
 
@@ -2159,7 +2194,7 @@ select.fi{color-scheme:dark}
   </div>
   <div class="mfoot">
     <button class="btn" onclick="cm('wbsEdit')">Batal</button>
-    <button class="btn bp" onclick="saveEditWbs()">💾 Simpan</button>
+    <button class="btn bp" onclick="saveEditWbs()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan</button>
   </div>
 </div></div>
 
@@ -2222,9 +2257,9 @@ select.fi{color-scheme:dark}
   </div>
   <div class="fg"><label class="fl">Keterangan</label><input class="fi" id="emlNotes"></div>
   <div class="mfoot">
-    <button class="btn brd" onclick="delMpLog()" style="margin-right:auto">🗑 Hapus</button>
+    <button class="btn brd" onclick="delMpLog()" style="margin-right:auto"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Hapus</button>
     <button class="btn" onclick="cm('editMpLog')">Batal</button>
-    <button class="btn bp" onclick="saveEditMpLog()">💾 Simpan</button>
+    <button class="btn bp" onclick="saveEditMpLog()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan</button>
   </div>
 </div></div>
 
@@ -2239,17 +2274,17 @@ select.fi{color-scheme:dark}
 
     <div class="auth-roles" id="authRoles">
       <div class="role-btn" id="rb-admin" onclick="selectRole('admin')">
-        <div class="role-ico">👑</div>
+        <div class="role-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></svg></div>
         <div class="role-name">Admin</div>
         <div class="role-desc">Akses penuh</div>
       </div>
       <div class="role-btn" id="rb-editor" onclick="selectRole('editor')">
-        <div class="role-ico">✏️</div>
+        <div class="role-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
         <div class="role-name">Editor</div>
         <div class="role-desc">Input & update</div>
       </div>
       <div class="role-btn" id="rb-viewer" onclick="quickViewerLogin()">
-        <div class="role-ico">👁️</div>
+        <div class="role-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
         <div class="role-name">Viewer</div>
         <div class="role-desc">Tanpa password</div>
       </div>
@@ -2268,15 +2303,15 @@ select.fi{color-scheme:dark}
 <!-- CHANGE PASSWORD MODAL -->
 <div class="ov" id="ov-changePw" onclick="if(event.target===this)cm('changePw')">
 <div class="modal" style="width:380px">
-  <div class="mtitle">🔐 GANTI PASSWORD<button class="mclose" onclick="cm('changePw')">✕</button></div>
+  <div class="mtitle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> GANTI PASSWORD<button class="mclose" onclick="cm('changePw')">✕</button></div>
   <div style="background:var(--sf2);border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--mt)">
     Ganti password untuk role: <span id="cpRoleName" style="color:var(--tx);font-weight:600"></span>
   </div>
   <div class="f2">
     <div class="fg"><label class="fl">Role</label>
       <select class="fi" id="cpRole">
-        <option value="admin">👑 Admin</option>
-        <option value="editor">✏️ Editor</option>
+        <option value="admin"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></svg> Admin</option>
+        <option value="editor"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Editor</option>
       </select>
     </div>
     <div class="fg"><label class="fl">Password Baru</label>
@@ -2287,9 +2322,9 @@ select.fi{color-scheme:dark}
     <input class="fi" type="password" id="cpConfPw" placeholder="Ulangi password baru">
   </div>
   <div class="mfoot">
-    <button class="btn bb btn-sm" onclick="testPwSync()" style="margin-right:auto">🔍 Test Koneksi PW</button>
+    <button class="btn bb btn-sm" onclick="testPwSync()" style="margin-right:auto">▪ Test Koneksi PW</button>
     <button class="btn" onclick="cm('changePw')">Batal</button>
-    <button class="btn bp" onclick="saveNewPw()">💾 Simpan</button>
+    <button class="btn bp" onclick="saveNewPw()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan</button>
   </div>
 </div></div>
 
@@ -2566,16 +2601,16 @@ function updateNotif(){
     const diff=Math.ceil((d-today)/86400000);
     return diff>=0&&diff<=3;
   });
-  if(dueSoon.length)items.push({ico:'⏰',color:'var(--yw)',title:`${dueSoon.length} Procurement Jatuh Tempo ≤3 Hari`,sub:dueSoon.slice(0,2).map(i=>i.item).join(', ')+(dueSoon.length>2?` +${dueSoon.length-2} lagi`:''),tab:'procurement'});
+  if(dueSoon.length)items.push({ico:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><line x1="12" y1="19" x2="12" y2="19.01"/></svg>',color:'var(--yw)',title:`${dueSoon.length} Procurement Jatuh Tempo ≤3 Hari`,sub:dueSoon.slice(0,2).map(i=>i.item).join(', ')+(dueSoon.length>2?` +${dueSoon.length-2} lagi`:''),tab:'procurement'});
   // 3. Critical projects
   const crits=P.filter(p=>p.status==='Critical');
-  if(crits.length)items.push({ico:'🔴',color:'var(--rd)',title:`${crits.length} Project Status Critical`,sub:crits.map(p=>p.kode).join(', '),tab:'projects'});
+  if(crits.length)items.push({ico:'●',color:'var(--rd)',title:`${crits.length} Project Status Critical`,sub:crits.map(p=>p.kode).join(', '),tab:'projects'});
   // 4. Open high-priority issues
   const highIss=ISS.filter(i=>i.status!=='Closed'&&(i.prioritas==='High'||i.priority==='High'));
   if(highIss.length)items.push({ico:'⚠️',color:'var(--rd)',title:`${highIss.length} Issue Priority High Belum Closed`,sub:highIss.slice(0,2).map(i=>i.uraian||i.subject||i.title||'Issue').join(', ')+(highIss.length>2?` +${highIss.length-2} lagi`:''),tab:'issues'});
   // 5. Delayed projects
   const del=P.filter(p=>p.status==='Delayed');
-  if(del.length)items.push({ico:'⚡',color:'var(--yw)',title:`${del.length} Project Delayed`,sub:del.map(p=>p.kode).join(', '),tab:'projects'});
+  if(del.length)items.push({ico:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',color:'var(--yw)',title:`${del.length} Project Delayed`,sub:del.map(p=>p.kode).join(', '),tab:'projects'});
   // 6. RAB over/near budget
   if(typeof RAB!=='undefined'&&RAB.length){
     P.forEach(p=>{
@@ -2586,7 +2621,7 @@ function updateNotif(){
       const actByKat=typeof getRabActualByKat==='function'?getRabActualByKat(p.id):{};
       const overKats=kats.filter(k=>{const rk=items2.filter(i=>i.katId===k.id).reduce((s,i)=>s+(+i.total||0),0);return rk>0&&(actByKat[k.id]||0)>=rk;});
       const nearKats=kats.filter(k=>{const rk=items2.filter(i=>i.katId===k.id).reduce((s,i)=>s+(+i.total||0),0);const act=actByKat[k.id]||0;return rk>0&&act/rk>=0.9&&act<rk;});
-      if(overKats.length)items.push({ico:'💸',color:'var(--rd)',title:`${p.kode}: ${overKats.length} Kategori RAB OVER Budget`,sub:overKats.map(k=>k.name).join(', '),tab:'cost'});
+      if(overKats.length)items.push({ico:'⚑',color:'var(--rd)',title:`${p.kode}: ${overKats.length} Kategori RAB OVER Budget`,sub:overKats.map(k=>k.name).join(', '),tab:'cost'});
       else if(nearKats.length)items.push({ico:'⚠️',color:'var(--yw)',title:`${p.kode}: ${nearKats.length} Kategori RAB Mendekati Limit`,sub:nearKats.map(k=>k.name).join(', '),tab:'cost'});
     });
   }
@@ -2599,7 +2634,7 @@ function updateNotif(){
   const timeEl=$('notifTime');
   if(timeEl)timeEl.textContent=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
   if(!list)return;
-  if(!items.length){list.innerHTML='<div class="notif-empty">✅ Tidak ada alert aktif</div>';return;}
+  if(!items.length){list.innerHTML='<div class="notif-empty">✓ Tidak ada alert aktif</div>';return;}
   list.innerHTML=items.map(it=>`<div class="notif-item" onclick="(function(){const te=document.querySelector('.tab[onclick*=\\'${it.tab}\\']');if(te)sw('${it.tab}',te);$('notifDropdown').classList.remove('open');})()">
     <div class="ni-ico">${it.ico}</div>
     <div class="ni-body">
@@ -2653,7 +2688,7 @@ function render(){
   updateBadge();
   updateGsBadge();
   if(typeof updateNotif==='function')updateNotif();
-  $('btnUpd').disabled=!selId;
+  if($('btnUpd'))$('btnUpd').disabled=!selId;
   if(activeTab==='overview')renderOV();
   if(activeTab==='projects')renderProjTab();
   if(activeTab==='manpower')renderMP();
@@ -2665,14 +2700,44 @@ function updateBadge(){
   const n=ISS.filter(i=>i.status!=='Closed').length;
   $('ibadge').textContent=n>0?n:'';
 }
+function toggleSbarDD(id){
+  // Close all open dropdowns
+  document.querySelectorAll('.sbar-dd-menu.open').forEach(m=>{
+    m.classList.remove('open');
+    m.style.display='none';
+    if(m._origParent)m._origParent.appendChild(m);
+  });
+  const menu=document.getElementById(id+'Menu');
+  if(!menu||menu._justClosed)return;
+  const btn=document.querySelector('#'+id+' .btn');
+  if(!btn)return;
+  const r=btn.getBoundingClientRect();
+  if(!menu._origParent)menu._origParent=menu.parentElement;
+  document.body.appendChild(menu);
+  menu.style.cssText='display:block;position:fixed;top:'+(r.bottom+4)+'px;right:'+(window.innerWidth-r.right)+'px;background:var(--sf2);border:1px solid var(--bd);border-radius:7px;min-width:165px;z-index:2147483647;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.6)';
+  menu.classList.add('open');
+}
+// Close dropdowns when clicking outside
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.sbar-dd')&&!e.target.closest('.sbar-dd-menu')){
+    document.querySelectorAll('.sbar-dd-menu.open').forEach(m=>{
+      m.classList.remove('open');
+      m.style.display='none';
+      if(m._origParent)m._origParent.appendChild(m);
+    });
+  }
+});
+
 function updateGsBadge(){
   const b=$('gsBadge');
   if(gsOk){b.className='gs-badge gs-on';b.textContent='GSheet ✓';b.title='Google Sheet Terhubung';}
   else{b.className='gs-badge gs-off';b.textContent='GSheet';b.title='Setup Google Sheet';}
-  $('btnSync').style.display=gsOk?'inline-flex':'none';
-  $('btnLoad').style.display=gsOk?'inline-flex':'none';
-  const shareBtn=$('btnShareUrl');
-  if(shareBtn)shareBtn.style.display=gsOk?'inline-flex':'none';
+  // Show/hide Data dropdown button
+  const dataBtn=$('btnDataDD');
+  if(dataBtn)dataBtn.style.display=gsOk?'inline-flex':'none';
+  // Show/hide Share Link item in Report dropdown
+  const shareItem=$('btnShareUrl');
+  if(shareItem)shareItem.style.display=gsOk?'flex':'none';
 }
 
 // ===============================================================
@@ -2721,7 +2786,7 @@ function renderSB(){
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:3px">
             <div class="pi-name">${p.nama}</div><span class="pill ${sc[p.status]||'p-plan'}">${p.status}</span>
           </div>
-          <div class="pi-loc">📍${p.lokasi||'\u2014'}</div>
+          <div class="pi-loc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${p.lokasi||'\u2014'}</div>
         </div>
       </div>
       <div class="pi-bar"><div class="pi-fill" style="width:${p.actual}%;background:${bc[p.status]||'var(--bl)'}"></div></div>
@@ -2750,7 +2815,7 @@ function onDrProjChange(id){
 
 function selProj(id){
   selId=String(id);
-  $('btnUpd').disabled=false;
+  if($('btnUpd'))$('btnUpd').disabled=false;
   // Reset manual filter flags agar selector ikut project yang diklik di sidebar
   const pfe=document.getElementById('procFiltProj');if(pfe)pfe._procFiltManual=false;
   const mfe=document.getElementById('mpLogFiltProj');if(mfe)mfe._mpFiltManual=false;
@@ -2765,45 +2830,67 @@ function selProj(id){
 
 function _syncAllProjSelectors(id){
   const sid=String(id);
-  // Sync dropdown tanpa filter "Semua Project"
+  // Helper rebuild all options
+  const rebuildOpts=(el,withAll)=>{
+    el.innerHTML=(withAll?'<option value="">Semua Project</option>':'')+
+      P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
+  };
+
+  // Sync WBS & Daily Report dropdowns (no "Semua Project")
   ['wbsProjSel','drProjSel'].forEach(elId=>{
     const el=document.getElementById(elId);
     if(!el)return;
-    if(!el.querySelector(`option[value="${sid}"]`))
-      el.innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
+    rebuildOpts(el,false);
     el.value=sid;
   });
-  // Sync procurement filter dan re-render
-  // Hanya update jika user belum set manual (flag _procFiltManual)
+
+  // Sync procurement filter
   const procEl=document.getElementById('procFiltProj');
   if(procEl){
-    if(!procEl.querySelector(`option[value="${sid}"]`))
-      procEl.innerHTML='<option value="">Semua Project</option>'+
-        P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
+    rebuildOpts(procEl,true);
     if(!procEl._procFiltManual) procEl.value=sid;
     if(activeTab==='procurement')renderProc();
   }
+
   // Sync manpower log filter
-  // Hanya update jika user belum set manual (flag _mpFiltManual)
   const mpEl=document.getElementById('mpLogFiltProj');
   if(mpEl){
-    if(!mpEl.querySelector(`option[value="${sid}"]`))
-      mpEl.innerHTML='<option value="">Semua Project</option>'+
-        P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
+    rebuildOpts(mpEl,true);
     if(!mpEl._mpFiltManual) mpEl.value=sid;
     if(activeTab==='manpower')renderMpLog?.();
   }
+
+  // Sync manpower ACTIVITY rekap filter
+  const mpActEl=document.getElementById('mpActFiltProj');
+  if(mpActEl){
+    rebuildOpts(mpActEl,true);
+    if(!mpActEl._mpActFiltManual) mpActEl.value=sid;
+    if(activeTab==='manpower')renderMpActivity?.();
+  }
+
+  // Sync manpower INPUT modal dropdown
+  const mpProjEl=document.getElementById('mpProj');
+  if(mpProjEl){
+    const curVal=mpProjEl.value;
+    rebuildOpts(mpProjEl,false);
+    // Pertahankan pilihan yang sudah ada jika masih valid, atau set ke selId
+    mpProjEl.value=curVal&&P.find(p=>String(p.id)===curVal)?curVal:sid;
+  }
+
+  // Sync cost/finance filter
   const costEl=document.getElementById('costFiltProj');
   if(costEl){
-    if(!costEl.querySelector('option[value="'+sid+'"]'))
-      costEl.innerHTML='<option value="">Semua Project</option>'+P.map(p=>'<option value="'+String(p.id)+'">'+p.kode+' — '+p.nama+'</option>').join('');
+    rebuildOpts(costEl,true);
     costEl._costFiltManual=false;costEl.value=sid;
     if(activeTab==='cost')renderCost();
   }
+
+  // Sync RAB filter
   const rabEl=document.getElementById('rabFiltProj');
   if(rabEl){
-    if(!rabEl.querySelector('option[value="'+sid+'"]'))
-      rabEl.innerHTML='<option value="">— Pilih Project —</option>'+P.map(p=>'<option value="'+String(p.id)+'">'+p.kode+' — '+p.nama+'</option>').join('');
+    rebuildOpts(rabEl,false);
+    rabEl.innerHTML='<option value="">\u2014 Pilih Project \u2014</option>'+
+      P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
     rabEl.value=sid;
     if(activeTab==='cost')renderRab();
   }
@@ -2868,13 +2955,13 @@ function renderOV(){
   }
 
   // WEATHER
-  const wmap={'☀️ Sunny':'Sunny','⛅ Partly Cloudy':'Partly Cloudy','🌥 Overcast':'Overcast','🌧 Rainy':'Rainy','⛈ Thunderstorm':'Thunderstorm','🌫 Foggy':'Foggy'};
-  const wico={Sunny:'☀️','Partly Cloudy':'⛅',Overcast:'🌥',Rainy:'🌧',Thunderstorm:'⛈',Foggy:'🌫'};
+  const wmap={'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Sunny':'Sunny','Partly Cloudy':'Partly Cloudy','🌥 Overcast':'Overcast','Rainy':'Rainy','⛈ Thunderstorm':'Thunderstorm','Foggy':'Foggy'};
+  const wico={Sunny:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>','Partly Cloudy':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M12 2v2M4.93 4.93l1.41 1.41M20 12h2M19.07 4.93l-1.41 1.41M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6z"/></svg>',Overcast:'🌥',Rainy:'🌧',Thunderstorm:'⛈',Foggy:'🌫'};
   const wclr={Sunny:'var(--yw)','Partly Cloudy':'var(--tx)',Overcast:'var(--mt)',Rainy:'var(--bl)',Thunderstorm:'var(--rd)',Foggy:'var(--mt)'};
   const wg=$('weatherGrid');
   if(!P.length){wg.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--mt);font-size:11px;padding:12px">Belum ada project</div>';}
   else{wg.innerHTML=P.slice(0,6).map(p=>{
-    const raw=p.weather||'⛅ Partly Cloudy';
+    const raw=p.weather||'Partly Cloudy';
     const desc=wmap[raw]||raw.replace(/^[^\s]+\s/,'');
     return `<div class="wi"><div class="wi-ico">${wico[desc]||'⛅'}</div><div class="wi-name">${p.nama.split(' ').slice(0,3).join(' ')}</div><div class="wi-desc" style="color:${wclr[desc]||'var(--tx)'}">${desc}</div></div>`;
   }).join('');}
@@ -2936,7 +3023,7 @@ function renderProjStatusCards(){
     const varCls=v>0?'var-pos':v<0?'var-neg':'var-zero';
     const varTxt=(v>0?'+':'')+v+'%';
     const etaClr=p.status==='Critical'?'var(--rd)':v<0?'var(--yw)':'var(--gn)';
-    const etaTxt=p.status==='Critical'?'Needs Review 🔴':p.status==='Done'?'Selesai ✅':rem==='\u2014'?'\u2014':new Date(p.selesai).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+    const etaTxt=p.status==='Critical'?'Needs Review ●':p.status==='Done'?'Selesai ✓':rem==='\u2014'?'\u2014':new Date(p.selesai).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
     const scls=statusCls[p.status]||'plan';
     return `<div class="psc ${scls}" onclick="selProj('${p.id}');sw('projects',document.querySelectorAll('.tab')[1])">
       <div class="psc-head">
@@ -2945,7 +3032,7 @@ function renderProjStatusCards(){
         </div>`:''}
         <div style="flex:1;min-width:0;${p.logo?'margin-left:10px':''}">
           <div class="psc-name">${p.nama} <span style="font-family:var(--fm);font-size:9px;color:var(--mt);font-weight:400">\u2014 ${p.kode}</span></div>
-          <div class="psc-loc">📍 ${p.lokasi||'\u2014'}${p.client&&!p.logo?' · '+p.client:''}  </div>
+          <div class="psc-loc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> ${p.lokasi||'\u2014'}${p.client&&!p.logo?' · '+p.client:''}  </div>
           ${(p.picPm||p.picSm)?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px">
             ${p.picPm?`<span style="font-size:9px;background:rgba(139,92,246,.1);color:var(--pu);padding:1px 6px;border-radius:6px;border:1px solid rgba(139,92,246,.2)"><b>PM</b> ${safeStr(p.picPm)}</span>`:''}
             ${p.picSm?`<span style="font-size:9px;background:rgba(59,130,246,.1);color:var(--bl);padding:1px 6px;border-radius:6px;border:1px solid rgba(59,130,246,.2)"><b>SM</b> ${safeStr(p.picSm)}</span>`:''}
@@ -2988,7 +3075,7 @@ function renderProjStatusCards(){
         const timeClr=timePct>90?'var(--rd)':timePct>70?'var(--yw)':'var(--bl)';
         return `<div class="psc-timeline">
           <div class="psc-timeline-lbl">
-            <span>⏱ Timeline</span>
+            <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M3 12h18"/><circle cx="7" cy="12" r="2"/><circle cx="17" cy="12" r="2"/><path d="M7 7v2m0 6v2M17 7v2m0 6v2"/></svg> Timeline</span>
             <span style="color:${timeClr}">${timePct}% waktu terpakai · ${daysLeft}h lagi</span>
           </div>
           <div class="psc-timeline-track">
@@ -3041,9 +3128,9 @@ function renderDetail(id){
   $('detail').innerHTML=`<div class="fade">
     <div class="dtop" style="margin-bottom:11px">
       <div><div class="dname">${p.nama}</div>
-        <div class="dmeta"><span class="pill ${sc[p.status]||'p-plan'}">${p.status}</span><span>${p.kode}</span><span style="color:var(--bd)">·</span><span>📍${p.lokasi||'\u2014'}</span><span style="color:var(--bd)">·</span>${p.logo?`<img src="${p.logo}" style="height:36px;max-width:120px;object-fit:contain;border-radius:4px;vertical-align:middle" onerror="this.style.display='none'">`:`<span>${p.client||'\u2014'}</span>`}${p.weather?`<span>${p.weather}</span>`:''}${p.picPm?`<span style="font-size:10px;background:rgba(139,92,246,.12);color:var(--pu);padding:2px 7px;border-radius:10px;border:1px solid rgba(139,92,246,.2)">👤 ${p.picPm}</span>`:''}</div>
+        <div class="dmeta"><span class="pill ${sc[p.status]||'p-plan'}">${p.status}</span><span>${p.kode}</span><span style="color:var(--bd)">·</span><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${p.lokasi||'\u2014'}</span><span style="color:var(--bd)">·</span>${p.logo?`<img src="${p.logo}" style="height:36px;max-width:120px;object-fit:contain;border-radius:4px;vertical-align:middle" onerror="this.style.display='none'">`:`<span>${p.client||'\u2014'}</span>`}${p.weather?`<span>${p.weather}</span>`:''}${p.picPm?`<span style="font-size:10px;background:rgba(139,92,246,.12);color:var(--pu);padding:2px 7px;border-radius:10px;border:1px solid rgba(139,92,246,.2)">👤 ${p.picPm}</span>`:''}</div>
       </div>
-      <div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="openModal('editProj','${p.id}')">✏ Edit</button><button class="btn btn-sm" onclick="openCloneModal('${p.id}')" style="border-color:var(--gn);color:var(--gn)" title="Clone WBS ke project baru">⧉ Clone</button><button class="btn btn-sm bp" onclick="openModal('updProgress')">↑ Update</button></div>
+      <div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="openModal('editProj','${p.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit</button><button class="btn btn-sm" onclick="openCloneModal('${p.id}')" style="border-color:var(--gn);color:var(--gn)" title="Clone WBS ke project baru">⧉ Clone</button><button class="btn btn-sm bp" onclick="openModal('updProgress')">↑ Update</button></div>
     </div>
     <div class="g4" style="margin-bottom:9px">
       <div class="metric"><div class="mv" style="color:${vcl}">${v>0?'+':''}${v}%</div><div class="ml">Variance</div></div>
@@ -3080,7 +3167,7 @@ function renderDetail(id){
     </div>
     ${(p.history||[]).length>0?`<div class="card" style="margin-top:9px">
       <div class="ct">RIWAYAT UPDATE <span style="color:var(--mt)">${p.history.length} entri</span>
-        <span style="font-size:10px;color:var(--mt)">(klik ✏ untuk edit atau 🗑 hapus)</span>
+        <span style="font-size:10px;color:var(--mt)">(klik ✏ untuk edit atau <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> hapus)</span>
       </div>
       ${p.history.slice().reverse().map((h,ri)=>{
         const realIdx=p.history.length-1-ri;
@@ -3092,7 +3179,7 @@ function renderDetail(id){
           <span style="font-family:var(--fm);font-size:10px;color:var(--or)">${h.mp?h.mp+' org':''}</span>
           <div class="hn">${h.notes||''}</div>
           <button class="btn btn-sm" style="padding:1px 6px;font-size:10px;flex-shrink:0" onclick="editHistEntry(${p.id},${realIdx})">✏</button>
-          <button class="btn btn-sm brd" style="padding:1px 6px;font-size:10px;flex-shrink:0" onclick="delHistEntry(${p.id},${realIdx})">🗑</button>
+          <button class="btn btn-sm brd" style="padding:1px 6px;font-size:10px;flex-shrink:0" onclick="delHistEntry(${p.id},${realIdx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
         </div>`;
       }).join('')}
     </div>`:''}
@@ -3346,14 +3433,14 @@ function openModal(type,id=null){
   if(type==='addProj'||type==='editProj'){
     editProjId=id;
     $('projMT').textContent=id?'EDIT PROJECT':'TAMBAH PROJECT';
-    $('btnSaveProj').textContent=id?'💾 Simpan':'＋ Tambah';
+    $('btnSaveProj').innerHTML=id?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan':'＋ Tambah';
     $('btnDelProj').style.display=id?'block':'none';
     const p=id?P.find(x=>x.id===id):null;
     sv('fKode',p?.kode||`ATW-${String(P.length+1).padStart(3,'0')}`);
     sv('fNama',p?.nama||'');sv('fLok',p?.lokasi||'');sv('fClient',p?.client||'');
     sv('fMulai',p?.mulai||'');sv('fSelesai',p?.selesai||'');sv('fStat',p?.status||'Planning');
     sv('fMpP',p?.mdPlan||p?.mpPlan||'');sv('fMhP',p?.mhPlan||'');sv('fNotes',p?.notes||'');
-    sv('fWeather',p?.weather||'⛅ Partly Cloudy');
+    sv('fWeather',p?.weather||'Partly Cloudy');
     // Load logo
     sv('fLogo',p?.logo||'');
     setLogoPreview(p?.logo||'');
@@ -3413,14 +3500,14 @@ function openModal(type,id=null){
   }
   if(type==='editWeather'){
     $('wFields').innerHTML=P.map(p=>`<div class="fg"><label class="fl">${p.kode} \u2014 ${p.nama}</label>
-      <select class="fi" id="wf_${p.id}">${['☀️ Sunny','⛅ Partly Cloudy','🌥 Overcast','🌧 Rainy','⛈ Thunderstorm','🌫 Foggy'].map(w=>`<option ${p.weather===w?'selected':''}>${w}</option>`).join('')}</select>
+      <select class="fi" id="wf_${p.id}">${['<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> Sunny','Partly Cloudy','🌥 Overcast','Rainy','⛈ Thunderstorm','Foggy'].map(w=>`<option ${p.weather===w?'selected':''}>${w}</option>`).join('')}</select>
     </div>`).join('');
     show('ov-editWeather');
   }
   if(type==='addIssue'||type==='editIssue'){
     editIssId=id?String(id):null;
     $('issMT').textContent=id?'EDIT ISSUE':'TAMBAH ISSUE';
-    $('btnSaveIss').textContent=id?'💾 Simpan':'＋ Tambah';
+    $('btnSaveIss').innerHTML=id?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan':'＋ Tambah';
     $('btnDelIss').style.display=id?'block':'none';
     $('iProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
     const iss=id?ISS.find(x=>String(x.id)===String(id)):null;
@@ -3433,7 +3520,7 @@ function openModal(type,id=null){
   if(type==='addProc'||type==='editProc'){
     editProcId=id?String(id):null;
     $('procMT').textContent=id?'EDIT ITEM':'TAMBAH ITEM';
-    $('btnSaveProc').textContent=id?'💾 Simpan':'＋ Tambah';
+    $('btnSaveProc').innerHTML=id?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan':'＋ Tambah';
     $('btnDelProc').style.display=id?'block':'none';
     $('pProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
     const pr=id?PROC.find(x=>String(x.id)===String(id)):null;
@@ -3494,7 +3581,38 @@ function saveProj(){
 function delProj(){
   showConfirm('Hapus project ini?',()=>{_doDelProj();});return;}
 
-// ── CLONE PROJECT ──────────────────────────────────────────────
+// ── INLINE EDIT di WBS Tabel ───────────────────────────────────
+function inlineDateCell(nodeId, field, tdEl){
+  const td=tdEl?.closest('td')||document.querySelector(`td[data-wbs-date="${nodeId}-${field}"]`);
+  if(!td)return;
+  document.querySelectorAll('.wbs-date-cell.editing').forEach(el=>el.classList.remove('editing'));
+  td.classList.add('editing');
+  const input=td.querySelector('input[type=date]');
+  if(input){try{input.showPicker&&input.showPicker();}catch(e){input.focus();}}
+}
+
+function saveWbsInlineDate(nodeId, field, val){
+  const node=WBS.find(w=>String(w.id)===String(nodeId));
+  if(!node)return;
+  node[field]=val||'';
+  dirty();
+  const scrollPos=$('wbsTable')?.scrollTop||0;
+  renderWBS();
+  setTimeout(()=>{if($('wbsTable'))$('wbsTable').scrollTop=scrollPos;},50);
+  if(document.getElementById('wbsGanttChart')?.innerHTML)renderGantt();
+}
+
+function saveWbsInlineText(nodeId, field, val){
+  const node=WBS.find(w=>String(w.id)===String(nodeId));
+  if(!node)return;
+  const parsed=field==='bobot'?Math.max(0,Math.min(100,parseFloat(val)||0)):val;
+  node[field]=parsed;
+  dirty();
+  const scrollPos=$('wbsTable')?.scrollTop||0;
+  renderWBS();
+  setTimeout(()=>{if($('wbsTable'))$('wbsTable').scrollTop=scrollPos;},50);
+}
+
 function openCloneModal(srcProjId){
   const src=P.find(p=>String(p.id)===String(srcProjId));
   if(!src){toast('Project sumber tidak ditemukan','error');return;}
@@ -3778,14 +3896,14 @@ function renderMpLog(){
   const fp=$('mpLogFiltProj');
   if(fp){
     const cur=fp.value;
-    fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode}</option>`).join('');
-    if(cur)fp.value=cur;
+    fp.innerHTML='<option value="">Semua Project</option>'+P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    fp.value=cur||'';
   }
   const fP=fp?.value||'';
   const logs=[...MPLOGS].filter(m=>!fP||m.projId==fP).sort((a,b)=>b.date.localeCompare(a.date));
   if(!$('mpLogTable'))return;
   if(!logs.length){$('mpLogTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:16px;font-size:12px">Belum ada data</div>';return;}
-  $('mpLogTable').innerHTML=`<table class="tbl"><thead><tr><th>Tgl</th><th>Project</th><th>SPV</th><th>Mdr</th><th>Inst</th><th>Tukang</th><th>Helper</th><th>Safety</th><th>Total</th><th>MH</th><th>TL</th><th>Catatan / Aktivitas</th><th></th></tr></thead><tbody>
+  $('mpLogTable').innerHTML=`<table class="tbl" style="min-width:900px"><thead><tr><th>Tgl</th><th>Project</th><th>SPV</th><th>Mdr</th><th>Inst</th><th>Tukang</th><th>Helper</th><th>Safety</th><th>Total</th><th>MH</th><th>TL</th><th>Catatan / Aktivitas</th><th></th></tr></thead><tbody>
     ${logs.map(m=>{
       const pr=P.find(p=>p.id==m.projId);
       const tl=+m.timeLost||0;
@@ -3801,13 +3919,13 @@ function renderMpLog(){
           ${m.notes?`<div style="color:var(--mt);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.notes}</div>`:''}
           ${(m.activities&&m.activities.length)?`<div style="margin-top:2px;display:flex;flex-wrap:wrap;gap:2px">
             ${m.activities.map(a=>`<span title="${a.wbsName}: ${a.total} orang" style="font-size:8px;background:rgba(59,130,246,.12);color:var(--bl);padding:1px 5px;border-radius:3px;white-space:nowrap;border:1px solid rgba(59,130,246,.2);cursor:default">
-              📌 ${(a.wbsName||'Aktivitas').slice(0,18)}: <b>${a.total}</b>
+              ${(a.wbsName||'Aktivitas').slice(0,18)}: <b>${a.total}</b>
             </span>`).join('')}
           </div>`:'<span style="color:var(--bd);font-size:9px">—</span>'}
         </td>
         <td style="white-space:nowrap">
           <button class="btn btn-sm" style="padding:1px 5px;font-size:10px" onclick="openModal('inputMp','${m.id}')">✏</button>
-          <button class="btn btn-sm brd" style="padding:1px 5px;font-size:10px" onclick="delMpLog('${m.id}')">🗑</button>
+          <button class="btn btn-sm brd" style="padding:1px 5px;font-size:10px" onclick="delMpLog('${m.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
         </td>
       </tr>`;
     }).join('')}
@@ -3823,9 +3941,10 @@ function renderMpActivity(){
   if(fp){
     const cur=fp.value;
     fp.innerHTML='<option value="">Semua Project</option>'+
-      P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama.slice(0,30)}</option>`).join('');
-    if(cur)fp.value=cur;
-    else if(selId)fp.value=selId;
+      P.map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+    // Sync dengan selId jika belum ada pilihan manual
+    if(!fp._mpActFiltManual && selId) fp.value=selId;
+    else fp.value=cur||'';
   }
 
   const el=$('mpActivityReport');
@@ -3912,7 +4031,7 @@ function renderMpActivity(){
   const grandTotal=rows.reduce((s,r)=>s+r.total,0);
 
   // Render tabel dengan expand/collapse per WBS item
-  let html=`<table class="tbl" style="border-collapse:collapse;width:100%">
+  let html=`<table class="tbl" style="border-collapse:collapse;width:100%;min-width:800px">
     <thead><tr style="position:sticky;top:0;z-index:2;background:var(--sf)">
       <th style="background:var(--sf)">Item Pekerjaan</th>
       <th style="background:var(--sf)">Project</th>
@@ -3956,7 +4075,7 @@ function renderMpActivity(){
       <td style="white-space:nowrap">
         <button onclick="toggleMpActDetail('${rowId}')"
           style="background:none;border:1px solid var(--bd);border-radius:4px;padding:1px 7px;cursor:pointer;color:var(--mt);font-size:11px"
-          id="btn_${rowId}">▶ Detail</button>
+          id="btn_${rowId}">Detail →</button>
       </td>
     </tr>
     <!-- Detail rows (hidden) -->
@@ -4036,7 +4155,7 @@ function toggleMpActDetail(rowId){
   if(!row)return;
   const hidden=row.style.display==='none';
   row.style.display=hidden?'table-row':'none';
-  if(btn)btn.textContent=hidden?'▼ Tutup':'▶ Detail';
+  if(btn)btn.textContent=hidden?'▼ Tutup':'Detail →';
 }
 
 function delMpLog(id){
@@ -4645,7 +4764,7 @@ function renderCost(){
 function openCostModal(id=null){
   editCostId=id?String(id):null;
   $('costMT').textContent=id?'EDIT PENGELUARAN':'TAMBAH PENGELUARAN';
-  $('btnSaveCost').textContent=id?'💾 Simpan':'＋ Tambah';
+  $('btnSaveCost').innerHTML=id?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan':'＋ Tambah';
   $('btnDelCost').style.display=id?'block':'none';
   $('cProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
   const entry=id?COSTS.find(x=>String(x.id)===String(id)):null;
@@ -5432,7 +5551,7 @@ function updateRabItemDropdown(){
 function openRabKatModal(id=null){
   editRabCatId=id?String(id):null;
   $('rabKatMT').textContent=id?'EDIT KATEGORI RAB':'TAMBAH KATEGORI RAB';
-  $('btnSaveRabKat').textContent=id?'💾 Simpan':'＋ Tambah';
+  $('btnSaveRabKat').innerHTML=id?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan':'＋ Tambah';
   $('btnDelRabKat').style.display=id?'block':'none';
   // Fill project dropdown
   $('rkProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
@@ -5479,7 +5598,7 @@ function delRabKat(){
 function openRabItemModal(id=null,defaultKatId=null){
   editRabId=id?String(id):null;
   $('rabItemMT').textContent=id?'EDIT ITEM RAB':'TAMBAH ITEM RAB';
-  $('btnSaveRabItem').textContent=id?'💾 Simpan':'＋ Tambah';
+  $('btnSaveRabItem').innerHTML=id?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan':'＋ Tambah';
   $('btnDelRabItem').style.display=id?'block':'none';
   $('riProj').innerHTML=P.map(p=>`<option value="${p.id}">${p.kode} \u2014 ${p.nama}</option>`).join('');
   if(id){
@@ -5872,7 +5991,7 @@ function saveGS(){
   localStorage.setItem('atw_gs',JSON.stringify({url:gsUrl,sheet:gsSheet}));
   updateGsBadge();cm('gsConfig');
   // Load password dari GSheet setelah tersambung
-  loadPwFromGS().then(()=>toast('✅ Google Sheet tersambung & password disinkronisasi'));
+  loadPwFromGS().then(()=>toast('✓ Google Sheet tersambung & password disinkronisasi'));
   if(P.length)gsSync();
 }
 async function testGS(){
@@ -5881,7 +6000,7 @@ async function testGS(){
   if(!url.includes('script.google.com/macros/s/')){
     _gsTestShow('error','✗ URL tidak valid.\nHarus berformat: https://script.google.com/macros/s/XXX/exec');return;
   }
-  _gsTestShow('loading','⏳ Menghubungi Apps Script...');
+  _gsTestShow('loading','<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg> Menghubungi Apps Script...');
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),12000);
   try{
@@ -6044,7 +6163,7 @@ function gsSync(){
 async function syncAllGS(){
   if(!gsOk||!gsUrl){toast('Google Sheet belum tersambung','warn');return;}
   const btn=$('btnSync');
-  if(btn){btn.textContent='⏳ Mengirim...';btn.disabled=true;}
+  if(btn){btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg> Mengirim...';btn.disabled=true;}
   try{
     const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
     // Gunakan timestamp dari localStorage sebagai lastSaved
@@ -6056,7 +6175,7 @@ async function syncAllGS(){
       try{
         const d=JSON.parse(txt);
         if(d.status==='ok'){
-          toast('✅ Data tersimpan di Google Sheet!');
+          toast('✓ Data tersimpan di Google Sheet!');
           $('smsg').textContent='Tersinkronisasi · '+new Date().toLocaleTimeString('id-ID');
           $('sdot').style.background='var(--gn)';$('sdot').classList.remove('unsaved');
           isDirty=false;$('sbar').classList.remove('dirty');
@@ -6072,7 +6191,7 @@ async function syncAllGS(){
           toast('⚠ GSheet: '+(d.msg||'unknown error'),'warn');
         }
       }catch(pe){
-        toast('📤 Data dikirim (no-cors mode \u2014 tidak bisa verifikasi)','warn');
+        toast('Data dikirim (no-cors mode \u2014 tidak bisa verifikasi)','warn');
       }
     }else{
       throw new Error('HTTP '+r.status);
@@ -6082,9 +6201,9 @@ async function syncAllGS(){
       const hist=[];P.forEach(p=>(p.history||[]).forEach(h=>hist.push({...h,projId:p.id,kode:p.kode})));
       const lTs=JSON.parse(localStorage.getItem('atw_data')||'{}').ts||Date.now();
       await fetch(gsUrl,{method:'POST',body:JSON.stringify({action:'sync',lastSaved:lTs,projects:P,history:hist,issues:ISS,procurement:PROC,manpowerLogs:MPLOGS,accidentLogs:ACCLOGS,costs:COSTS}),headers:{'Content-Type':'text/plain'},mode:'no-cors'});
-      toast('📤 Data dikirim (no-cors). Minta tim lain klik Load GSheet untuk update.','warn');
+      toast('Data dikirim (no-cors). Minta tim lain klik Load GSheet untuk update.','warn');
     }catch(e2){
-      toast('❌ Gagal sync: '+e.message,'error');
+      toast('✗ Gagal sync: '+e.message,'error');
     }
   }finally{
     if(btn){btn.textContent='↑ Sync GSheet';btn.disabled=false;}
@@ -6092,7 +6211,7 @@ async function syncAllGS(){
 }
 async function loadFromGS(){
   if(!gsOk||!gsUrl){toast('Google Sheet belum tersambung','warn');return;}
-  $('smsg').textContent='⏳ Memuat dari Google Sheet...';
+  $('smsg').innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg> Memuat dari Google Sheet...';
   $('sdot').style.background='var(--yw)';
   try{
     const r=await fetch(gsUrl+'?t='+Date.now(),{cache:'no-cache'});
@@ -6252,7 +6371,7 @@ function readXL(file){
         lokasi:r['Lokasi']||'',client:r['Client']||'',mulai:r['Tgl Mulai']||'',selesai:r['Tgl Selesai']||'',
         status:r['Status']||'Planning',plan:+r['Plan (%)']||0,actual:+r['Actual (%)']||0,
         mpPlan:+r['Mandays Plan']||+r['MP Plan']||0,mdPlan:+r['Mandays Plan']||+r['MP Plan']||0,mpActual:+r['MP Actual (workers)']||+r['MP Actual']||0,mhPlan:+r['MH Plan/hr']||+r['MH Plan']||0,
-        weather:r['Weather']||'⛅ Partly Cloudy',notes:r['Catatan']||'',
+        weather:r['Weather']||'Partly Cloudy',notes:r['Catatan']||'',
         history:hist.filter(h=>h['ID_Project']==r['ID']).map(h=>({date:h['Tanggal'],actual:h['Actual (%)'],plan:h['Plan (%)'],mp:h['Manpower']||0,notes:h['Keterangan']||''}))
       }));
       const impI=wb.Sheets['ISSUES']?XLSX.utils.sheet_to_json(wb.Sheets['ISSUES']).filter(r=>r['Uraian']).map(r=>({id:r['ID']||Date.now()+Math.random(),projId:r['ID Project'],uraian:r['Uraian'],tgl:r['Tanggal']||'',kategori:r['Kategori']||'Other',prioritas:r['Prioritas']||'Medium',pj:r['PIC']||'',due:r['Due Date']||'',action:r['Tindakan']||'',status:r['Status']||'Open',done:r['Tgl Selesai']||''})):[];
@@ -6260,7 +6379,7 @@ function readXL(file){
       const impM=wb.Sheets['MANPOWER_LOG']?XLSX.utils.sheet_to_json(wb.Sheets['MANPOWER_LOG']).filter(r=>r['Tanggal']).map(r=>({id:r['ID']||Date.now()+Math.random(),projId:r['ID Project'],date:r['Tanggal'],spv:+r['SPV']||0,mandor:+r['Mandor']||0,installer:+r['Installer']||0,tukang:+r['Tukang']||0,helper:+r['Helper']||0,safety:+r['Safety Man']||0,total:+r['Total Pekerja']||0,mhActual:+r['MH Actual']||0,timeLost:+r['Time Lost (jam)']||0,timeLostReason:r['Alasan Time Lost']||'',notes:r['Catatan']||''})):[];
       const impA=wb.Sheets['ACCIDENT_LOG']?XLSX.utils.sheet_to_json(wb.Sheets['ACCIDENT_LOG']).filter(r=>r['Tanggal']).map(r=>({id:r['ID']||Date.now()+Math.random(),projId:r['ID Project'],date:r['Tanggal'],fatality:+r['Fatality']||0,lti:+r['LTI']||0,minorInjury:+r['Minor Injury']||0,medTreatment:+r['Med Treatment']||0,propertyDamage:+r['Property Damage']||0,fire:+r['Fire']||0,traffic:+r['Traffic']||0,environment:+r['Environment']||0,nearMiss:+r['Near Miss']||0,timeLost:+r['Time Lost (jam)']||0,notes:r['Keterangan']||''})):[];
       pendImp={P:imp,I:impI,PR:impP,M:impM,A:impA,fn:file.name};
-      $('impInfo').textContent=`📄 ${file.name} · ${imp.length} project · ${impI.length} issue · ${impP.length} proc · ${impM.length} manpower log`;
+      $('impInfo').textContent=`File: ${file.name} · ${imp.length} project · ${impI.length} issue · ${impP.length} proc · ${impM.length} manpower log`;
       $('impTbl').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:var(--sf2)">${['Kode','Nama','Status','Actual','Plan'].map(h=>`<th style="padding:5px 7px;font-size:9px;text-transform:uppercase;color:var(--mt);text-align:left;border-bottom:1px solid var(--bd)">${h}</th>`).join('')}</tr>${imp.map(p=>`<tr><td style="padding:4px 7px;font-family:var(--fm);font-size:10px">${p.kode}</td><td style="padding:4px 7px">${p.nama}</td><td style="padding:4px 7px"><span class="pill p-${({'On Track':'on','Delayed':'del','Critical':'crit','Planning':'plan','Done':'done'})[p.status]||'plan'}">${p.status}</span></td><td style="padding:4px 7px;font-family:var(--fm);color:var(--gn)">${p.actual}%</td><td style="padding:4px 7px;font-family:var(--fm);color:var(--bl)">${p.plan}%</td></tr>`).join('')}</table>`;
       $('impPrev').style.display='block';$('btnConfImp').style.display='block';
       show('ov-import');
@@ -6383,7 +6502,7 @@ async function autoLoadOnStart(){
         $('sdot').style.background='var(--yw)';
         $('flabel').textContent='Cache Offline';
       }else{
-        $('smsg').textContent='❌ Tidak dapat terhubung ke GSheet \u2014 tidak ada data lokal';
+        $('smsg').textContent='✗ Tidak dapat terhubung ke GSheet \u2014 tidak ada data lokal';
         $('sdot').style.background='var(--rd)';
       }
     }
@@ -6495,7 +6614,7 @@ function drawSCurveChart(weeks, proj){
     return;
   }
   if(typeof Chart==='undefined'){
-    $('scChart').innerHTML='<div style="text-align:center;color:var(--mt);padding:40px;font-size:12px">⏳ Memuat Chart.js \u2014 coba lagi dalam 3 detik</div>';
+    $('scChart').innerHTML='<div style="text-align:center;color:var(--mt);padding:40px;font-size:12px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg> Memuat Chart.js \u2014 coba lagi dalam 3 detik</div>';
     setTimeout(()=>drawSCurveChart(weeks,proj),3000);
     return;
   }
@@ -6628,7 +6747,7 @@ function renderScTable(weeks){
       <td style="font-family:var(--fm);color:var(--gn)">${(+w.cPlan||0).toFixed(1)}%</td>
       <td style="font-family:var(--fm);color:var(--yw)">${(+w.cAct||0).toFixed(1)}%</td>
       <td style="font-family:var(--fm);font-weight:600;color:${vc}">${(varC>=0?'+':'')+varC.toFixed(1)}%</td>
-      <td class="edit-only"><button class="btn btn-sm brd" style="padding:1px 6px;font-size:10px" onclick="delScWeek('${w.projId}',${w.week})">🗑</button></td>
+      <td class="edit-only"><button class="btn btn-sm brd" style="padding:1px 6px;font-size:10px" onclick="delScWeek('${w.projId}',${w.week})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></td>
     </tr>`;
   }).join('');
   $('scTable').innerHTML=`<table class="tbl"><thead><tr>
@@ -6878,14 +6997,14 @@ function renderScManageTable(){
       <td>${(+d.wPlan||0).toFixed(1)}%</td><td>${(+d.wAct||0).toFixed(1)}%</td>
       <td>${d.cPlan!=null?(+d.cPlan).toFixed(1)+'%':'auto'}</td>
       <td>${d.cAct!=null?(+d.cAct).toFixed(1)+'%':'auto'}</td>
-      <td><button class="btn btn-sm brd" style="padding:1px 6px;font-size:10px" onclick="delScWeek('${d.projId}',${d.week});renderScManageTable()">🗑</button></td>
+      <td><button class="btn btn-sm brd" style="padding:1px 6px;font-size:10px" onclick="delScWeek('${d.projId}',${d.week});renderScManageTable()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></td>
     </tr>`).join('')}
   </tbody></table>`;
 }
 
 
 (function(){
-  const DASH_VER='3.63';
+  const DASH_VER='3.82';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
@@ -7040,7 +7159,7 @@ function renderWBS(){
       const catStarts=catChildren.map(w=>w.startDate).filter(Boolean).sort();
       const catFinishes=catChildren.map(w=>w.finishDate).filter(Boolean).sort();
       const catStart=catStarts[0]||'';const catFinish=catFinishes.slice(-1)[0]||'';
-      html+=`<tr style="background:rgba(59,130,246,.08)"><td style="font-family:var(--fd);font-weight:700;color:var(--bl);font-size:13px">${String.fromCharCode(65+ci)}</td><td style="font-weight:700;color:var(--bl);font-size:12px">${safeStr(cat.name)}</td><td style="text-align:right;font-family:var(--fm);font-weight:700;color:var(--bl)">${db?db.toFixed(1)+'%':'\u2014'}</td><td style="font-size:10px;color:var(--mt)">${fmtD(catStart)}</td><td style="font-size:10px;color:var(--mt)">${fmtD(catFinish)}</td><td colspan="2"></td><td style="text-align:center"><button class="btn btn-sm edit-only" style="padding:1px 6px;font-size:10px;border-color:var(--bl);color:var(--bl)" onclick="openEditWbs('${cat.id}')">✏</button> <button class="btn btn-sm brd edit-only" style="padding:1px 6px;font-size:10px" onclick="delWbs('${cat.id}')">🗑</button></td></tr>`;
+      html+=`<tr style="background:rgba(59,130,246,.08)"><td style="font-family:var(--fd);font-weight:700;color:var(--bl);font-size:13px">${String.fromCharCode(65+ci)}</td><td style="font-weight:700;color:var(--bl);font-size:12px">${safeStr(cat.name)}</td><td style="text-align:right;font-family:var(--fm);font-weight:700;color:var(--bl)">${db?db.toFixed(1)+'%':'\u2014'}</td><td style="font-size:10px;color:var(--mt)">${fmtD(catStart)}</td><td style="font-size:10px;color:var(--mt)">${fmtD(catFinish)}</td><td colspan="2"></td><td style="text-align:center"><button class="btn btn-sm edit-only" style="padding:1px 6px;font-size:10px;border-color:var(--bl);color:var(--bl)" onclick="openEditWbs('${cat.id}')">✏</button> <button class="btn btn-sm brd edit-only" style="padding:1px 6px;font-size:10px" onclick="delWbs('${cat.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></td></tr>`;
       all.filter(w=>w.type==='subcat'&&w.parentId===cat.id).sort((a,b)=>a.order-b.order).forEach((sub,si)=>{
         const sb=sub._ab||+sub.bobot||0;
         const subItems=all.filter(w=>w.type==='item'&&w.parentId===sub.id).sort((a,b)=>a.order-b.order);
@@ -7056,32 +7175,38 @@ function renderWBS(){
         html+=`<tr style="background:rgba(16,185,129,.05)">
           <td style="padding-left:16px;font-family:var(--fm);color:var(--gn);font-weight:600">${ci+1}.${si+1}</td>
           <td style="padding-left:22px;color:var(--gn);font-size:12px;font-weight:600">
-            ${safeStr(sub.name)}${bobotMismatch?'<span style="font-size:9px;color:var(--yw);margin-left:6px">⚠</span>':''}
+            <span class="wbs-inline-text edit-only" onclick="this.classList.add('editing');this.querySelector('input').focus()" title="Klik untuk edit nama">
+              <input value="${safeStr(sub.name)}" onblur="saveWbsInlineText('${sub.id}','name',this.value);this.closest('.wbs-inline-text')?.classList.remove('editing')" onkeydown="if(event.key==='Enter'){this.blur()}" style="color:var(--gn);font-weight:600;font-size:12px;min-width:80px">
+            </span>${bobotMismatch?'<span style="font-size:9px;color:var(--yw);margin-left:6px">⚠</span>':''}
             ${!isLeaf&&subPct>0?`<div style="margin-top:4px;height:4px;background:var(--bd);border-radius:3px;overflow:hidden;max-width:200px"><div style="width:${Math.min(100,subPct)}%;height:100%;background:linear-gradient(90deg,${barColor},${barColor==='var(--or)'?'#fbbf24':'#34d399'});transition:width .4s"></div></div>`:''}
           </td>
-          <td style="text-align:right;font-family:var(--fm);font-weight:600;color:var(--gn)">${effectiveSb?effectiveSb.toFixed(1)+'%':'\u2014'}</td>
-          <td style="font-size:10px;color:var(--mt)">${fmtD(sub.startDate)}</td>
-          <td style="font-size:10px;color:var(--mt)">${fmtD(sub.finishDate)}</td>
+          <td style="text-align:right;font-family:var(--fm);font-weight:600;color:var(--gn)">${isLeaf?`<span class="wbs-inline-text edit-only" onclick="this.classList.add('editing');this.querySelector('input').focus()" title="Klik untuk edit bobot"><input value="${(+sub.bobot||0).toFixed(1)}" type="number" min="0" max="100" step="0.1" onblur="saveWbsInlineText('${sub.id}','bobot',this.value);this.closest('.wbs-inline-text')?.classList.remove('editing')" onkeydown="if(event.key==='Enter'){this.blur()}" style="color:var(--gn);font-weight:600"><span style="color:var(--gn);font-weight:600">%</span></span>`:effectiveSb?effectiveSb.toFixed(1)+'%':'\u2014'}</td>
+          <td class="wbs-date-cell edit-only ${sub.startDate?'has-date':''}" data-wbs-date="${sub.id}-startDate" onclick="inlineDateCell('${sub.id}','startDate',this)"><span style="font-size:10px;pointer-events:none">${fmtD(sub.startDate)||'—'}</span><input type="date" value="${sub.startDate||''}" onchange="saveWbsInlineDate('${sub.id}','startDate',this.value)" onblur="this.closest('.wbs-date-cell')?.classList.remove('editing')"></td>
+          <td class="wbs-date-cell edit-only ${sub.finishDate?'has-date':''}" data-wbs-date="${sub.id}-finishDate" onclick="inlineDateCell('${sub.id}','finishDate',this)"><span style="font-size:10px;pointer-events:none">${fmtD(sub.finishDate)||'—'}</span><input type="date" value="${sub.finishDate||''}" onchange="saveWbsInlineDate('${sub.id}','finishDate',this.value)" onblur="this.closest('.wbs-date-cell')?.classList.remove('editing')"></td>
           <td style="text-align:right;font-family:var(--fm);font-size:11px;color:var(--or);font-weight:600">${subPct>0?subPct.toFixed(1)+'%':'\u2014'}</td>
           <td style="text-align:right;font-family:var(--fm);font-size:11px;color:var(--gn)">${subK>0?subK.toFixed(2)+'%':'\u2014'}</td>
           <td style="text-align:center">
-            <button class="btn btn-sm edit-only" style="padding:1px 6px;font-size:10px;border-color:var(--gn);color:var(--gn)" onclick="openEditWbs('${sub.id}')">✏</button>
-            <button class="btn btn-sm brd edit-only" style="padding:1px 6px;font-size:10px" onclick="delWbs('${sub.id}')">🗑</button>
+            <button class="btn btn-sm brd edit-only" style="padding:1px 6px;font-size:10px" onclick="delWbs('${sub.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
           </td>
         </tr>`;
         subItems.forEach((item,ii)=>{
           const b=+item.bobot||0;const pct=+item.cumActual||0;
           html+=`<tr>
             <td style="padding-left:30px;font-size:10px;color:var(--mt)">${ci+1}.${si+1}.${ii+1}</td>
-            <td style="padding-left:38px;font-size:11px;color:var(--tx)">${safeStr(item.name)}</td>
-            <td style="text-align:right;font-family:var(--fm);font-size:11px">${b.toFixed(2)}%</td>
-            <td style="font-size:10px;color:var(--mt)">${fmtD(item.startDate)}</td>
-            <td style="font-size:10px;color:var(--mt)">${fmtD(item.finishDate)}</td>
+            <td style="padding-left:38px;font-size:11px;color:var(--tx)">
+              <span class="wbs-inline-text edit-only" onclick="this.classList.add('editing');this.querySelector('input').focus()" title="Klik untuk edit nama">
+                <input value="${safeStr(item.name)}" onblur="saveWbsInlineText('${item.id}','name',this.value);this.closest('.wbs-inline-text')?.classList.remove('editing')" onkeydown="if(event.key==='Enter'){this.blur()}" style="color:var(--tx);font-size:11px;min-width:80px">
+              </span>
+            </td>
+            <td style="text-align:right;font-family:var(--fm);font-size:11px">
+              <span class="wbs-inline-text edit-only" onclick="this.classList.add('editing');this.querySelector('input').focus()" title="Klik untuk edit bobot"><input value="${b.toFixed(2)}" type="number" min="0" max="100" step="0.01" onblur="saveWbsInlineText('${item.id}','bobot',this.value);this.closest('.wbs-inline-text')?.classList.remove('editing')" onkeydown="if(event.key==='Enter'){this.blur()}" style="font-size:11px"><span style="font-size:11px">%</span></span>
+            </td>
+            <td class="wbs-date-cell edit-only ${item.startDate?'has-date':''}" data-wbs-date="${item.id}-startDate" onclick="inlineDateCell('${item.id}','startDate',this)"><span style="font-size:10px;pointer-events:none">${fmtD(item.startDate)||'—'}</span><input type="date" value="${item.startDate||''}" onchange="saveWbsInlineDate('${item.id}','startDate',this.value)" onblur="this.closest('.wbs-date-cell')?.classList.remove('editing')"></td>
+            <td class="wbs-date-cell edit-only ${item.finishDate?'has-date':''}" data-wbs-date="${item.id}-finishDate" onclick="inlineDateCell('${item.id}','finishDate',this)"><span style="font-size:10px;pointer-events:none">${fmtD(item.finishDate)||'—'}</span><input type="date" value="${item.finishDate||''}" onchange="saveWbsInlineDate('${item.id}','finishDate',this.value)" onblur="this.closest('.wbs-date-cell')?.classList.remove('editing')"></td>
             <td style="text-align:right;font-family:var(--fm);font-size:11px;color:var(--mt)">${pct>0?pct.toFixed(1)+'%':'\u2014'}</td>
             <td style="text-align:right;font-family:var(--fm);font-size:11px;color:var(--mt)">${(b*pct/100)>0?(b*pct/100).toFixed(2)+'%':'\u2014'}</td>
             <td style="text-align:center">
-              <button class="btn btn-sm edit-only" style="padding:1px 6px;font-size:10px;border-color:var(--mt);color:var(--mt)" onclick="openEditWbs('${item.id}')">✏</button>
-              <button class="btn btn-sm brd edit-only" style="padding:1px 6px;font-size:10px" onclick="delWbs('${item.id}')">🗑</button>
+              <button class="btn btn-sm brd edit-only" style="padding:1px 6px;font-size:10px" onclick="delWbs('${item.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
             </td>
           </tr>`;
         });
@@ -7373,8 +7498,8 @@ function _updateWbsPlanScPreview(projId,totalWeeks,proj){
   const cAct=+(lastActualSc?.cAct||0);
 
   sc.innerHTML=`
-    <span class="wbspg-preview-chip chip-plan">📊 Total Plan: <b>${lastPlan.toFixed(1)}%</b></span>
-    <span class="wbspg-preview-chip chip-act">📈 Actual s/d skrg: <b>${cAct.toFixed(1)}%</b></span>
+    <span class="wbspg-preview-chip chip-plan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg> Total Plan: <b>${lastPlan.toFixed(1)}%</b></span>
+    <span class="wbspg-preview-chip chip-act"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> Actual s/d skrg: <b>${cAct.toFixed(1)}%</b></span>
     <span class="wbspg-preview-chip" style="${lastPlan>0&&lastPlan<99?'border-color:var(--yw);background:rgba(245,158,11,.08);color:var(--yw)':''}">
       ${totalWeeks} minggu | ${leafNodes.length} items
     </span>`;
@@ -7613,7 +7738,7 @@ function renderWbsProgressForm(){
             </div>
             <!-- Daily update row -->
             <div style="display:grid;grid-template-columns:130px 80px 1fr auto;gap:6px;align-items:center;margin-top:6px;padding:6px 8px;background:var(--sf2);border-radius:6px;border:1px dashed var(--bd)">
-              <div style="font-size:9px;color:var(--mt);font-weight:600">📅 UPDATE HARIAN</div>
+              <div style="font-size:9px;color:var(--mt);font-weight:600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> UPDATE HARIAN</div>
               <div>
                 <label style="font-size:8px;color:var(--mt);display:block">Tanggal</label>
                 <input type="date" value="${today}" id="wdi_${item.id}_date" class="fi" style="padding:2px 4px;font-size:10px;width:100%">
@@ -7636,7 +7761,7 @@ function renderWbsProgressForm(){
               </div>
               <div>
                 <button class="btn btn-sm" style="padding:3px 8px;font-size:10px;border-color:var(--gn);color:var(--gn);margin-top:10px"
-                  onclick="saveDailyLog('${item.id}')">💾</button>
+                  onclick="saveDailyLog('${item.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
               </div>
             </div>
           </div>`; 
@@ -7732,7 +7857,7 @@ function renderWbsDailyForm(){
   const weekInfo=$('wbsDailyWeekInfo');
   if(weekInfo){
     if(weekNum){
-      weekInfo.innerHTML=`📅 <b style="color:var(--bl)">Tanggal ${date}</b> masuk ke <b style="color:var(--or)">Minggu W${String(weekNum).padStart(2,'0')}</b> \u2014 progress harian akan otomatis masuk ke W${String(weekNum).padStart(2,'0')}`;
+      weekInfo.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> <b style="color:var(--bl)">Tanggal ${date}</b> masuk ke <b style="color:var(--or)">Minggu W${String(weekNum).padStart(2,'0')}</b> \u2014 progress harian akan otomatis masuk ke W${String(weekNum).padStart(2,'0')}`;
       weekInfo.style.borderLeft='3px solid var(--or)';
     }else{
       const proj=P.find(p=>String(p.id)===String(projId));
@@ -7782,7 +7907,7 @@ function renderWbsDailyForm(){
               style="padding:4px 8px;font-size:11px;border-radius:4px;width:100%">
           </div>
           <div style="padding-top:12px">
-            <button class="btn btn-sm" style="padding:3px 8px;font-size:10px;border-color:var(--gn);color:var(--gn)" onclick="saveSingleDailyLog('${node.id}')">💾</button>
+            <button class="btn btn-sm" style="padding:3px 8px;font-size:10px;border-color:var(--gn);color:var(--gn)" onclick="saveSingleDailyLog('${node.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
           </div>
         </div>`;
       };
@@ -8201,7 +8326,7 @@ function renderDailyReport(){
 function renderDrMainTable(projId,date){
   const all=WBS.filter(w=>String(w.projId)===String(projId));
   const cats=all.filter(w=>w.type==='cat').sort((a,b)=>a.order-b.order);
-  if(!cats.length){$('drTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:30px">Setup WBS terlebih dahulu di tab 🏗 WBS</div>';return;}
+  if(!cats.length){$('drTable').innerHTML='<div style="text-align:center;color:var(--mt);padding:30px">Setup WBS terlebih dahulu di tab <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M3 6v.01"/><path d="M3 12v.01"/><path d="M3 18v.01"/></svg> WBS</div>';return;}
   let html=`<table class="tbl"><thead><tr>
     <th style="width:50px">#</th><th>Item Pekerjaan</th>
     <th style="width:70px;text-align:right">Bobot</th>
@@ -8308,7 +8433,7 @@ function renderDrInputForm(){
   if(!projId){$('drInputForm').innerHTML='';return;}
   const weekNum=getWbsWeekNum(projId,date);
   const banner=$('drWeekInfoBanner');
-  if(banner)banner.innerHTML=weekNum?`📅 <b>${date}</b> = <b style="color:var(--or)">W${String(weekNum).padStart(2,'0')}</b> \u2014 Qty otomatis masuk ke minggu ini`:`⚠ Tanggal mulai project belum diset`;
+  if(banner)banner.innerHTML=weekNum?`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> <b>${date}</b> = <b style="color:var(--or)">W${String(weekNum).padStart(2,'0')}</b> \u2014 Qty otomatis masuk ke minggu ini`:`⚠ Tanggal mulai project belum diset`;
   const all=WBS.filter(w=>String(w.projId)===String(projId));
   const cats=all.filter(w=>w.type==='cat').sort((a,b)=>a.order-b.order);
   const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
@@ -8457,7 +8582,7 @@ function renderDailyHistoryTable(projId){
         <td style="text-align:right;font-family:var(--fm);color:var(--gn)">${kontrib>0?(kontrib*100).toFixed(2)+'%':'\u2014'}</td>
         <td style="color:var(--mt);font-size:10px">${log.notes||'\u2014'}</td>
         <td style="text-align:center">
-          <button class="btn btn-sm brd edit-only" style="padding:1px 5px;font-size:9px" onclick="delDailyLog('${node.id}','${date}')">🗑</button>
+          <button class="btn btn-sm brd edit-only" style="padding:1px 5px;font-size:9px" onclick="delDailyLog('${node.id}','${date}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
         </td>
       </tr>`;
       first=false;
@@ -8507,7 +8632,7 @@ function clearWrPhoto(n, e){
   const slot = $('wrPhotoSlot_'+n);
   if(slot){
     slot.innerHTML = `
-      <span style="font-size:20px">📷</span>
+      <span style="font-size:20px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
       <span style="font-size:9px;color:var(--mt);margin-top:2px">Foto ${n}</span>
       <input type="file" id="wrPhotoFile_${n}" accept="image/*" style="display:none" onchange="loadWrPhoto(${n},this)">`;
     slot.onclick = () => document.getElementById('wrPhotoFile_'+n)?.click();
@@ -8519,18 +8644,47 @@ function previewWrPhoto(input, slotId, captionId){} // legacy stub
 
 function populateWeekOptions(){
   const projId=$('wrProj')?.value;if(!projId)return;
+  const proj=P.find(p=>String(p.id)===String(projId));
   const all=WBS.filter(w=>String(w.projId)===String(projId));
   const leafNodes=all.filter(w=>(w.type==='item')||(w.type==='subcat'&&!all.some(x=>x.type==='item'&&x.parentId===w.id)));
   const weekSet=new Set();
   leafNodes.forEach(n=>(n.dailyLogs||[]).forEach(l=>{if(l.week)weekSet.add(+l.week);}));
   SCURVE.filter(d=>String(d.projId)===String(projId)).forEach(d=>weekSet.add(+d.week));
-  MPLOGS.filter(m=>m.projId==projId).forEach(m=>{const wn=getWbsWeekNum(projId,m.date);if(wn)weekSet.add(wn);});
+  MPLOGS.filter(m=>String(m.projId)===String(projId)).forEach(m=>{
+    const wn=getWbsWeekNum(projId,m.date);
+    if(wn)weekSet.add(wn);
+  });
+  // Jika tidak ada data minggu tapi ada MPLOGS → kemungkinan proj.mulai tidak diisi
+  // Fallback: gunakan urutan tanggal unik dari MPLOGS sebagai "minggu"
+  if(!weekSet.size){
+    const mpDates=[...new Set(MPLOGS.filter(m=>String(m.projId)===String(projId)).map(m=>m.date))].sort();
+    if(mpDates.length){
+      // Coba ambil mulai dari tanggal MP log pertama jika proj.mulai kosong
+      const warn=$('wrWeekWarn');
+      if(!proj?.mulai){
+        if(warn)warn.style.display='block';
+        // Estimasi minggu dari tanggal pertama MP log
+        const firstDate=mpDates[0];
+        mpDates.forEach(d=>{
+          const diff=Math.floor((new Date(d)-new Date(firstDate))/86400000);
+          weekSet.add(Math.floor(diff/7)+1);
+        });
+      }
+    }
+  }else{
+    const warn=$('wrWeekWarn');if(warn)warn.style.display='none';
+  }
   const weeks=[...weekSet].sort((a,b)=>a-b);
   const sel=$('wrWeek');
   if(!sel)return;
-  if(!weeks.length){sel.innerHTML='<option value="">Belum ada data</option>';return;}
+  if(!weeks.length){
+    sel.innerHTML='<option value="">Belum ada data</option>';
+    const warn=$('wrWeekWarn');
+    if(warn){warn.style.display='block';warn.textContent='⚠ Pastikan Tanggal Mulai project sudah diisi dan ada data Daily Log / Manpower.';}
+    return;
+  }
   sel.innerHTML=weeks.map(w=>`<option value="${w}">W${String(w).padStart(2,'0')}</option>`).join('');
-  sel.value=weeks[weeks.length-1]; // default ke minggu terakhir
+  sel.value=weeks[weeks.length-1];
 }
 
 function toggleMrCustom(){
@@ -8608,7 +8762,7 @@ function generateMpReport(){
     closeBtn.onclick=()=>{iframe.remove();closeBtn.remove();printBtn.remove();};
     document.body.appendChild(closeBtn);
     const printBtn=document.createElement('button');
-    printBtn.innerHTML='🖨 Print / Save PDF';printBtn.id='mpRPrintBtn';
+    printBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print / Save PDF';printBtn.id='mpRPrintBtn';
     printBtn.style.cssText='position:fixed;top:12px;right:100px;z-index:100000;background:#8b5cf6;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.3)';
     printBtn.onclick=()=>iframe.contentWindow.print();
     document.body.appendChild(printBtn);
@@ -8881,7 +9035,7 @@ function generateWeeklyReport(){
     closeBtn.onclick=()=>{iframe.remove();closeBtn.remove();printBtn.remove();};
     document.body.appendChild(closeBtn);
     const printBtn=document.createElement('button');
-    printBtn.innerHTML='🖨 Print / Save PDF';printBtn.id='wrPrintBtn';
+    printBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print / Save PDF';printBtn.id='wrPrintBtn';
     printBtn.style.cssText='position:fixed;top:12px;right:160px;z-index:100000;background:#f97316;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.3)';
     printBtn.onclick=()=>iframe.contentWindow.print();
     document.body.appendChild(printBtn);
@@ -9702,7 +9856,7 @@ window.addEventListener('afterprint',()=>{
 function toggleTheme(){
   const isLight=document.documentElement.classList.toggle('light');
   const btn=$('themeBtn');
-  if(btn){btn.textContent=isLight?'☀️':'🌙';btn.title=isLight?'Mode Terang (klik untuk gelap)':'Mode Gelap (klik untuk terang)';}
+  if(btn){btn.innerHTML=isLight?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';btn.title=isLight?'Mode Terang (klik untuk gelap)':'Mode Gelap (klik untuk terang)';}
   try{localStorage.setItem('atw_theme',isLight?'light':'dark');}catch(e){}
 }
 function loadTheme(){
@@ -9710,7 +9864,7 @@ function loadTheme(){
     const saved=localStorage.getItem('atw_theme');
     if(saved==='light'){
       document.documentElement.classList.add('light');
-      const btn=$('themeBtn');if(btn){btn.textContent='☀️';btn.title='Mode Terang';}
+      const btn=$('themeBtn');if(btn){btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';btn.title='Mode Terang';}
     }
   }catch(e){}
 }
@@ -9826,10 +9980,10 @@ function _loginSuccess(role){
 }
 
 function applyRole(role){
-  const labels={admin:'👑',editor:'✏️',viewer:'👁️'};
+  const labels={admin:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></svg>',editor:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',viewer:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'};
   const cls={admin:'rb-admin',editor:'rb-editor',viewer:'rb-viewer'};
   const badge=$('roleBadgeHdr');
-  if(badge){badge.textContent=labels[role]||role;badge.className='role-badge '+(cls[role]||'rb-viewer');badge.style.display='inline-flex';badge.title={admin:'Admin',editor:'Editor',viewer:'Viewer'}[role]||role;}
+  if(badge){badge.innerHTML=labels[role]||role;badge.className='role-badge '+(cls[role]||'rb-viewer');badge.style.display='inline-flex';badge.title={admin:'Admin',editor:'Editor',viewer:'Viewer'}[role]||role;}
   // Tombol logout \u2014 tampil untuk SEMUA role
   $('btnLogout').style.display='inline-flex';
   // Hanya admin bisa ganti password
@@ -9876,12 +10030,12 @@ function doLogout(){
 
 async function testPwSync(){
   if(!gsOk||!gsUrl){toast('GSheet belum tersambung','error');return;}
-  toast('🔍 Membaca password dari GSheet...');
+  toast('▪ Membaca password dari GSheet...');
   try{
     const r=await fetch(gsUrl+'?pw_check=1&t='+Date.now(),{cache:'no-cache'});
     const d=await r.json();
     if(d.pw_admin||d.pw_editor){
-      toast(`✅ GSheet password terbaca:\nAdmin: ${d.pw_admin}\nEditor: ${d.pw_editor}`);
+      toast(`✓ GSheet password terbaca:\nAdmin: ${d.pw_admin}\nEditor: ${d.pw_editor}`);
       // Update lokal sesuai GSheet
       if(d.pw_admin)gsPw.admin=String(d.pw_admin);
       if(d.pw_editor)gsPw.editor=String(d.pw_editor);
@@ -9890,7 +10044,7 @@ async function testPwSync(){
       toast('⚠ Password tidak terbaca dari GSheet: '+JSON.stringify(d),'warn');
     }
   }catch(e){
-    toast('❌ Gagal baca dari GSheet: '+e.message,'error');
+    toast('✗ Gagal baca dari GSheet: '+e.message,'error');
   }
 }
 
@@ -9911,7 +10065,7 @@ function saveNewPw(){
     toast('GSheet belum terhubung \u2014 password hanya berlaku di browser ini','warn');
     return;
   }
-  toast('⏳ Menyimpan password ke Google Sheet...');
+  toast('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg> Menyimpan password ke Google Sheet...');
   const body=JSON.stringify({
     action:'updatePw',
     pw_admin:gsPw.admin||DEFAULT_PW.admin,
@@ -9923,19 +10077,19 @@ function saveNewPw(){
       try{
         const d=JSON.parse(txt);
         if(d.status==='ok'){
-          toast(`✅ Password ${role} berhasil diupdate \u2014 berlaku di semua browser!`);
+          toast(`✓ Password ${role} berhasil diupdate \u2014 berlaku di semua browser!`);
         }else{
           toast(`⚠ Gagal: ${d.msg||'cek Apps Script'}','warn`);
         }
       }catch(e){
-        toast(`✅ Password ${role} dikirim ke GSheet`);
+        toast(`✓ Password ${role} dikirim ke GSheet`);
       }
     })
     .catch(e=>{
       // Coba no-cors fallback
       fetch(gsUrl,{method:'POST',body,headers:{'Content-Type':'text/plain'},mode:'no-cors'})
-        .then(()=>toast(`📤 Password dikirim (no-cors). Mungkin perlu beberapa saat untuk berlaku.`,'warn'))
-        .catch(()=>toast(`❌ Gagal sync password ke GSheet: ${e.message}`,'error'));
+        .then(()=>toast(`Password dikirim (no-cors). Mungkin perlu beberapa saat untuk berlaku.`,'warn'))
+        .catch(()=>toast(`✗ Gagal sync password ke GSheet: ${e.message}`,'error'));
     });
 }
 
@@ -10177,7 +10331,7 @@ document.addEventListener('visibilitychange',()=>{
 </script>
 <!-- NOTIFICATION DROPDOWN — body-level agar tidak ter-clip oleh overflow:hidden header -->
 <div class="notif-dropdown" id="notifDropdown">
-  <div class="notif-hdr"><span>🔔 ALERTS</span><span style="font-size:9px;color:var(--mt);font-weight:400" id="notifTime"></span></div>
+  <div class="notif-hdr"><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;display:inline-block"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> ALERTS</span><span style="font-size:9px;color:var(--mt);font-weight:400" id="notifTime"></span></div>
   <div id="notifList"><div class="notif-empty">Tidak ada alert aktif ✓</div></div>
 </div>
 
