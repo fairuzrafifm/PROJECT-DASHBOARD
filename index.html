@@ -1121,6 +1121,7 @@ select.fi{color-scheme:dark}
           </select>
           <button class="btn btn-sm edit-only" style="border-color:var(--gn);color:var(--gn)" onclick="openRabKatModal(null)">＋ Kategori</button>
           <button class="btn btn-sm edit-only" id="btnAddRabItem" style="border-color:var(--bl);color:var(--bl);display:none" onclick="openRabItemModal(null)">＋ Item RAB</button>
+          <button class="btn btn-sm edit-only" style="border-color:var(--or);color:var(--or)" onclick="openCloneRabModal()" title="Clone RAB dari project lain ke project ini">⧉ Clone RAB</button>
           <button class="btn btn-sm" style="border-color:var(--pu);color:var(--pu)" onclick="exportRabCSV()">📥 Export RAB</button>
         </div>
 
@@ -1199,6 +1200,44 @@ select.fi{color-scheme:dark}
     <button class="btn brd" id="btnDelProj" onclick="delProj()" style="margin-right:auto;display:none">🗑 Hapus</button>
     <button class="btn" onclick="cm('addProj')">Batal</button>
     <button class="btn bp" onclick="saveProj()" id="btnSaveProj">＋ Tambah</button>
+  </div>
+</div></div>
+
+<!-- CLONE PROJECT MODAL -->
+<div class="ov" id="ov-cloneProj" onclick="if(event.target===this)cm('cloneProj')">
+<div class="modal" style="max-width:500px">
+  <div class="mtitle" style="color:var(--gn)">⧉ CLONE PROJECT — Copy WBS<button class="mclose" onclick="cm('cloneProj')">✕</button></div>
+  <div style="background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--mt)">
+    <b style="color:var(--gn)">Yang akan di-copy:</b> Seluruh struktur WBS (Kategori, Sub-Kategori, Item), Bobot, Satuan, Qty Plan, Start/Finish date plan.<br>
+    <b style="color:var(--rd)">Yang TIDAK di-copy:</b> Progress actual, Daily logs, Manpower logs, S-Curve data, Issues, Procurement.
+  </div>
+  <div class="fg"><label class="fl">Clone dari Project</label>
+    <div id="cloneSourceInfo" style="padding:8px 12px;background:var(--sf2);border-radius:6px;font-size:12px;font-weight:600;color:var(--bl)">—</div>
+  </div>
+  <div style="font-family:var(--fd);font-size:11px;letter-spacing:1px;color:var(--gn);margin:12px 0 8px;padding:6px 10px;background:rgba(16,185,129,.07);border-radius:6px">📋 DATA PROJECT BARU</div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Kode Project *</label><input class="fi" id="cloneKode" placeholder="ATW-002"></div>
+    <div class="fg"><label class="fl">Status</label><select class="fi" id="cloneStat"><option>Planning</option><option>On Track</option><option>Delayed</option><option>Critical</option><option>Done</option></select></div>
+  </div>
+  <div class="fg"><label class="fl">Nama Project *</label><input class="fi" id="cloneNama" placeholder="PLTS Cikarang Phase 2"></div>
+  <div class="f2">
+    <div class="fg"><label class="fl">Client</label><input class="fi" id="cloneClient" placeholder="PT ABC Energy"></div>
+    <div class="fg"><label class="fl">Lokasi</label><input class="fi" id="cloneLok" placeholder="Cikarang, Bekasi"></div>
+    <div class="fg"><label class="fl">Tgl Mulai</label><input class="fi" type="date" id="cloneMulai"></div>
+    <div class="fg"><label class="fl">Tgl Selesai</label><input class="fi" type="date" id="cloneSelesai"></div>
+  </div>
+  <div style="background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.2);border-radius:7px;padding:9px 12px;margin:10px 0;font-size:11px">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <input type="checkbox" id="cloneCopyDates" checked style="accent-color:var(--or)">
+      <span><b>Copy Start/Finish date</b> dari WBS sumber (bisa diedit nanti di Gantt)</span>
+    </label>
+  </div>
+  <div id="cloneWbsPreview" style="max-height:160px;overflow-y:auto;background:var(--sf2);border-radius:7px;padding:8px 12px;font-size:10px;color:var(--mt);margin-bottom:4px">
+    <div style="color:var(--mt);font-style:italic">Pilih project sumber untuk melihat preview WBS...</div>
+  </div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('cloneProj')">Batal</button>
+    <button class="btn" style="background:var(--gn);color:#fff;border-color:var(--gn)" onclick="executeCloneProject()">⧉ Clone &amp; Buat Project</button>
   </div>
 </div></div>
 
@@ -1587,6 +1626,47 @@ select.fi{color-scheme:dark}
     <button class="btn brd" id="btnDelRabItem" onclick="delRabItem()" style="margin-right:auto;display:none">🗑 Hapus</button>
     <button class="btn" onclick="cm('addRabItem')">Batal</button>
     <button class="btn bp" onclick="saveRabItem()" id="btnSaveRabItem">＋ Tambah</button>
+  </div>
+</div></div>
+
+<!-- CLONE RAB MODAL -->
+<div class="ov" id="ov-cloneRab" onclick="if(event.target===this)cm('cloneRab')">
+<div class="modal" style="max-width:520px">
+  <div class="mtitle" style="color:var(--or)">⧉ CLONE RAB — Copy Struktur Anggaran<button class="mclose" onclick="cm('cloneRab')">✕</button></div>
+  <div style="background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.2);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--mt)">
+    <b style="color:var(--or)">Yang akan di-copy:</b> Seluruh Kategori RAB, Item RAB, Satuan, Volume, Harga Satuan, Total, Procurement Kategori.<br>
+    <b style="color:var(--rd)">Yang TIDAK di-copy:</b> Data aktual pengeluaran (COSTS), link procurement yang sudah ada.
+  </div>
+  <div class="f2" style="align-items:end">
+    <div class="fg">
+      <label class="fl">Clone RAB dari Project</label>
+      <select class="fi" id="cloneRabSrc" onchange="_onCloneRabSrcChange()">
+        <option value="">— Pilih Project Sumber —</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">Clone ke Project</label>
+      <div id="cloneRabDestInfo" style="padding:8px 12px;background:var(--sf2);border-radius:6px;font-size:12px;font-weight:600;color:var(--bl)">—</div>
+    </div>
+  </div>
+  <div style="background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.2);border-radius:7px;padding:9px 12px;margin:10px 0;font-size:11px">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <input type="checkbox" id="cloneRabMerge" style="accent-color:var(--or)">
+      <span><b>Merge</b> — tambahkan ke RAB yang sudah ada (tidak hapus data existing). Jika tidak dicentang, RAB lama akan <b style="color:var(--rd)">diganti</b>.</span>
+    </label>
+  </div>
+  <div style="background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.2);border-radius:7px;padding:9px 12px;margin:0 0 10px;font-size:11px">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <input type="checkbox" id="cloneRabCopyHarga" checked style="accent-color:var(--or)">
+      <span><b>Copy Harga Satuan & Total</b> — salin nilai anggaran dari sumber (bisa diedit setelah clone)</span>
+    </label>
+  </div>
+  <div id="cloneRabPreview" style="max-height:200px;overflow-y:auto;background:var(--sf2);border-radius:7px;padding:8px 12px;font-size:10px;color:var(--mt);margin-bottom:4px">
+    <div style="color:var(--mt);font-style:italic">Pilih project sumber untuk melihat preview RAB...</div>
+  </div>
+  <div class="mfoot">
+    <button class="btn" onclick="cm('cloneRab')">Batal</button>
+    <button class="btn" style="background:var(--or);color:#fff;border-color:var(--or)" onclick="executeCloneRab()">⧉ Clone RAB</button>
   </div>
 </div></div>
 
@@ -2963,7 +3043,7 @@ function renderDetail(id){
       <div><div class="dname">${p.nama}</div>
         <div class="dmeta"><span class="pill ${sc[p.status]||'p-plan'}">${p.status}</span><span>${p.kode}</span><span style="color:var(--bd)">·</span><span>📍${p.lokasi||'\u2014'}</span><span style="color:var(--bd)">·</span>${p.logo?`<img src="${p.logo}" style="height:36px;max-width:120px;object-fit:contain;border-radius:4px;vertical-align:middle" onerror="this.style.display='none'">`:`<span>${p.client||'\u2014'}</span>`}${p.weather?`<span>${p.weather}</span>`:''}${p.picPm?`<span style="font-size:10px;background:rgba(139,92,246,.12);color:var(--pu);padding:2px 7px;border-radius:10px;border:1px solid rgba(139,92,246,.2)">👤 ${p.picPm}</span>`:''}</div>
       </div>
-      <div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="openModal('editProj','${p.id}')">✏ Edit</button><button class="btn btn-sm bp" onclick="openModal('updProgress')">↑ Update</button></div>
+      <div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="openModal('editProj','${p.id}')">✏ Edit</button><button class="btn btn-sm" onclick="openCloneModal('${p.id}')" style="border-color:var(--gn);color:var(--gn)" title="Clone WBS ke project baru">⧉ Clone</button><button class="btn btn-sm bp" onclick="openModal('updProgress')">↑ Update</button></div>
     </div>
     <div class="g4" style="margin-bottom:9px">
       <div class="metric"><div class="mv" style="color:${vcl}">${v>0?'+':''}${v}%</div><div class="ml">Variance</div></div>
@@ -3413,6 +3493,105 @@ function saveProj(){
 }
 function delProj(){
   showConfirm('Hapus project ini?',()=>{_doDelProj();});return;}
+
+// ── CLONE PROJECT ──────────────────────────────────────────────
+function openCloneModal(srcProjId){
+  const src=P.find(p=>String(p.id)===String(srcProjId));
+  if(!src){toast('Project sumber tidak ditemukan','error');return;}
+  // Fill source info
+  $('cloneSourceInfo').textContent=`${src.kode} — ${src.nama}`;
+  // Pre-fill new project data
+  sv('cloneKode','');sv('cloneNama','');
+  sv('cloneClient',src.client||'');sv('cloneLok',src.lokasi||'');
+  sv('cloneMulai',src.mulai||'');sv('cloneSelesai',src.selesai||'');
+  $('cloneStat').value='Planning';
+  // Store source id
+  $('ov-cloneProj').dataset.srcId=srcProjId;
+  // Preview WBS
+  _renderClonePreview(srcProjId);
+  show('ov-cloneProj');
+}
+
+function _renderClonePreview(srcProjId){
+  const wbs=WBS.filter(w=>String(w.projId)===String(srcProjId)).sort((a,b)=>+a.order-+b.order);
+  const cats=wbs.filter(w=>w.type==='cat');
+  const el=$('cloneWbsPreview');
+  if(!wbs.length){el.innerHTML='<div style="color:var(--mt);font-style:italic">Belum ada WBS di project ini.</div>';return;}
+  let html='';
+  let totalItems=0;
+  cats.forEach((cat,ci)=>{
+    html+=`<div style="color:var(--gn);font-weight:700;margin-top:4px">${String.fromCharCode(65+ci)}. ${cat.name} <span style="color:var(--mt);font-weight:400">(${cat.bobot||0}%)</span></div>`;
+    const subs=wbs.filter(w=>w.type==='subcat'&&String(w.parentId)===String(cat.id));
+    subs.forEach((sub,si)=>{
+      html+=`<div style="padding-left:10px;color:var(--bl)">${ci+1}.${si+1} ${sub.name} <span style="color:var(--mt)">(${sub.bobot||0}%)</span></div>`;
+      const items=wbs.filter(w=>w.type==='item'&&String(w.parentId)===String(sub.id));
+      items.forEach((item,ii)=>{
+        totalItems++;
+        html+=`<div style="padding-left:20px;color:var(--tx)">${ci+1}.${si+1}.${ii+1} ${item.name} <span style="color:var(--mt)">(${item.bobot||0}%)</span></div>`;
+      });
+    });
+  });
+  el.innerHTML=`<div style="color:var(--bl);font-weight:600;margin-bottom:6px">Preview WBS: ${cats.length} kategori, ${wbs.filter(w=>w.type==='subcat').length} sub-kategori, ${totalItems} item</div>${html}`;
+}
+
+function executeCloneProject(){
+  const kode=($('cloneKode')?.value||'').trim();
+  const nama=($('cloneNama')?.value||'').trim();
+  if(!kode||!nama){toast('Kode & Nama project wajib diisi','error');return;}
+  if(P.find(p=>p.kode===kode)){toast('Kode project sudah digunakan','error');return;}
+
+  const srcId=$('ov-cloneProj').dataset.srcId;
+  const copyDates=$('cloneCopyDates')?.checked!==false;
+
+  // Buat project baru
+  const newProjId=genId();
+  const newProj={
+    id:newProjId,
+    kode,nama,
+    lokasi:($('cloneLok')?.value||'').trim(),
+    client:($('cloneClient')?.value||'').trim(),
+    mulai:$('cloneMulai')?.value||'',
+    selesai:$('cloneSelesai')?.value||'',
+    status:$('cloneStat')?.value||'Planning',
+    plan:0,actual:0,mdPlan:0,mpPlan:0,mpActual:0,mhPlan:0,
+    weather:'',notes:'',logo:'',
+    picPm:'',picSm:'',picEng:'',picProc:'',history:[]
+  };
+  P.push(newProj);
+
+  // Clone WBS — buat mapping id lama → id baru
+  const srcWbs=WBS.filter(w=>String(w.projId)===String(srcId));
+  const idMap={};
+  // Pass 1: buat semua id baru
+  srcWbs.forEach(w=>{idMap[w.id]=genId();});
+  // Pass 2: clone dengan id baru, reset progress
+  srcWbs.forEach(w=>{
+    WBS.push({
+      id:idMap[w.id],
+      projId:newProjId,
+      type:w.type,
+      parentId:w.parentId?idMap[w.parentId]:'',
+      name:w.name,
+      bobot:w.bobot||0,
+      order:w.order||0,
+      // Reset semua progress
+      cumPlan:0,cumActual:0,
+      weeklyData:{},weeklyPlan:{},dailyLogs:[],
+      // Copy plan fields
+      qtyPlan:w.qtyPlan||0,qtySatuan:w.qtySatuan||'',
+      // Copy tanggal jika dipilih
+      startDate:copyDates?(w.startDate||''):'',
+      finishDate:copyDates?(w.finishDate||''):'',
+    });
+  });
+
+  selId=newProjId;
+  dirty();cm('cloneProj');render();
+  _syncAllProjSelectors(newProjId);
+  gsSync();
+  toast(`✓ Project "${kode}" berhasil dibuat dengan ${srcWbs.length} item WBS`,'ok',4000);
+}
+
 function _doDelProj(){
   P=P.filter(p=>p.id!==editProjId);ISS=ISS.filter(i=>i.projId!==editProjId);PROC=PROC.filter(p=>p.projId!==editProjId);
   if(selId===editProjId)selId=P[0]?.id||null;
@@ -5357,6 +5536,102 @@ function delRabItem(){
   dirty();cm('addRabItem');renderRab();toast('Item RAB dihapus','warn');gsSync();
 }
 
+// ── CLONE RAB ──────────────────────────────────────────────────
+function openCloneRabModal(){
+  const destProjId=gv('rabFiltProj');
+  if(!destProjId){toast('Pilih project tujuan terlebih dahulu di dropdown','warn');return;}
+  const destProj=P.find(p=>String(p.id)===String(destProjId));
+  // Fill destination info
+  $('cloneRabDestInfo').textContent=`${destProj?.kode||'?'} — ${destProj?.nama||'?'}`;
+  // Fill source dropdown (exclude current project)
+  $('cloneRabSrc').innerHTML='<option value="">— Pilih Project Sumber —</option>'+
+    P.filter(p=>String(p.id)!==String(destProjId))
+     .map(p=>`<option value="${p.id}">${p.kode} — ${p.nama}</option>`).join('');
+  $('cloneRabSrc').value='';
+  $('cloneRabMerge').checked=false;
+  $('cloneRabCopyHarga').checked=true;
+  $('cloneRabPreview').innerHTML='<div style="color:var(--mt);font-style:italic">Pilih project sumber untuk melihat preview RAB...</div>';
+  $('ov-cloneRab').dataset.destId=destProjId;
+  show('ov-cloneRab');
+}
+
+function _onCloneRabSrcChange(){
+  const srcId=gv('cloneRabSrc');
+  if(!srcId){$('cloneRabPreview').innerHTML='<div style="color:var(--mt);font-style:italic">Pilih project sumber untuk melihat preview RAB...</div>';return;}
+  const kats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(srcId)).sort((a,b)=>a.urutan-b.urutan);
+  const items=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(srcId));
+  if(!kats.length&&!items.length){
+    $('cloneRabPreview').innerHTML='<div style="color:var(--mt);font-style:italic">Belum ada RAB di project ini.</div>';return;
+  }
+  const totalRab=items.reduce((s,i)=>s+(+i.total||0),0);
+  let html=`<div style="color:var(--or);font-weight:600;margin-bottom:6px">${kats.length} kategori | ${items.length} item | Total: ${fmtRpShort(totalRab)}</div>`;
+  kats.forEach((k,ki)=>{
+    const katItems=items.filter(i=>i.katId===k.id);
+    const katTotal=katItems.reduce((s,i)=>s+(+i.total||0),0);
+    html+=`<div style="color:var(--or);font-weight:700;margin-top:4px">${ki+1}. ${k.name} <span style="color:var(--mt);font-weight:400">${fmtRpShort(katTotal)}</span></div>`;
+    katItems.forEach(item=>{
+      html+=`<div style="padding-left:14px;color:var(--tx)">${item.deskripsi} <span style="color:var(--mt)">${item.volume||0} ${item.satuan||''} × ${fmtRpShort(item.hargaSatuan||0)}</span></div>`;
+    });
+  });
+  $('cloneRabPreview').innerHTML=html;
+}
+
+function executeCloneRab(){
+  const srcId=gv('cloneRabSrc');
+  const destId=$('ov-cloneRab').dataset.destId;
+  if(!srcId){toast('Pilih project sumber RAB','error');return;}
+  if(!destId){toast('Project tujuan tidak ditemukan','error');return;}
+
+  const merge=$('cloneRabMerge')?.checked;
+  const copyHarga=$('cloneRabCopyHarga')?.checked!==false;
+
+  const srcKats=RAB.filter(r=>r.type==='kat'&&String(r.projId)===String(srcId)).sort((a,b)=>a.urutan-b.urutan);
+  const srcItems=RAB.filter(r=>r.type==='item'&&String(r.projId)===String(srcId));
+
+  if(!srcKats.length&&!srcItems.length){toast('Project sumber belum memiliki RAB','warn');return;}
+
+  // Jika tidak merge → hapus RAB lama di project tujuan
+  if(!merge){
+    const existCount=RAB.filter(r=>String(r.projId)===String(destId)).length;
+    if(existCount>0&&!confirm(`RAB existing di project tujuan (${existCount} item) akan dihapus dan diganti. Lanjutkan?`))return;
+    RAB=RAB.filter(r=>String(r.projId)!==String(destId));
+  }
+
+  // Clone kategori dengan id mapping
+  const katIdMap={};
+  srcKats.forEach(k=>{
+    const newKatId=genId();
+    katIdMap[k.id]=newKatId;
+    RAB.push({
+      id:newKatId,projId:destId,type:'kat',katId:'',
+      name:k.name,deskripsi:'',satuan:'',volume:0,hargaSatuan:0,total:0,
+      notes:'',urutan:k.urutan||1,isCustom:true,procKat:''
+    });
+  });
+
+  // Clone items
+  let clonedItems=0;
+  srcItems.forEach(item=>{
+    RAB.push({
+      id:genId(),projId:destId,type:'item',
+      katId:katIdMap[item.katId]||'',
+      deskripsi:item.deskripsi||'',
+      satuan:item.satuan||'',
+      volume:item.volume||0,
+      hargaSatuan:copyHarga?(item.hargaSatuan||0):0,
+      total:copyHarga?(item.total||0):0,
+      notes:item.notes||'',
+      urutan:item.urutan||0,
+      isCustom:item.isCustom||false,
+      procKat:item.procKat||''
+    });
+    clonedItems++;
+  });
+
+  dirty();cm('cloneRab');renderRab();gsSync();
+  toast(`✓ RAB berhasil di-clone: ${srcKats.length} kategori, ${clonedItems} item`,'ok',4000);
+}
+
 function exportRabCSV(){
   const projId=gv('rabFiltProj');
   const proj=P.find(p=>String(p.id)===String(projId));
@@ -6610,7 +6885,7 @@ function renderScManageTable(){
 
 
 (function(){
-  const DASH_VER='3.61';
+  const DASH_VER='3.63';
   try{
     if(localStorage.getItem('atw_ver')!==DASH_VER){
       // Upgrade versi \u2014 hanya hapus cache UI, BUKAN data project
