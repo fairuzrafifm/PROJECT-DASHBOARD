@@ -10354,5 +10354,492 @@ document.addEventListener('visibilitychange',()=>{
   <div id="notifList"><div class="notif-empty">Tidak ada alert aktif ✓</div></div>
 </div>
 
+<script>
+(function () {
+'use strict';
+
+const MAX_WR_PHOTOS = 12;
+const MAX_DR_PHOTOS = 6;
+const COMPRESS_MAX_PX = 1024;
+const COMPRESS_QUALITY = 0.82;
+
+// ── Cache foto ─────────────────────────────────────────────────
+// key: "wr_{projId}_W{nn}_{slot}" atau "dr_{projId}_{date}_{slot}"
+const _cache = {};
+
+const _wrKey = (projId, week, n) =>
+  `wr_${projId}_W${String(week).padStart(2,'0')}_${n}`;
+const _drKey = (projId, date, n) =>
+  `dr_${projId}_${date}_${n}`;
+
+// ── Role check ─────────────────────────────────────────────────
+function _canUpload() {
+  return typeof currentRole !== 'undefined' &&
+    (currentRole === 'admin' || currentRole === 'editor');
+}
+
+// ── Kompres gambar ─────────────────────────────────────────────
+function _compress(base64, maxPx, quality) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * ratio);
+      const h = Math.round(img.height * ratio);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(base64);
+    img.src = base64;
+  });
+}
+
+// ── Upload ke Drive ────────────────────────────────────────────
+async function _upload(type, projId, weekOrDate, slot, base64, caption) {
+  if (!gsOk || !gsUrl) return null;
+  const proj = P.find(p => String(p.id) === String(projId));
+  if (!proj) return null;
+  try {
+    const compressed = await _compress(base64, COMPRESS_MAX_PX, COMPRESS_QUALITY);
+    const r = await fetch(gsUrl, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'uploadPhoto', photoType: type,
+        projId: String(projId), projKode: proj.kode || String(projId),
+        weekOrDate: String(weekOrDate), slot,
+        caption: caption || '', b64: compressed.split(',')[1], mimeType: 'image/jpeg',
+      }),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.status === 'ok' ? { driveUrl: d.driveUrl, driveId: d.driveId } : null;
+  } catch (e) { return null; }
+}
+
+// ── Delete dari Drive ──────────────────────────────────────────
+function _delete(type, projId, weekOrDate, slot) {
+  if (!gsOk || !gsUrl) return;
+  fetch(gsUrl, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'deletePhoto', photoType: type,
+      projId: String(projId), weekOrDate: String(weekOrDate), slot }),
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+  }).catch(() => {});
+}
+
+// ── Load foto dari GSheet ──────────────────────────────────────
+async function _loadPhotos(type, projId, weekOrDate) {
+  if (!gsOk || !gsUrl) return;
+  try {
+    const r = await fetch(
+      `${gsUrl}?action=getPhotos&photoType=${type}&projId=${projId}&weekOrDate=${weekOrDate}&t=${Date.now()}`,
+      { cache: 'no-cache' }
+    );
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.status !== 'ok' || !d.photos) return;
+    d.photos.forEach(ph => {
+      const key = ph.photoType === 'dr'
+        ? _drKey(ph.projId, ph.weekOrDate, ph.slot)
+        : _wrKey(ph.projId, ph.weekOrDate, ph.slot);
+      if (!_cache[key]) {
+        _cache[key] = { src: ph.driveUrl, caption: ph.caption || '',
+          driveUrl: ph.driveUrl, driveId: ph.driveId, fromDrive: true };
+      }
+    });
+  } catch (e) { console.warn('[Photo] Load error:', e); }
+}
+
+// ── Update caption ─────────────────────────────────────────────
+function _updateCaption(type, projId, weekOrDate, slot, caption) {
+  if (!gsOk || !gsUrl || !caption) return;
+  fetch(gsUrl, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'updatePhotoCaption', photoType: type,
+      projId: String(projId), weekOrDate: String(weekOrDate), slot, caption }),
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+  }).catch(() => {});
+}
+
+// ═════════════════════════════════════════════════════
+//  WEEKLY REPORT PHOTOS (12 slot)
+// ═════════════════════════════════════════════════════
+if (!window.wrPhotos) window.wrPhotos = {};
+
+// Inject slot 7–12 ke grid modal
+function _injectWrSlots() {
+  const grid = document.querySelector('#ov-weeklyReport .wr-photo-grid');
+  if (!grid || document.getElementById('wrPhotoSlot_7')) return;
+  for (let n = 7; n <= MAX_WR_PHOTOS; n++) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:4px';
+    wrap.innerHTML = `
+      <div id="wrPhotoSlot_${n}"
+        style="height:90px;display:flex;flex-direction:column;align-items:center;
+        justify-content:center;cursor:pointer;position:relative;
+        border:1px dashed var(--bd);border-radius:6px;background:var(--sf2);overflow:hidden"
+        onclick="document.getElementById('wrPhotoFile_${n}')?.click()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.5" style="color:var(--mt)">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        <span style="font-size:9px;color:var(--mt);margin-top:2px">Foto ${n}</span>
+        <input type="file" id="wrPhotoFile_${n}" accept="image/*"
+          style="display:none" onchange="loadWrPhoto(${n},this)">
+      </div>
+      <input type="text" id="wrPhotoCaption_${n}" placeholder="Keterangan..."
+        class="fi" style="padding:2px 4px;font-size:9px;width:100%;border-radius:3px">`;
+    grid.appendChild(wrap);
+  }
+}
+
+// Override loadWrPhoto
+window.loadWrPhoto = function (n, input) {
+  if (!_canUpload()) { toast('Hanya Admin/Editor yang bisa upload foto', 'warn'); return; }
+  const file = input.files[0]; if (!file) return;
+  const projId = $('wrProj')?.value;
+  const week   = +($('wrWeek')?.value || 0);
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const base64  = e.target.result;
+    const caption = $('wrPhotoCaption_' + n)?.value?.trim() || '';
+    const key     = _wrKey(projId, week, n);
+    _cache[key]  = { src: base64, caption, driveUrl: null, driveId: null };
+    window.wrPhotos[n] = { src: base64, caption };
+    _setWrSlotFilled(n, base64, false);
+    toast(`📸 Foto ${n} dimuat, mengupload...`);
+    if (projId && week) {
+      const res = await _upload('wr', projId, week, n, base64, caption);
+      if (res) {
+        _cache[key].driveUrl = res.driveUrl;
+        _cache[key].driveId  = res.driveId;
+        _cache[key].fromDrive = true;
+        window.wrPhotos[n].driveUrl = res.driveUrl;
+        const b = document.getElementById('wrBadge_' + n);
+        if (b) { b.textContent = '✓ Drive'; b.style.background = 'rgba(16,185,129,.9)'; }
+        toast(`✓ Foto ${n} tersimpan di Drive`);
+      } else { toast(`⚠ Foto ${n} hanya tersimpan lokal`, 'warn'); }
+    }
+  };
+  reader.readAsDataURL(file);
+};
+
+function _setWrSlotFilled(n, src, fromDrive) {
+  const slot = $('wrPhotoSlot_' + n); if (!slot) return;
+  const badge = fromDrive
+    ? `<span style="position:absolute;top:2px;left:2px;background:rgba(16,185,129,.9);
+        color:#fff;font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600">✓ Drive</span>`
+    : `<span id="wrBadge_${n}" style="position:absolute;top:2px;left:2px;
+        background:rgba(245,158,11,.9);color:#fff;font-size:8px;
+        padding:1px 5px;border-radius:3px;font-weight:600">⏳ Uploading</span>`;
+  slot.innerHTML = `
+    <div style="position:relative;width:100%">
+      <img src="${src}" style="width:100%;height:90px;object-fit:cover;display:block;background:#f1f5f9">
+      ${badge}
+      ${_canUpload() ? `<button onclick="clearWrPhoto(${n},event)"
+        style="position:absolute;top:2px;right:2px;background:rgba(239,68,68,.9);
+        color:#fff;border:none;border-radius:50%;width:18px;height:18px;
+        font-size:10px;cursor:pointer;line-height:1;padding:0">✕</button>` : ''}
+    </div>
+    <input type="file" id="wrPhotoFile_${n}" accept="image/*"
+      style="display:none" onchange="loadWrPhoto(${n},this)">`;
+  slot.onclick = null;
+}
+
+function _setWrSlotEmpty(n) {
+  const slot = $('wrPhotoSlot_' + n); if (!slot) return;
+  const canUp = _canUpload();
+  slot.innerHTML = `
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="1.5" style="color:var(--mt)">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </svg>
+    <span style="font-size:9px;color:var(--mt);margin-top:2px">Foto ${n}</span>
+    <input type="file" id="wrPhotoFile_${n}" accept="image/*"
+      style="display:none" onchange="loadWrPhoto(${n},this)">`;
+  slot.style.cursor = canUp ? 'pointer' : 'default';
+  slot.onclick = canUp ? () => document.getElementById('wrPhotoFile_' + n)?.click() : null;
+}
+
+window.clearWrPhoto = function (n, e) {
+  if (e) e.stopPropagation();
+  if (!_canUpload()) return;
+  const projId = $('wrProj')?.value;
+  const week   = +($('wrWeek')?.value || 0);
+  const key    = _wrKey(projId, week, n);
+  if (_cache[key]?.driveId) _delete('wr', projId, week, n);
+  delete _cache[key]; delete window.wrPhotos[n];
+  _setWrSlotEmpty(n);
+  if ($('wrPhotoCaption_' + n)) $('wrPhotoCaption_' + n).value = '';
+};
+
+async function _loadWrPhotos() {
+  const projId = $('wrProj')?.value;
+  const week   = +($('wrWeek')?.value || 0);
+  if (!projId || !week) return;
+  _injectWrSlots();
+  await _loadPhotos('wr', projId, week);
+  for (let n = 1; n <= MAX_WR_PHOTOS; n++) {
+    const key = _wrKey(projId, week, n);
+    const ph  = _cache[key];
+    if (ph) {
+      window.wrPhotos[n] = { src: ph.src, caption: ph.caption, driveUrl: ph.driveUrl };
+      _setWrSlotFilled(n, ph.src, true);
+      if ($('wrPhotoCaption_' + n)) $('wrPhotoCaption_' + n).value = ph.caption || '';
+    } else {
+      delete window.wrPhotos[n];
+      if (!$('wrPhotoSlot_' + n)?.querySelector('img')) _setWrSlotEmpty(n);
+      if ($('wrPhotoCaption_' + n)) $('wrPhotoCaption_' + n).value = '';
+    }
+  }
+}
+
+// Hook openModal
+const _origOpenModal = window.openModal;
+window.openModal = function (type) {
+  _origOpenModal(type);
+  if (type !== 'weeklyReport') return;
+  setTimeout(() => {
+    _injectWrSlots();
+    ['wrProj','wrWeek'].forEach(id => {
+      const el = $(id);
+      if (el && !el._photoPatch) { el._photoPatch = true; el.addEventListener('change', _loadWrPhotos); }
+    });
+    if ($('wrProj')?.value && $('wrWeek')?.value) _loadWrPhotos();
+  }, 150);
+};
+
+// Hook generateWeeklyReport — sync caption + support 12 foto
+const _origGenerateWR = window.generateWeeklyReport;
+window.generateWeeklyReport = function () {
+  const projId = $('wrProj')?.value;
+  const week   = +($('wrWeek')?.value || 0);
+  for (let n = 1; n <= MAX_WR_PHOTOS; n++) {
+    const cap = $('wrPhotoCaption_' + n)?.value?.trim() || '';
+    const key = _wrKey(projId, week, n);
+    if (_cache[key]) _cache[key].caption = cap;
+    if (window.wrPhotos[n]) window.wrPhotos[n].caption = cap;
+    if (_cache[key]?.driveId) _updateCaption('wr', projId, week, n, cap);
+  }
+  _origGenerateWR();
+};
+
+// Hook buildWeeklyReportHTML — render 12 foto (2 baris × 6)
+const _origBuildWR = window.buildWeeklyReportHTML;
+window.buildWeeklyReportHTML = function (projId, week) {
+  let html = _origBuildWR(projId, week);
+  const weekStr = String(week).padStart(2,'0');
+
+  // Build 12 foto dalam 2 baris × 6
+  const rows = [0,1].map(row => {
+    const cols = Array.from({length:6}, (_,col) => {
+      const n  = row * 6 + col + 1;
+      const ph = window.wrPhotos[n];
+      if (ph && ph.src) {
+        return `<div style="border:1px solid #e2e8f0;border-radius:5px;overflow:hidden">
+          <img src="${ph.src}" style="width:100%;height:110px;object-fit:cover;display:block;background:#f8fafc">
+          <div style="padding:3px 5px;font-size:8px;color:#374151;background:#f8fafc;
+            border-top:1px solid #e2e8f0;min-height:16px">${ph.caption || 'Foto ' + n}</div>
+        </div>`;
+      }
+      return `<div style="border:1px dashed #e2e8f0;border-radius:5px;height:126px;
+        display:flex;align-items:center;justify-content:center;background:#f8fafc">
+        <span style="font-size:8px;color:#e2e8f0">Foto ${n}</span>
+      </div>`;
+    }).join('');
+    return `<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:5px">${cols}</div>`;
+  }).join('');
+
+  const newSection = `<!-- DOCUMENTATION PHOTOS SECTION -->
+  <div style="background:#374151;color:#fff;text-align:center;padding:5px;font-weight:700;font-size:11px;margin-bottom:8px">
+    DOKUMENTASI FOTO — W${weekStr}
+  </div>
+  <div style="margin-bottom:10px">${rows}</div>
+  <!-- PAGE 2 FOOTER -->`;
+
+  return html.replace(
+    /<!-- DOCUMENTATION PHOTOS SECTION -->[\s\S]*?<!-- PAGE 2 FOOTER -->/,
+    newSection
+  );
+};
+
+// ═════════════════════════════════════════════════════
+//  DAILY REPORT PHOTOS (6 slot per hari)
+// ═════════════════════════════════════════════════════
+const _drPhotos = {};
+
+function _injectDrPhotoSection(projId, date) {
+  const old = document.getElementById('drPhotoSection');
+  if (old) old.remove();
+  const mfoot = document.querySelector('#ov-drInput .mfoot');
+  if (!mfoot) return;
+  for (let n = 1; n <= MAX_DR_PHOTOS; n++) delete _drPhotos[n];
+
+  const canUp = _canUpload();
+  const grid  = Array.from({length: MAX_DR_PHOTOS}, (_,i) => i + 1).map(n => `
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <div id="drPhotoSlot_${n}"
+        style="height:80px;display:flex;flex-direction:column;align-items:center;
+        justify-content:center;${canUp?'cursor:pointer;':''}position:relative;
+        border:1px dashed var(--bd);border-radius:6px;background:var(--sf2);overflow:hidden"
+        ${canUp ? `onclick="document.getElementById('drPF_${n}')?.click()"` : ''}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.5" style="color:var(--mt)">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        <span style="font-size:9px;color:var(--mt);margin-top:2px">Foto ${n}</span>
+        <input type="file" id="drPF_${n}" accept="image/*" style="display:none"
+          onchange="window._loadDrPhoto(${n},this)">
+      </div>
+      <input type="text" id="drCap_${n}" placeholder="Keterangan..."
+        class="fi" style="padding:2px 4px;font-size:9px;border-radius:3px;
+        pointer-events:${canUp?'auto':'none'};opacity:${canUp?1:.6}">
+    </div>`).join('');
+
+  const sec = document.createElement('div');
+  sec.id = 'drPhotoSection';
+  sec.style.cssText = 'margin:10px 0;padding:10px 0;border-top:1px solid var(--bd)';
+  sec.innerHTML = `
+    <div style="font-size:10px;font-weight:600;color:var(--mt);
+      text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+      📷 Dokumentasi Foto
+      ${!canUp ? '<span style="color:var(--yw);font-size:9px;font-weight:400">(Viewer: read-only)</span>' : ''}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${grid}</div>`;
+  mfoot.parentNode.insertBefore(sec, mfoot);
+
+  setTimeout(() => _loadDrPhotosUI(projId, date), 50);
+}
+
+async function _loadDrPhotosUI(projId, date) {
+  await _loadPhotos('dr', projId, date);
+  for (let n = 1; n <= MAX_DR_PHOTOS; n++) {
+    const key = _drKey(projId, date, n);
+    const ph  = _cache[key];
+    if (!ph) continue;
+    _drPhotos[n] = ph;
+    const slot = document.getElementById('drPhotoSlot_' + n);
+    if (slot) {
+      slot.innerHTML = `
+        <div style="position:relative;width:100%">
+          <img src="${ph.src}" style="width:100%;height:80px;object-fit:cover;display:block">
+          <span style="position:absolute;top:2px;left:2px;background:rgba(16,185,129,.9);
+            color:#fff;font-size:8px;padding:1px 4px;border-radius:3px;font-weight:600">✓</span>
+          ${_canUpload() ? `<button onclick="window._clearDrPhoto(${n},event,'${projId}','${date}')"
+            style="position:absolute;top:2px;right:2px;background:rgba(239,68,68,.9);
+            color:#fff;border:none;border-radius:50%;width:16px;height:16px;
+            font-size:9px;cursor:pointer;line-height:1;padding:0">✕</button>` : ''}
+        </div>
+        <input type="file" id="drPF_${n}" accept="image/*" style="display:none"
+          onchange="window._loadDrPhoto(${n},this)">`;
+      slot.onclick = null;
+    }
+    const cap = document.getElementById('drCap_' + n);
+    if (cap) cap.value = ph.caption || '';
+  }
+}
+
+window._loadDrPhoto = async function (n, input) {
+  if (!_canUpload()) { toast('Hanya Admin/Editor yang bisa upload foto', 'warn'); return; }
+  const file = input.files[0]; if (!file) return;
+  const projId = $('drInputProj')?.value;
+  const date   = $('drInputDate')?.value;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const base64  = e.target.result;
+    const caption = document.getElementById('drCap_' + n)?.value?.trim() || '';
+    const key     = _drKey(projId, date, n);
+    _cache[key]  = { src: base64, caption, driveUrl: null, driveId: null };
+    _drPhotos[n] = { src: base64, caption };
+    const slot = document.getElementById('drPhotoSlot_' + n);
+    if (slot) {
+      slot.innerHTML = `
+        <div style="position:relative;width:100%">
+          <img src="${base64}" style="width:100%;height:80px;object-fit:cover;display:block">
+          <span id="drBadge_${n}" style="position:absolute;top:2px;left:2px;
+            background:rgba(245,158,11,.9);color:#fff;font-size:8px;
+            padding:1px 4px;border-radius:3px;font-weight:600">⏳</span>
+          <button onclick="window._clearDrPhoto(${n},event,'${projId}','${date}')"
+            style="position:absolute;top:2px;right:2px;background:rgba(239,68,68,.9);
+            color:#fff;border:none;border-radius:50%;width:16px;height:16px;
+            font-size:9px;cursor:pointer;line-height:1;padding:0">✕</button>
+        </div>
+        <input type="file" id="drPF_${n}" accept="image/*" style="display:none"
+          onchange="window._loadDrPhoto(${n},this)">`;
+      slot.onclick = null;
+    }
+    toast(`📸 Foto daily ${n} dimuat, mengupload...`);
+    const res = await _upload('dr', projId, date, n, base64, caption);
+    if (res) {
+      _cache[key].driveUrl = res.driveUrl;
+      _cache[key].driveId  = res.driveId;
+      _cache[key].fromDrive = true;
+      const b = document.getElementById('drBadge_' + n);
+      if (b) { b.textContent = '✓'; b.style.background = 'rgba(16,185,129,.9)'; }
+      toast(`✓ Foto daily ${n} tersimpan di Drive`);
+    } else { toast(`⚠ Foto daily ${n} hanya lokal`, 'warn'); }
+  };
+  reader.readAsDataURL(file);
+};
+
+window._clearDrPhoto = function (n, e, projId, date) {
+  if (e) e.stopPropagation();
+  const key = _drKey(projId, date, n);
+  if (_cache[key]?.driveId) _delete('dr', projId, date, n);
+  delete _cache[key]; delete _drPhotos[n];
+  const slot = document.getElementById('drPhotoSlot_' + n);
+  if (slot) {
+    slot.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="1.5" style="color:var(--mt)">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      <span style="font-size:9px;color:var(--mt);margin-top:2px">Foto ${n}</span>
+      <input type="file" id="drPF_${n}" accept="image/*" style="display:none"
+        onchange="window._loadDrPhoto(${n},this)">`;
+    slot.style.cursor = 'pointer';
+    slot.onclick = () => document.getElementById('drPF_' + n)?.click();
+  }
+  if (document.getElementById('drCap_' + n)) document.getElementById('drCap_' + n).value = '';
+};
+
+// Hook renderDrInputForm
+const _origRenderDrInputForm = window.renderDrInputForm;
+window.renderDrInputForm = function () {
+  _origRenderDrInputForm();
+  const projId = $('drInputProj')?.value;
+  const date   = $('drInputDate')?.value;
+  if (projId && date) setTimeout(() => _injectDrPhotoSection(projId, date), 120);
+};
+
+// Hook saveDrInput — sync caption sebelum save
+const _origSaveDrInput = window.saveDrInput;
+window.saveDrInput = function () {
+  const projId = $('drInputProj')?.value;
+  const date   = $('drInputDate')?.value;
+  for (let n = 1; n <= MAX_DR_PHOTOS; n++) {
+    const cap = document.getElementById('drCap_' + n)?.value?.trim() || '';
+    const key = _drKey(projId, date, n);
+    if (_cache[key]) _cache[key].caption = cap;
+    if (_drPhotos[n]) _drPhotos[n].caption = cap;
+    if (_cache[key]?.driveId) _updateCaption('dr', projId, date, n, cap);
+  }
+  _origSaveDrInput();
+};
+
+})(); // end IIFE
+
+</script>
 </body>
 </html>
