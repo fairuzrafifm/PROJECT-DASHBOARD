@@ -3711,20 +3711,9 @@ function executeCloneProject(){
 }
 
 function _doDelProj(){
-  const pid=editProjId;
-  // Hapus project & semua data terkait dari semua array
-  P=P.filter(p=>p.id!==pid);
-  ISS=ISS.filter(i=>i.projId!==pid);
-  PROC=PROC.filter(p=>p.projId!==pid);
-  COSTS=COSTS.filter(c=>c.projId!==pid);
-  RAB=RAB.filter(r=>r.projId!==pid);
-  WBS=WBS.filter(w=>w.projId!==pid);
-  MPLOGS=MPLOGS.filter(m=>m.projId!==pid);
-  ACCLOGS=ACCLOGS.filter(a=>a.projId!==pid);
-  SCURVE=SCURVE.filter(s=>s.projId!==pid);
-  if(selId===pid)selId=P[0]?.id||null;
+  P=P.filter(p=>p.id!==editProjId);ISS=ISS.filter(i=>i.projId!==editProjId);PROC=PROC.filter(p=>p.projId!==editProjId);
+  if(selId===editProjId)selId=P[0]?.id||null;
   dirty();cm('addProj');render();toast('Project dihapus','warn');
-  gsSync(); // [FIX] sync ke GSheet setelah hapus project
 }
 function saveUpdate(){
   const p=P.find(x=>x.id===selId);if(!p)return;
@@ -8742,7 +8731,7 @@ function generateMpReport(){
     <title>Manpower Report — ${proj?.kode||'All Projects'}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:Arial,sans-serif;color:#1e293b;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:11px}
+      body{font-family:'Inter','Calibri','Segoe UI',Arial,sans-serif;color:#1e293b;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:11px;-webkit-font-smoothing:antialiased}
       @media print{body{padding:0}@page{margin:12mm;size:A4}.pb{page-break-before:always;break-before:page}}
       .pb{page-break-before:always;break-before:page}
       table{width:100%;border-collapse:collapse;font-size:10px}
@@ -9018,10 +9007,27 @@ function generateWeeklyReport(){
 
   const fullHtml=`<!DOCTYPE html><html><head><meta charset="UTF-8">
     <title>Weekly Report W${String(week).padStart(2,'0')}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:Arial,sans-serif;color:#1e293b;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      @media print{body{padding:0}@page{margin:12mm;size:A4}.wr-pb{page-break-before:always;break-before:page}}
+      body{
+        font-family:'Inter','Calibri','Segoe UI',Arial,sans-serif;
+        color:#1e293b;background:#fff;
+        -webkit-print-color-adjust:exact;print-color-adjust:exact;
+        font-size:10px;line-height:1.4;
+        -webkit-font-smoothing:antialiased;
+      }
+      table{font-family:'Inter','Calibri','Segoe UI',Arial,sans-serif;font-size:10px}
+      th{font-family:'Inter','Calibri','Segoe UI',Arial,sans-serif;font-size:9px;font-weight:600}
+      td{font-family:'Inter','Calibri','Segoe UI',Arial,sans-serif;font-size:10px}
+      @media print{
+        body{padding:0}
+        @page{margin:10mm 12mm;size:A4}
+        .wr-pb{page-break-before:always;break-before:page}
+        thead{display:table-header-group}
+        tr{break-inside:avoid;page-break-inside:avoid}
+        img{max-width:100%}
+      }
       .wr-pb{page-break-before:always;break-before:page}
       thead{display:table-header-group}
       tfoot{display:table-footer-group}
@@ -9118,13 +9124,15 @@ function buildWeeklyReportHTML(projId,week){
     :`<div style="width:120px;height:50px;background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#94a3b8">Client Logo</div>`;
   const atwLogoHtml=`<img src="${ATW_LOGO_B64}" style="height:54px;max-width:180px;object-fit:contain">`;
 
+  // Font stack mirip Word/Calibri — Inter (loaded via Google Fonts di fullHtml) → Calibri → Segoe UI
+  const FF=`'Inter','Calibri','Segoe UI',Arial,sans-serif`;
   // Table styles
-  const ts=`border:1px solid #d1d5db;border-collapse:collapse;width:100%;font-size:10px`;
-  const th=`background:#e5e7eb;font-weight:700;padding:4px 6px;border:1px solid #9ca3af;text-align:center;font-size:9px;text-transform:uppercase`;
-  const td=`padding:4px 6px;border:1px solid #d1d5db;vertical-align:top`;
-  const tdc=`padding:4px 6px;border:1px solid #d1d5db;text-align:center;vertical-align:middle`;
+  const ts=`border:1px solid #bfc9d4;border-collapse:collapse;width:100%;font-size:10px;font-family:${FF}`;
+  const th=`background:#dce3ea;font-weight:600;padding:5px 6px;border:1px solid #9aabba;text-align:center;font-size:9px;text-transform:uppercase;letter-spacing:.4px;font-family:${FF}`;
+  const td=`padding:4px 7px;border:1px solid #d0dbe5;vertical-align:top;font-family:${FF}`;
+  const tdc=`padding:4px 7px;border:1px solid #d0dbe5;text-align:center;vertical-align:middle;font-family:${FF}`;
 
-  let html=`<div style="font-family:Arial,sans-serif;color:#1e293b;background:#fff;padding:20px 24px;max-width:100%;font-size:10px">
+  let html=`<div style="font-family:${FF};color:#1e293b;background:#fff;padding:20px 24px;max-width:100%;font-size:10px;line-height:1.45">
 
   <!-- HEADER LOGOS -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:14px;border-bottom:3px solid #f97316">
@@ -9326,7 +9334,7 @@ function buildWeeklyReportHTML(projId,week){
 
   <!-- =========== PAGE 2 =========== -->
   <div class="wr-pb"></div>
-  <div style="font-family:Arial,sans-serif;color:#1e293b;background:#fff;padding:20px 24px;max-width:100%;font-size:10px">
+  <div style="font-family:'Inter','Calibri','Segoe UI',Arial,sans-serif;color:#1e293b;background:#fff;padding:20px 24px;max-width:100%;font-size:10px;line-height:1.45">
 
   <!-- PAGE 2 HEADER -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:3px solid #f97316">
