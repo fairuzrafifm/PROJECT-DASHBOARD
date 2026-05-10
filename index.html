@@ -3711,9 +3711,20 @@ function executeCloneProject(){
 }
 
 function _doDelProj(){
-  P=P.filter(p=>p.id!==editProjId);ISS=ISS.filter(i=>i.projId!==editProjId);PROC=PROC.filter(p=>p.projId!==editProjId);
-  if(selId===editProjId)selId=P[0]?.id||null;
+  const pid=editProjId;
+  // Hapus project & semua data terkait dari semua array
+  P=P.filter(p=>p.id!==pid);
+  ISS=ISS.filter(i=>i.projId!==pid);
+  PROC=PROC.filter(p=>p.projId!==pid);
+  COSTS=COSTS.filter(c=>c.projId!==pid);
+  RAB=RAB.filter(r=>r.projId!==pid);
+  WBS=WBS.filter(w=>w.projId!==pid);
+  MPLOGS=MPLOGS.filter(m=>m.projId!==pid);
+  ACCLOGS=ACCLOGS.filter(a=>a.projId!==pid);
+  SCURVE=SCURVE.filter(s=>s.projId!==pid);
+  if(selId===pid)selId=P[0]?.id||null;
   dirty();cm('addProj');render();toast('Project dihapus','warn');
+  gsSync(); // [FIX] sync ke GSheet setelah hapus project
 }
 function saveUpdate(){
   const p=P.find(x=>x.id===selId);if(!p)return;
