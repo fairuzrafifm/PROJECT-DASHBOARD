@@ -10358,7 +10358,7 @@ document.addEventListener('visibilitychange',()=>{
 (function () {
 'use strict';
 
-const MAX_WR_PHOTOS = 12;
+const MAX_WR_PHOTOS = 6;
 const MAX_DR_PHOTOS = 6;
 const COMPRESS_MAX_PX = 1024;
 const COMPRESS_QUALITY = 0.82;
@@ -10639,23 +10639,23 @@ window.buildWeeklyReportHTML = function (projId, week) {
 
   // Build 12 foto dalam 2 baris × 6
   const rows = [0,1].map(row => {
-    const cols = Array.from({length:6}, (_,col) => {
+    const cols = Array.from({length:3}, (_,col) => {
       const n  = row * 6 + col + 1;
       const ph = window.wrPhotos[n];
-      if (ph && ph.src) {
+      if (ph && ph.src) {width:100%;height:200px;object-fit:cover;display:block;background:#f8fafc
         return `<div style="border:1px solid #e2e8f0;border-radius:5px;overflow:hidden">
-          <img src="${ph.src}" style="width:100%;height:110px;object-fit:cover;display:block;background:#f8fafc">
+          <img src="${ph.src}" style="">
           <div style="padding:3px 5px;font-size:8px;color:#374151;background:#f8fafc;
             border-top:1px solid #e2e8f0;min-height:16px">${ph.caption || 'Foto ' + n}</div>
         </div>`;
       }
-      return `<div style="border:1px dashed #e2e8f0;border-radius:5px;height:126px;
+      return `<div style="border:1px dashed #e2e8f0;border-radius:5px;height:200px;
         display:flex;align-items:center;justify-content:center;background:#f8fafc">
         <span style="font-size:8px;color:#e2e8f0">Foto ${n}</span>
       </div>`;
     }).join('');
-    return `<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:5px">${cols}</div>`;
-  }).join('');
+    return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">${cols}</div>`;
+  }).join('')
 
   const newSection = `<!-- DOCUMENTATION PHOTOS SECTION -->
   <div style="background:#374151;color:#fff;text-align:center;padding:5px;font-weight:700;font-size:11px;margin-bottom:8px">
